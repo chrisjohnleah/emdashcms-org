@@ -1,17 +1,215 @@
 ---
+const title = "emdashcms.org — Community plugins and themes for EmDash CMS";
+const description = "An open, free, and secure plugin and theme registry for the EmDash CMS ecosystem. Built by the community, for the community.";
+const url = "https://emdashcms.org";
 ---
-<html lang="en">
+<html lang="en" class="scroll-smooth">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EmDash Registry — Community plugins and themes for EmDash CMS</title>
-    <meta name="description" content="The community plugin and theme registry for EmDash CMS. Open source, free to list, community governed." />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+
+    <!-- OG -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={url} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={`${url}/og.svg`} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={`${url}/og.svg`} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Fonts — swap to avoid layout shift -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
     <link rel="stylesheet" href="../styles/global.css" />
   </head>
-  <body class="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
-    <div class="text-center px-6">
-      <h1 class="text-4xl font-bold tracking-tight">EmDash Registry</h1>
-      <p class="mt-4 text-zinc-400 text-lg">Community plugins and themes for EmDash CMS. Coming soon.</p>
-    </div>
+  <body class="bg-zinc-950 text-zinc-100 antialiased font-sans">
+
+    <!-- ====== HEADER ====== -->
+    <header class="fixed top-0 inset-x-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md">
+      <div class="mx-auto max-w-5xl flex items-center justify-between px-6 h-14">
+        <a href="/" class="flex items-center gap-2 text-zinc-100 font-semibold text-sm tracking-tight">
+          <span class="text-zinc-500 font-mono text-lg leading-none" aria-hidden="true">—</span>
+          emdashcms.org
+        </a>
+        <div class="flex items-center gap-4">
+          <span class="hidden sm:inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 text-[11px] text-zinc-500 font-medium tracking-wide uppercase">
+            Community project
+          </span>
+          <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+            GitHub
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+
+      <!-- ====== HERO ====== -->
+      <section class="pt-32 pb-20 sm:pt-40 sm:pb-28 px-6">
+        <div class="mx-auto max-w-3xl text-center">
+          <h1 class="text-3xl sm:text-5xl font-bold tracking-tight leading-[1.15]">
+            The community home for<br />EmDash plugins and themes
+          </h1>
+          <p class="mt-6 text-base sm:text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto">
+            An open, free, and secure registry for the EmDash&nbsp;CMS ecosystem&thinsp;—&thinsp;built by the community, for the community. Think wordpress.org, but without 20&nbsp;years of baggage.
+          </p>
+          <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z"/></svg>
+              Star on GitHub
+            </a>
+            <a href="#notify"
+               class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+              Get notified at launch
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== WHAT WE'RE BUILDING ====== -->
+      <section class="pb-20 sm:pb-28 px-6">
+        <div class="mx-auto max-w-5xl grid gap-4 sm:grid-cols-3">
+
+          <!-- Plugins -->
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-800 mb-4">
+              <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .657-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z"/></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-zinc-100">Plugin Registry</h3>
+            <p class="mt-2 text-sm text-zinc-500 leading-relaxed">
+              Discover and share EmDash plugins. Every plugin is manifest-validated, capability-scanned, and immutably published. No silent updates.
+            </p>
+          </div>
+
+          <!-- Themes -->
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-800 mb-4">
+              <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z"/></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-zinc-100">Theme Directory</h3>
+            <p class="mt-2 text-sm text-zinc-500 leading-relaxed">
+              Astro-based EmDash themes. Browse, preview, and install. Free to list, forever.
+            </p>
+          </div>
+
+          <!-- Open -->
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-800 mb-4">
+              <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008ZM6.75 14.25h.008v.008H6.75v-.008Z"/></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-zinc-100">Free &amp; Open</h3>
+            <p class="mt-2 text-sm text-zinc-500 leading-relaxed">
+              Hosted entirely on Cloudflare's free tier. No&nbsp;ads, no&nbsp;paid placement, no&nbsp;VC&nbsp;funding. The infrastructure cost is approximately &pound;0/month.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ====== HONEST INTENT STATEMENT ====== -->
+      <section class="py-20 sm:py-28 px-6 border-y border-zinc-800/60 bg-zinc-900/30">
+        <div class="mx-auto max-w-2xl">
+          <h2 class="text-lg font-semibold text-zinc-100 mb-6">A note on this domain</h2>
+          <div class="space-y-4 text-sm text-zinc-400 leading-relaxed">
+            <p>
+              emdashcms.org was registered on April&nbsp;1st&nbsp;2026&thinsp;—&thinsp;the same day EmDash launched&thinsp;—&thinsp;with the intention of building a community plugin and theme registry. This site is not affiliated with Cloudflare or the EmDash project.
+            </p>
+            <p>
+              The .org reflects intent: this is meant to be the community layer, in the same way wordpress.org serves the WordPress community independently of Automattic.
+            </p>
+            <p>
+              If you're from the EmDash team and want to talk about how this should work&thinsp;—&thinsp;governance, domain ownership, collaboration&thinsp;—&thinsp;please get in touch. This project succeeds best with your blessing, not despite it.
+            </p>
+            <p>
+              Everything built here will be open source, free to use, and governed transparently. That's not a marketing line&thinsp;—&thinsp;it's the only way this makes sense.
+            </p>
+          </div>
+          <a href="mailto:hello@emdashcms.org" class="inline-flex items-center gap-1 mt-8 text-sm font-medium text-zinc-100 hover:text-white transition-colors">
+            Get in touch &rarr; hello@emdashcms.org
+          </a>
+        </div>
+      </section>
+
+      <!-- ====== HOW SUBMISSIONS WORK ====== -->
+      <section class="py-20 sm:py-28 px-6">
+        <div class="mx-auto max-w-5xl">
+          <h2 class="text-lg font-semibold text-zinc-100 text-center mb-12">How submissions will work</h2>
+          <div class="grid gap-8 sm:grid-cols-3">
+            <div class="text-center">
+              <div class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-zinc-700 text-xs font-mono font-medium text-zinc-400 mb-4">1</div>
+              <p class="text-sm text-zinc-300 leading-relaxed">Submit your GitHub repo via pull request</p>
+            </div>
+            <div class="text-center">
+              <div class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-zinc-700 text-xs font-mono font-medium text-zinc-400 mb-4">2</div>
+              <p class="text-sm text-zinc-300 leading-relaxed">We validate your manifest and capabilities</p>
+            </div>
+            <div class="text-center">
+              <div class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-zinc-700 text-xs font-mono font-medium text-zinc-400 mb-4">3</div>
+              <p class="text-sm text-zinc-300 leading-relaxed">Listed publicly&thinsp;—&thinsp;you keep your license</p>
+            </div>
+          </div>
+          <p class="mt-10 text-center text-xs text-zinc-600">
+            Supports public and private/commercial plugins. Listing is always free.
+          </p>
+        </div>
+      </section>
+
+      <!-- ====== EMAIL CAPTURE ====== -->
+      <section id="notify" class="pb-20 sm:pb-28 px-6">
+        <div class="mx-auto max-w-md text-center">
+          <h2 class="text-lg font-semibold text-zinc-100 mb-2">Get notified when we launch</h2>
+          <p class="text-sm text-zinc-500 mb-8">No spam. Just a launch announcement.</p>
+          <form action="#" method="POST" class="flex gap-2">
+            <label for="email" class="sr-only">Email address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="you@example.com"
+              autocomplete="email"
+              class="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600"
+            />
+            <button
+              type="submit"
+              class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors shrink-0"
+            >
+              Notify me
+            </button>
+          </form>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ====== FOOTER ====== -->
+    <footer class="border-t border-zinc-800/60 px-6 py-10">
+      <div class="mx-auto max-w-5xl">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-zinc-600">
+          <span>emdashcms.org&ensp;&mdash;&ensp;Community Registry for EmDash&nbsp;CMS</span>
+          <span class="text-center">Not affiliated with Cloudflare or the EmDash project</span>
+          <div class="flex items-center gap-4">
+            <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-400 transition-colors">GitHub</a>
+            <a href="mailto:hello@emdashcms.org" class="hover:text-zinc-400 transition-colors">Contact</a>
+            <a href="https://github.com/chrisjohnleah/emdashcms-org/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-400 transition-colors">MIT License</a>
+          </div>
+        </div>
+        <p class="mt-6 text-center text-[11px] text-zinc-700">
+          Built on Cloudflare Workers&ensp;&middot;&ensp;Open Source&ensp;&middot;&ensp;MIT License
+        </p>
+      </div>
+    </footer>
+
   </body>
 </html>
