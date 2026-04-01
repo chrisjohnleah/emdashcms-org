@@ -1,0 +1,2 @@
+-- EmDash Registry schema
+-- Will be designed during planning phase

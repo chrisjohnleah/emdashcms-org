@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "emdashcms-org",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2025-04-01",
+  "assets": {
+    "directory": "./dist/client"
+  },
+
+  // D1 — primary datastore for registry
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "emdashcms-org",
+      "database_id": "bcf2073c-1006-4b8f-9700-daf3325f63eb"
+    }
+  ],
+
+  // R2 — plugin/theme artifact storage (zero egress)
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "emdashcms-org-artifacts"
+    }
+  ],
+
+  // KV — read-only cache (1K writes/day free tier limit)
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "8986ecd0a90d42a0a4265dc0c2293a7a"
+    }
+  ]
+}
