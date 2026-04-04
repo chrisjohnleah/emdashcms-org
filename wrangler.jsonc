@@ -53,7 +53,7 @@
 
   // GitHub OAuth App client ID (not a secret — safe as a var)
   "vars": {
-    "GITHUB_CLIENT_ID": "YOUR_GITHUB_OAUTH_APP_CLIENT_ID"
+    "GITHUB_CLIENT_ID": "Ov23liIu0eF3FtxoIcYU"
   },
 
   // Secrets set via: wrangler secret put <NAME>
