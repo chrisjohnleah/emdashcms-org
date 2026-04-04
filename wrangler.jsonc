@@ -1,13 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "emdashcms-org",
-  "main": "@astrojs/cloudflare/entrypoints/server",
+  "main": "src/worker.ts",
   "compatibility_date": "2025-04-01",
   "assets": {
     "directory": "./dist/client"
   },
 
-  // D1 — primary datastore for registry
   "d1_databases": [
     {
       "binding": "DB",
@@ -16,7 +15,6 @@
     }
   ],
 
-  // R2 — plugin/theme artifact storage (zero egress)
   "r2_buckets": [
     {
       "binding": "ARTIFACTS",
@@ -24,11 +22,32 @@
     }
   ],
 
-  // KV — read-only cache (1K writes/day free tier limit)
   "kv_namespaces": [
     {
       "binding": "CACHE",
       "id": "8986ecd0a90d42a0a4265dc0c2293a7a"
     }
-  ]
+  ],
+
+  "queues": {
+    "producers": [
+      {
+        "binding": "AUDIT_QUEUE",
+        "queue": "emdashcms-audit"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "emdashcms-audit",
+        "max_batch_size": 1,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "emdashcms-audit-dlq"
+      }
+    ]
+  },
+
+  "ai": {
+    "binding": "AI"
+  }
 }

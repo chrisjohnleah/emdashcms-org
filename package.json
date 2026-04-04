@@ -6,10 +6,17 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "wrangler types && astro dev",
+    "dev:worker": "astro build && wrangler dev",
+    "build": "wrangler types && astro check && astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:create-migration": "wrangler d1 migrations create emdashcms-org",
+    "db:migrate:local": "wrangler d1 migrations apply emdashcms-org --local",
+    "db:migrate:remote": "wrangler d1 migrations apply emdashcms-org --remote",
+    "types": "wrangler types",
     "astro": "astro"
   },
   "dependencies": {
@@ -17,8 +24,10 @@
     "astro": "^6.1.2"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.14.1",
     "@tailwindcss/postcss": "^4.2.2",
     "postcss": "^8.5.8",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "vitest": "^4.1.2"
   }
 }
