@@ -14,6 +14,7 @@ export default defineConfig({
       miniflare: {
         bindings: {
           TEST_MIGRATIONS: migrations,
+          JWT_SECRET: "test-jwt-secret-at-least-32-characters-long-for-hs256",
         },
       },
     }),
