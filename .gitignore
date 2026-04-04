@@ -25,4 +25,9 @@ pnpm-debug.log*
 
 # wrangler
 .wrangler/
+
+# planning (local-only, not for public repo)
 .planning/
+
+# editor settings
+.vscode/
