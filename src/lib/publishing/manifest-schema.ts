@@ -95,8 +95,8 @@ export type ValidatedManifest = z.infer<typeof manifestSchema>;
 /**
  * Extract user-friendly error messages from a Zod/mini validation error.
  */
-export function formatManifestErrors(error: z.ZodMiniError): string[] {
-  return error.issues.map((issue) => {
+export function formatManifestErrors(error: z.core.$ZodError): string[] {
+  return error.issues.map((issue: z.core.$ZodIssue) => {
     const path = issue.path?.length ? issue.path.join(".") : "root";
     return `${path}: ${issue.message}`;
   });
