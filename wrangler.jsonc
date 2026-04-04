@@ -49,5 +49,16 @@
 
   "ai": {
     "binding": "AI"
+  },
+
+  // GitHub OAuth App client ID (not a secret — safe as a var)
+  "vars": {
+    "GITHUB_CLIENT_ID": "YOUR_GITHUB_OAUTH_APP_CLIENT_ID"
+  },
+
+  // Secrets set via: wrangler secret put <NAME>
+  // In dev, provide these in .dev.vars (already gitignored)
+  "secrets": {
+    "required": ["GITHUB_CLIENT_SECRET", "JWT_SECRET"]
   }
 }
