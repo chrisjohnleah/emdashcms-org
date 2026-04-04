@@ -1,0 +1,147 @@
+import type {
+  MarketplaceAuthor,
+  MarketplaceAuditSummary,
+  MarketplaceAuditDetail,
+  MarketplacePluginSummary,
+  MarketplacePluginDetail,
+  MarketplaceVersionSummary,
+  MarketplaceThemeSummary,
+  MarketplaceThemeDetail,
+} from "../../types/marketplace";
+
+type Row = Record<string, unknown>;
+
+export function mapAuthor(row: Row): MarketplaceAuthor {
+  return {
+    name: row.github_username as string,
+    verified: Boolean(row.verified),
+    avatarUrl: (row.avatar_url as string) ?? null,
+  };
+}
+
+export function mapAuditSummary(row: Row): MarketplaceAuditSummary | null {
+  if (!row.verdict) return null;
+  return {
+    verdict: row.verdict as "pass" | "warn" | "fail",
+    riskScore: row.risk_score as number,
+  };
+}
+
+export function mapAuditDetail(row: Row): MarketplaceAuditDetail | null {
+  if (!row.verdict) return null;
+  return {
+    verdict: row.verdict as "pass" | "warn" | "fail",
+    riskScore: row.risk_score as number,
+    findings: JSON.parse((row.findings as string) || "[]"),
+  };
+}
+
+export function mapPluginSummary(row: Row): MarketplacePluginSummary {
+  const latestVersion = row.latest_version
+    ? {
+        version: row.latest_version as string,
+        audit: row.latest_audit_verdict
+          ? {
+              verdict: row.latest_audit_verdict as "pass" | "warn" | "fail",
+              riskScore: (row.latest_audit_risk_score as number) ?? 0,
+            }
+          : null,
+      }
+    : null;
+
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string) ?? null,
+    author: mapAuthor(row),
+    capabilities: JSON.parse((row.capabilities as string) || "[]"),
+    keywords: JSON.parse((row.keywords as string) || "[]"),
+    installCount: (row.installs_count as number) ?? 0,
+    hasIcon: row.icon_key !== null,
+    iconUrl: null, // Download endpoints in Phase 6
+    latestVersion,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export function mapPluginDetail(
+  pluginRow: Row,
+  versionRow: Row | null,
+): MarketplacePluginDetail {
+  const base = mapPluginSummary(pluginRow);
+
+  let latestVersion: MarketplacePluginDetail["latestVersion"] = null;
+  if (versionRow) {
+    const manifest = JSON.parse((versionRow.manifest as string) || "{}");
+    latestVersion = {
+      version: versionRow.version as string,
+      bundleSize: (versionRow.compressed_size as number) ?? 0,
+      checksum: (versionRow.checksum as string) ?? "",
+      changelog: (versionRow.changelog as string) ?? null,
+      readme: (versionRow.readme as string) ?? null,
+      screenshots: [], // No screenshot storage yet
+      capabilities: Array.isArray(manifest.capabilities)
+        ? manifest.capabilities
+        : [],
+      status: versionRow.status as
+        | "pending"
+        | "published"
+        | "flagged"
+        | "rejected",
+      audit: mapAuditDetail(versionRow),
+      imageAudit: null, // No image audit system in v1
+    };
+  }
+
+  return {
+    ...base,
+    repositoryUrl: (pluginRow.repository_url as string) ?? null,
+    homepageUrl: (pluginRow.homepage_url as string) ?? null,
+    license: (pluginRow.license as string) ?? null,
+    latestVersion,
+  };
+}
+
+export function mapVersionSummary(row: Row): MarketplaceVersionSummary {
+  const manifest = JSON.parse((row.manifest as string) || "{}");
+  return {
+    version: row.version as string,
+    minEmDashVersion: (row.min_emdash_version as string) ?? null,
+    bundleSize: (row.compressed_size as number) ?? 0,
+    checksum: (row.checksum as string) ?? "",
+    changelog: (row.changelog as string) ?? null,
+    capabilities: Array.isArray(manifest.capabilities)
+      ? manifest.capabilities
+      : [],
+    status: row.status as "pending" | "published" | "flagged" | "rejected",
+    auditVerdict: (row.verdict as "pass" | "warn" | "fail") ?? null,
+    imageAuditVerdict: null, // No image audit system in v1
+    publishedAt: ((row.published_at ?? row.created_at) as string),
+  };
+}
+
+export function mapThemeSummary(row: Row): MarketplaceThemeSummary {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string) ?? null,
+    author: mapAuthor(row),
+    keywords: JSON.parse((row.keywords as string) || "[]"),
+    previewUrl: (row.preview_url as string) ?? null,
+    demoUrl: (row.demo_url as string) ?? null,
+    hasThumbnail: row.thumbnail_key !== null,
+    thumbnailUrl: null, // Download endpoints in Phase 6
+  };
+}
+
+export function mapThemeDetail(row: Row): MarketplaceThemeDetail {
+  return {
+    ...mapThemeSummary(row),
+    repositoryUrl: (row.repository_url as string) ?? null,
+    homepageUrl: (row.homepage_url as string) ?? null,
+    license: (row.license as string) ?? null,
+    screenshotCount: 0, // No screenshot storage yet
+    screenshotUrls: [], // No screenshot storage yet
+  };
+}
