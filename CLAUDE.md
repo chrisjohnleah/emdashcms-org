@@ -1,146 +1,74 @@
-<!-- GSD:project-start source:PROJECT.md -->
-## Project
+# Project Guide
 
-**EmDash CMS Community Marketplace**
+## What This Is
 
-A community-run plugin and theme marketplace for EmDash CMS, deployed at emdashcms.org. Implements the exact same API contract as the official (but undeployed) marketplace, so any EmDash installation can point at it via `createMarketplaceClient(baseUrl)`. Built entirely on Cloudflare's free tier. The plan is to ship it first, then offer the code upstream to emdash-cms/emdash.
+A community-run plugin and theme marketplace for EmDash CMS, deployed at emdashcms.org. Implements the exact same API contract as the official (but undeployed) marketplace, so any EmDash installation can point at it via `createMarketplaceClient(baseUrl)`. Built entirely on Cloudflare's free tier.
 
 **Core Value:** EmDash plugin authors have a working, secure marketplace to publish to and EmDash site owners can discover and install community plugins — before the official marketplace ships.
 
-### Constraints
+## Constraints
 
 - **Infrastructure**: Cloudflare free tier only — Workers (100K req/day, 10ms CPU), D1 (5M reads/day, 100K writes/day, 5GB), R2 (10GB, free egress), KV (100K reads/day, 1K writes/day), Workers AI (10K neurons/day)
-- **API compatibility**: Must match the MarketplaceClient interface in packages/core/src/plugins/marketplace.ts exactly — response shapes, endpoint paths, query params
+- **API compatibility**: Must match the MarketplaceClient interface from emdash-cms/emdash exactly — response shapes, endpoint paths, query params
 - **Public repo**: Everything visible. No secrets in code, no embarrassing artifacts, no sloppy commits
 - **Cost protection**: Workers AI usage must be capped and rate-limited before any audit endpoint goes live
 - **Security**: Fail-closed audit model — if audit fails/errors, version is rejected, never silently published
-<!-- GSD:project-end -->
 
-<!-- GSD:stack-start source:research/STACK.md -->
-## Technology Stack
-
-## Decision: Native Astro API Routes (NOT Hono)
-- This project uses **Astro native API routes** (`export const GET`, `export const POST`) for all API endpoints. Hono is NOT used.
-- The initial STACK.md recommended Hono, but ARCHITECTURE.md research (conducted after STACK.md) identified mounting Hono inside Astro as **Anti-Pattern 1**: it adds a second routing layer, doubles middleware complexity, and creates confusion about which framework owns what.
-- Astro's file-based routing already maps 1:1 to the MarketplaceClient contract paths (`src/pages/api/v1/plugins/index.ts` -> `GET /api/v1/plugins`).
-- Use Astro middleware for cross-cutting concerns (auth, CORS, rate limiting) when needed in later phases.
-- The official EmDash marketplace uses Hono because it is a standalone Worker, not an Astro project. Our architecture is different.
-- Bindings accessed via `import { env } from 'cloudflare:workers'` in route handlers.
-## Recommended Stack
-### HTTP Framework
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Astro | ^6.1 | SSR framework with native API routes + browsing UI | File-based routing maps 1:1 to API contract. SSR pages for plugin browsing, publisher dashboard. First-class Cloudflare Workers support in v6. |
-| @astrojs/cloudflare | ^13.1 | Astro adapter for Workers | Already installed. Provides `cloudflare:workers` env import, workerd-based dev. |
-### Validation
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| zod | ^4.3 (zod/mini) | Schema validation for manifests, requests | Official marketplace uses Zod. Zod 4 is 6.5x faster than v3. Use `zod/mini` for edge -- 85% smaller bundle (~2KB gzipped vs ~15KB). Functional API tree-shakes properly. |
-### Authentication
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| jose | ^6.2 | JWT signing/verification | Official marketplace uses jose. Zero dependencies. Works on all Web-interoperable runtimes including Cloudflare Workers. Uses Web Crypto API (no Node.js crypto dependency). Supports HS256, RS256, ES256 and more. |
-- **Web flow** (browser publishers): Redirect to `github.com/login/oauth/authorize`, exchange code at `github.com/login/oauth/access_token`, fetch user from `api.github.com/user`. Standard 3-leg OAuth.
-- **Device flow** (CLI `emdash plugin publish`): POST to `github.com/login/device/code`, display user code + verification URL, poll `github.com/login/oauth/access_token` with device code until authorized. Must enable device flow in GitHub OAuth app settings.
-- **Session tokens:** After OAuth, mint a JWT with jose (sign with `HS256` using a Worker secret). Subsequent API calls pass `Authorization: Bearer <jwt>`. Use Astro middleware or a shared helper using jose to verify on every request.
-- **Store author identity in D1:** On first OAuth, create author record (github_id, username, avatar_url). JWT payload includes `{ sub: github_id, username }`.
-### Tarball Parsing
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| modern-tar | ^0.7 | Parse plugin .tar.gz bundles | Official marketplace uses modern-tar. Zero dependencies. Built for Web Streams API (not Node.js streams). Explicitly supports Cloudflare Workers. Provides `createGzipDecoder()` + `createTarDecoder()` for streaming decompression + extraction without buffering entire archive. |
-### Database & Storage
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Cloudflare D1 | (binding) | Primary datastore | Free tier: 5M reads/day, 100K writes/day, 5GB. SQLite-based. Already bound as `DB`. Sufficient for a marketplace with <1000 plugins. |
-| Cloudflare R2 | (binding) | Artifact storage (bundles, screenshots) | Free tier: 10GB storage, zero egress. Already bound as `ARTIFACTS`. Plugin tarballs stored here. |
-| Cloudflare KV | (binding) | Rate limiting, caching | Free tier: 100K reads/day, 1K writes/day. Already bound as `CACHE`. Use for rate limit counters (5 versions/author/day), daily neuron cap tracking, and hot-path caching. |
-- Migrations live in `migrations/` directory as numbered `.sql` files (e.g., `0001_initial_schema.sql`)
-- Apply locally: `wrangler d1 migrations apply DB --local`
-- Apply to production: `wrangler d1 migrations apply DB --remote`
-- Wrangler tracks applied migrations in a `d1_migrations` table automatically
-- If a migration fails, it rolls back -- the previous state is preserved
-- Use `PRAGMA defer_foreign_keys = true` when migrations modify foreign key relationships
-### AI Integration
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Workers AI | (binding: `@cf/qwen/qwq-32b`) | Code audit for plugin submissions | Official marketplace uses same model. 24K token context window. Free tier: 10,000 neurons/day. Pricing beyond free: $0.66/M input tokens, $1.00/M output tokens. |
-- Track daily neuron usage in KV (increment per audit, reset at UTC midnight)
-- Hard cap at ~8,000 neurons/day to leave headroom
-- Rate limit: max 5 version submissions per author per day (also KV)
-- If cap exceeded, return 503 with `Retry-After` header -- never silently skip audits
-### Infrastructure & Tooling
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Wrangler | ^4.80 | CLI for dev, deploy, D1 migrations | Official Cloudflare CLI. Astro 6 + @astrojs/cloudflare use it under the hood. |
-| TypeScript | ^5.7 | Type safety | Required by Astro 6 (Node 22+). |
-| Tailwind CSS | ^4.2 | UI styling | Already installed. Used for browsing UI and publisher dashboard. |
-### Testing
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Vitest | ^4.1 | Test runner | Required by @cloudflare/vitest-pool-workers. Vitest 4.1 requires Vite >= 6.0 and Node >= 20. |
-| @cloudflare/vitest-pool-workers | ^0.13 | Run tests inside workerd runtime | Tests execute in the actual Workers runtime with real D1, R2, KV bindings (local miniflare). No mocking storage layers. Apply D1 migrations in test setup via `applyD1Migrations()`. |
-- **Unit tests:** Validate Zod schemas, utility functions, JWT logic. Run in workerd via vitest-pool-workers.
-- **Integration tests:** Test query functions against real D1/R2/KV bindings. Apply migrations before each test suite. Each test file gets isolated storage.
-- **No e2e browser tests for v1.** The API is the product -- test it thoroughly. UI is secondary.
-## Alternatives Considered
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| API framework | Native Astro API routes | Hono sub-router inside Astro | ARCHITECTURE.md Anti-Pattern 1: adds second routing layer, doubles middleware complexity. Astro file-based routing maps 1:1 to contract paths. Hono is appropriate for standalone Workers (like the official marketplace), not for Astro projects. |
-| API framework | Native Astro API routes | Express/Fastify | Not designed for edge. Depend on Node.js APIs unavailable in Workers. |
-| Validation | zod/mini | Full zod | ~15KB bundle vs ~2KB. Same API shape, worse tree-shaking. |
-| Validation | zod/mini | Valibot | Smaller bundle (1.4KB), but official marketplace uses Zod. Compatibility > marginal size win. |
-| JWT | jose | @tsndr/cloudflare-worker-jwt | jose is more complete (JWE, JWK, JWKS), battle-tested, used by official marketplace. cloudflare-worker-jwt is simpler but less maintained. |
-| Tarball | modern-tar | node-tar | node-tar depends on Node.js fs/streams -- does not run in Workers. Has known CVEs in 2026. |
-| Tarball | modern-tar | tar-stream | Node.js streams, not Web Streams. Would need polyfill shims in Workers. |
-| ORM | None (raw D1 SQL) | Drizzle | Added complexity, migration tooling conflicts with Wrangler's built-in migrations, bundle bloat. 6 tables don't justify an ORM. |
-| ORM | None (raw D1 SQL) | Prisma | Does not support D1. |
-| Auth | Manual OAuth + jose | better-auth | Heavier abstraction. We need exactly two flows (web + device). Manual implementation is ~200 lines total and fully transparent. |
-| Testing | @cloudflare/vitest-pool-workers | Miniflare standalone | vitest-pool-workers supersedes standalone miniflare for testing. Same engine, better DX with Vitest APIs. |
-## Sources
-- [Astro Cloudflare integration docs](https://docs.astro.build/en/guides/integrations-guide/cloudflare/) -- HIGH confidence
-- [Astro 6.0 release blog](https://astro.build/blog/astro-6/) -- HIGH confidence
-- [modern-tar GitHub](https://github.com/ayuhito/modern-tar) -- HIGH confidence
-- [jose GitHub](https://github.com/panva/jose) -- HIGH confidence
-- [Zod v4 release notes](https://zod.dev/v4) -- HIGH confidence
-- [Zod Mini docs](https://zod.dev/packages/mini) -- HIGH confidence
-- [D1 migrations docs](https://developers.cloudflare.com/d1/reference/migrations/) -- HIGH confidence
-- [Workers AI QwQ-32B model](https://developers.cloudflare.com/workers-ai/models/qwq-32b/) -- HIGH confidence
-- [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) -- HIGH confidence
-- [Vitest integration for Workers](https://developers.cloudflare.com/workers/testing/vitest-integration/) -- HIGH confidence
-- [GitHub OAuth device flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) -- HIGH confidence
-- [Cloudflare Workers free tier limits](https://developers.cloudflare.com/workers/platform/limits/) -- HIGH confidence
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
-## Conventions
-
-Conventions not yet established. Will populate as patterns emerge during development.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
 ## Architecture
 
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
+- **API framework**: Native Astro API routes (`export const GET`, `export const POST`). NOT Hono. File-based routing maps 1:1 to the MarketplaceClient contract paths.
+- **Custom worker entry**: `src/worker.ts` exports both `fetch` (Astro handler) and `queue` (audit pipeline) handlers via `@astrojs/cloudflare/handler`.
+- **Bindings**: Access via `import { env } from 'cloudflare:workers'` in all route handlers.
+- **All pages**: Use `export const prerender = false` for SSR (required for Cloudflare bindings).
 
-<!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
+## Technology Stack
 
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+| Technology | Purpose |
+|------------|---------|
+| Astro 6 + @astrojs/cloudflare | SSR framework with native API routes + browsing UI |
+| TypeScript | Type safety throughout |
+| Zod 4 (zod/mini) | Schema validation for manifests and requests |
+| jose | JWT signing/verification for auth |
+| modern-tar | Parse plugin .tar.gz bundles in Workers |
+| D1 | Primary datastore (SQLite-based, free tier) |
+| R2 | Artifact storage — plugin bundles, screenshots (zero egress) |
+| KV | Read-heavy caching only (1K writes/day limit — do NOT use for counters) |
+| Workers AI | Code audit (`@cf/google/gemma-4-26b-a4b-it`) |
+| Cloudflare Queues | Async audit pipeline |
+| Vitest + @cloudflare/vitest-pool-workers | Tests run in actual workerd runtime |
+| Tailwind CSS 4 | UI styling |
 
-Use these entry points:
-- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd:debug` for investigation and bug fixing
-- `/gsd:execute-phase` for planned phase work
+## Key Decisions
 
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
+- **No Hono**: Astro file-based routing is sufficient. Hono adds a redundant routing layer.
+- **No ORM**: Raw D1 SQL. 6 tables don't justify Drizzle/Prisma overhead.
+- **Rate limiting in D1, not KV**: KV has 1K writes/day on free tier — insufficient for counters. D1 has 100K writes/day.
+- **Keyset cursor pagination**: Base64-encoded `(sort_column, id)` tuples with `LIMIT N+1` trick.
+- **Audit model**: `@cf/google/gemma-4-26b-a4b-it` (MoE, 4B active params, 256K context, cheaper per audit than qwq-32b).
 
+## Database
 
+Migrations in `migrations/` directory. Apply locally: `wrangler d1 migrations apply emdashcms-org --local`. Apply to production: `wrangler d1 migrations apply emdashcms-org --remote`.
 
-<!-- GSD:profile-start -->
-## Developer Profile
+Seed data: `npm run db:seed` (applies `seeds/dev.sql`).
 
-> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+## Testing
+
+```bash
+npm test              # run all tests
+npm run build         # wrangler types && astro check && astro build
+npm run dev:worker    # astro build && wrangler dev (custom worker entry)
+```
+
+Tests use `@cloudflare/vitest-pool-workers` — real D1/R2/KV bindings, no mocking.
+
+## Scripts
+
+| Script | Command |
+|--------|---------|
+| `dev` | `astro dev` |
+| `dev:worker` | `astro build && wrangler dev` |
+| `build` | `wrangler types && astro check && astro build` |
+| `test` | `vitest run` |
+| `deploy` | `astro build && wrangler deploy` |
+| `db:seed` | `wrangler d1 execute emdashcms-org --local --file=seeds/dev.sql` |
