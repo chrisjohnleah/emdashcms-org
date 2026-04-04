@@ -1,0 +1,21 @@
+---
+export const prerender = false;
+const author = Astro.locals.author;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard - EmDash Marketplace</title>
+  </head>
+  <body>
+    <h1>Publisher Dashboard</h1>
+    <p>Welcome, {author?.username}!</p>
+    <p>GitHub ID: {author?.githubId}</p>
+    <form method="POST" action="/api/v1/auth/logout">
+      <button type="submit">Logout</button>
+    </form>
+  </body>
+</html>
