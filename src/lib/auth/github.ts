@@ -31,13 +31,13 @@ export interface DeviceTokenResponse {
 
 /**
  * Returns the OAuth callback URL based on environment.
- * Dev: http://localhost:4321/api/auth/callback
- * Prod: https://emdashcms.org/api/auth/callback
+ * Dev: http://localhost:4321/api/v1/auth/callback
+ * Prod: https://emdashcms.org/api/v1/auth/callback
  */
 export function getCallbackUrl(): string {
   return import.meta.env.PROD
-    ? "https://emdashcms.org/api/auth/callback"
-    : "http://localhost:4321/api/auth/callback";
+    ? "https://emdashcms.org/api/v1/auth/callback"
+    : "http://localhost:4321/api/v1/auth/callback";
 }
 
 /**
