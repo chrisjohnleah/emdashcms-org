@@ -1,74 +1,102 @@
-# Project Guide
+# CLAUDE.md
 
-## What This Is
+This file is loaded into every Claude Code session. It contains behavioral rules, project context, and lessons learned.
 
-A community-run plugin and theme marketplace for EmDash CMS, deployed at emdashcms.org. Implements the exact same API contract as the official (but undeployed) marketplace, so any EmDash installation can point at it via `createMarketplaceClient(baseUrl)`. Built entirely on Cloudflare's free tier.
+## Principles
 
-**Core Value:** EmDash plugin authors have a working, secure marketplace to publish to and EmDash site owners can discover and install community plugins — before the official marketplace ships.
+### 1. Public Repo Standards
+- This is a public repository. Every commit, file, and comment is visible to anyone.
+- Write code as if a senior engineer is reviewing your PR. No debug leftovers, no TODO hacks, no placeholder content.
+- Conventional commits always (`feat:`, `fix:`, `chore:`, `test:`, `refactor:`, `docs:`).
+- Never commit secrets, API keys, .env files, or anything that would be embarrassing if read by a stranger.
+- Commit and push iteratively at each completed section — don't batch up work.
 
-## Constraints
+### 2. Verification Before Done
+- Never mark a task complete without proving it works.
+- Run `npm test` after code changes. Run `npm run build` before pushing.
+- Ask yourself: "Would this pass code review?"
+- If a fix feels hacky, implement the elegant solution instead.
 
-- **Infrastructure**: Cloudflare free tier only — Workers (100K req/day, 10ms CPU), D1 (5M reads/day, 100K writes/day, 5GB), R2 (10GB, free egress), KV (100K reads/day, 1K writes/day), Workers AI (10K neurons/day)
-- **API compatibility**: Must match the MarketplaceClient interface from emdash-cms/emdash exactly — response shapes, endpoint paths, query params
-- **Public repo**: Everything visible. No secrets in code, no embarrassing artifacts, no sloppy commits
-- **Cost protection**: Workers AI usage must be capped and rate-limited before any audit endpoint goes live
-- **Security**: Fail-closed audit model — if audit fails/errors, version is rejected, never silently published
+### 3. Simplicity First
+- Make every change as simple as possible. Minimal code, minimal abstraction.
+- No ORM for 6 tables. No framework for 5 API routes. No library for something a function handles.
+- Don't add features, refactor code, or make "improvements" beyond what was asked.
+- Three similar lines of code is better than a premature abstraction.
+
+### 4. Autonomous Problem Solving
+- When given a bug or error: just fix it. Don't ask for hand-holding.
+- Point at logs, errors, failing tests — then resolve them.
+- If something goes sideways, stop and re-plan immediately — don't keep pushing.
+
+## Project Context
+
+A community-run plugin and theme marketplace for EmDash CMS at emdashcms.org. Implements the same API contract as the official (but undeployed) marketplace. Any EmDash installation can point at it via `createMarketplaceClient(baseUrl)`. Built entirely on Cloudflare's free tier. Goal: ship first, then offer the code upstream.
 
 ## Architecture
 
-- **API framework**: Native Astro API routes (`export const GET`, `export const POST`). NOT Hono. File-based routing maps 1:1 to the MarketplaceClient contract paths.
-- **Custom worker entry**: `src/worker.ts` exports both `fetch` (Astro handler) and `queue` (audit pipeline) handlers via `@astrojs/cloudflare/handler`.
-- **Bindings**: Access via `import { env } from 'cloudflare:workers'` in all route handlers.
-- **All pages**: Use `export const prerender = false` for SSR (required for Cloudflare bindings).
+- **API**: Native Astro API routes (`export const GET/POST`). NOT Hono. File-based routing maps 1:1 to the MarketplaceClient contract.
+- **Worker entry**: `src/worker.ts` exports `fetch` (Astro) + `queue` (audit pipeline) via `@astrojs/cloudflare/handler`.
+- **Bindings**: `import { env } from 'cloudflare:workers'` everywhere. All pages use `export const prerender = false`.
+- **Database**: Raw D1 SQL. Migrations in `migrations/`. Seed with `npm run db:seed`.
+- **Testing**: `@cloudflare/vitest-pool-workers` — tests run in actual workerd runtime with real bindings.
 
-## Technology Stack
+## Stack
 
 | Technology | Purpose |
 |------------|---------|
-| Astro 6 + @astrojs/cloudflare | SSR framework with native API routes + browsing UI |
-| TypeScript | Type safety throughout |
-| Zod 4 (zod/mini) | Schema validation for manifests and requests |
-| jose | JWT signing/verification for auth |
-| modern-tar | Parse plugin .tar.gz bundles in Workers |
-| D1 | Primary datastore (SQLite-based, free tier) |
-| R2 | Artifact storage — plugin bundles, screenshots (zero egress) |
-| KV | Read-heavy caching only (1K writes/day limit — do NOT use for counters) |
-| Workers AI | Code audit (`@cf/google/gemma-4-26b-a4b-it`) |
+| Astro 6 + @astrojs/cloudflare | SSR + API routes |
+| Zod 4 (zod/mini) | Schema validation |
+| jose | JWT signing/verification |
+| modern-tar | Tarball parsing in Workers |
+| D1 | Primary datastore |
+| R2 | Artifact storage (zero egress) |
+| KV | Read-heavy caching ONLY (1K writes/day — never use for counters) |
+| Workers AI (`@cf/google/gemma-4-26b-a4b-it`) | Code audit |
 | Cloudflare Queues | Async audit pipeline |
-| Vitest + @cloudflare/vitest-pool-workers | Tests run in actual workerd runtime |
+| Vitest + @cloudflare/vitest-pool-workers | Integration tests |
 | Tailwind CSS 4 | UI styling |
 
-## Key Decisions
+## Key Rules
 
-- **No Hono**: Astro file-based routing is sufficient. Hono adds a redundant routing layer.
-- **No ORM**: Raw D1 SQL. 6 tables don't justify Drizzle/Prisma overhead.
-- **Rate limiting in D1, not KV**: KV has 1K writes/day on free tier — insufficient for counters. D1 has 100K writes/day.
-- **Keyset cursor pagination**: Base64-encoded `(sort_column, id)` tuples with `LIMIT N+1` trick.
-- **Audit model**: `@cf/google/gemma-4-26b-a4b-it` (MoE, 4B active params, 256K context, cheaper per audit than qwq-32b).
+- **No Hono** — Astro routing is sufficient. Adding Hono is Anti-Pattern 1.
+- **Rate limiting in D1, not KV** — KV has 1K writes/day (free tier). D1 has 100K.
+- **Keyset cursor pagination** — base64 `(sort_column, id)` tuples, `LIMIT N+1`.
+- **Fail-closed audit** — if AI audit errors, version is rejected. Never silently published.
+- **Cost protection mandatory** — neuron cap + rate limits before any audit endpoint goes live.
+- **10ms CPU limit** — all heavy work (tarball extraction, AI audit) must be async via Queues.
 
-## Database
+## Constraints (Cloudflare Free Tier)
 
-Migrations in `migrations/` directory. Apply locally: `wrangler d1 migrations apply emdashcms-org --local`. Apply to production: `wrangler d1 migrations apply emdashcms-org --remote`.
-
-Seed data: `npm run db:seed` (applies `seeds/dev.sql`).
-
-## Testing
-
-```bash
-npm test              # run all tests
-npm run build         # wrangler types && astro check && astro build
-npm run dev:worker    # astro build && wrangler dev (custom worker entry)
-```
-
-Tests use `@cloudflare/vitest-pool-workers` — real D1/R2/KV bindings, no mocking.
+| Resource | Limit |
+|----------|-------|
+| Workers requests | 100K/day |
+| Workers CPU | 10ms/invocation |
+| D1 reads | 5M/day |
+| D1 writes | 100K/day |
+| D1 storage | 5GB |
+| R2 storage | 10GB |
+| KV reads | 100K/day |
+| KV writes | 1K/day |
+| Workers AI | 10K neurons/day |
+| Queues | 10K ops/day |
 
 ## Scripts
 
-| Script | Command |
-|--------|---------|
-| `dev` | `astro dev` |
-| `dev:worker` | `astro build && wrangler dev` |
-| `build` | `wrangler types && astro check && astro build` |
-| `test` | `vitest run` |
-| `deploy` | `astro build && wrangler deploy` |
-| `db:seed` | `wrangler d1 execute emdashcms-org --local --file=seeds/dev.sql` |
+```bash
+npm run dev           # astro dev
+npm run dev:worker    # astro build && wrangler dev (tests custom worker entry)
+npm run build         # wrangler types && astro check && astro build
+npm test              # vitest run
+npm run deploy        # astro build && wrangler deploy
+npm run db:seed       # apply seeds/dev.sql to local D1
+```
+
+## Lessons Learned
+
+- `wrangler types` must run after any `wrangler.jsonc` change — regenerates `worker-configuration.d.ts`.
+- Custom `worker.ts` only works after `astro build` — dev requires `astro build && wrangler dev`.
+- Use database name `emdashcms-org` (not binding name `DB`) in wrangler CLI commands.
+- D1 `published_at` column is nullable but `MarketplaceVersionSummary.publishedAt` is non-nullable — always coalesce: `row.published_at ?? row.created_at`.
+- `imageAuditVerdict` is always `null` until image audit is implemented (v2).
+- All route files need `export const prerender = false` or Astro tries to prerender them.
+- Queue `emdashcms-audit` must be created via `wrangler queues create emdashcms-audit` before first deploy.
