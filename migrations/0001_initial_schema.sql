@@ -1,6 +1,6 @@
--- EmDash CMS Community Marketplace - Full Schema Reference
--- NOTE: This is a reference copy. Actual schema changes go through migrations/.
--- Regenerate this file by concatenating all migration files.
+-- 0001_initial_schema.sql
+-- EmDash CMS Community Marketplace - Initial Schema
+-- Tables: authors, plugins, plugin_versions, plugin_audits, installs, themes
 
 -- Authors: GitHub-authenticated publishers
 CREATE TABLE authors (
