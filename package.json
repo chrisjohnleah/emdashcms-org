@@ -16,6 +16,7 @@
     "db:create-migration": "wrangler d1 migrations create emdashcms-org",
     "db:migrate:local": "wrangler d1 migrations apply emdashcms-org --local",
     "db:migrate:remote": "wrangler d1 migrations apply emdashcms-org --remote",
+    "db:seed": "wrangler d1 execute emdashcms-org --local --file=./seeds/dev.sql",
     "types": "wrangler types",
     "astro": "astro"
   },
