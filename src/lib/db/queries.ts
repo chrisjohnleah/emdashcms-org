@@ -74,8 +74,11 @@ export async function searchPlugins(
     }
   }
 
-  // Only show active plugins in public listings
+  // Only show active plugins with at least one published version
   conditions.push("COALESCE(p.status, 'active') = 'active'");
+  conditions.push(
+    "EXISTS (SELECT 1 FROM plugin_versions pv0 WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged'))",
+  );
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
@@ -148,7 +151,8 @@ export async function getPluginDetail(
         `SELECT p.*, a.github_username, a.avatar_url, a.verified
          FROM plugins p
          JOIN authors a ON p.author_id = a.id
-         WHERE p.id = ? AND COALESCE(p.status, 'active') = 'active'`,
+         WHERE p.id = ? AND COALESCE(p.status, 'active') = 'active'
+           AND EXISTS (SELECT 1 FROM plugin_versions pv0 WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged'))`,
       )
       .bind(pluginId),
     db
@@ -306,8 +310,10 @@ export async function searchThemes(
     }
   }
 
-  const whereClause =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  // Only show themes that have something to install
+  conditions.push("(t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)");
+
+  const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
   const sql = `
     SELECT t.*, a.github_username, a.avatar_url, a.verified
@@ -353,7 +359,8 @@ export async function getThemeDetail(
       `SELECT t.*, a.github_username, a.avatar_url, a.verified
        FROM themes t
        JOIN authors a ON t.author_id = a.id
-       WHERE t.id = ?`,
+       WHERE t.id = ?
+         AND (t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)`,
     )
     .bind(themeId)
     .all();

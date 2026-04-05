@@ -112,6 +112,7 @@ describe("plugin registration (PUBL-01)", () => {
     expect(owner).not.toBeNull();
     expect(owner!.authorId).toBe("test-author-1");
 
+    // Plugin without published versions should NOT appear in public search
     const search = await searchPlugins(env.DB, {
       query: "Pub Test Plugin",
       category: null,
@@ -120,7 +121,7 @@ describe("plugin registration (PUBL-01)", () => {
       cursor: null,
       limit: 20,
     });
-    expect(search.items.some((p) => p.id === "pub-test-plugin")).toBe(true);
+    expect(search.items.some((p) => p.id === "pub-test-plugin")).toBe(false);
   });
 
   it("rejects duplicate plugin id with UNIQUE constraint", async () => {

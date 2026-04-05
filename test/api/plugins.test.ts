@@ -527,14 +527,10 @@ describe("Plugin Detail (DISC-02)", () => {
     expect(plugin).toBeNull();
   });
 
-  it("handles plugin with no published versions", async () => {
-    // security-headers only has a pending version
+  it("returns null for plugin with no published versions", async () => {
+    // security-headers only has a pending version — should be hidden from public
     const plugin = await getPluginDetail(env.DB, "security-headers");
-
-    expect(plugin).not.toBeNull();
-    expect(plugin!.id).toBe("security-headers");
-    // latestVersion only shows published/flagged, so should be null
-    expect(plugin!.latestVersion).toBeNull();
+    expect(plugin).toBeNull();
   });
 
   it("shows flagged version as latest when most recent", async () => {
