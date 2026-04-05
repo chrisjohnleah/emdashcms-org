@@ -84,7 +84,7 @@
 
 - [x] **TEAM-01**: Plugin owner can invite collaborators by GitHub username with role assignment (owner, maintainer, contributor)
 - [x] **TEAM-02**: Role-based access control: owner (full control), maintainer (upload versions, edit metadata), contributor (view only)
-- [ ] **TEAM-03**: All write endpoints enforce role-based permissions — ownership transfer requires owner role
+- [x] **TEAM-03**: All write endpoints enforce role-based permissions — ownership transfer requires owner role
 - [x] **TEAM-04**: Plugin owner can revoke collaborator access and transfer ownership to another collaborator
 
 ## v2 Requirements
@@ -178,7 +178,7 @@
 | GHAP-04 | Phase 10 | Complete |
 | TEAM-01 | Phase 11 | Complete |
 | TEAM-02 | Phase 11 | Complete |
-| TEAM-03 | Phase 11 | Pending |
+| TEAM-03 | Phase 11 | Complete |
 | TEAM-04 | Phase 11 | Complete |
 
 **Coverage:**

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-04-05T19:53:44.807Z"
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-04-05T20:07:28.269Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 28
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 11 (team-collaborator-access) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Plan: 2 of 3
 | Phase 10 P03 | 7min | 2 tasks | 6 files |
 | Phase 10 P04 | 7min | 2 tasks | 7 files |
 | Phase 11 P01 | 14min | 1 tasks | 6 files |
+| Phase 11 P02 | 10min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,9 @@ Recent decisions affecting current work:
 - [Phase 11]: checkPluginAccess uses UNION ALL to check both plugins and themes without requiring entity type parameter
 - [Phase 11]: Expired invites lazily marked as 'expired' on new invite creation to satisfy UNIQUE constraint
 - [Phase 11]: Owner role not in plugin_collaborators -- ownership lives in plugins/themes.author_id only
+- [Phase 11]: Server-side role guards in POST handlers match UI visibility rules to prevent CSRF bypass
+- [Phase 11]: Contributors see read-only views (no forms) rather than disabled fields for cleaner UX
+- [Phase 11]: Only owner can disconnect GitHub integration (D-09), enforced at both UI and server level
 
 ### Pending Todos
 
@@ -155,6 +159,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T19:53:44.803Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-04-05T20:07:28.265Z
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None
