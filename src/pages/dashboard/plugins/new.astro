@@ -1,0 +1,168 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import DashboardBanner from '../../../components/DashboardBanner.astro';
+import { resolveAuthorId, registerPlugin } from '../../../lib/publishing/plugin-queries';
+
+const author = Astro.locals.author!;
+let error = '';
+let formValues = {
+  id: '', name: '', description: '',
+  capabilities: [] as string[],
+  repositoryUrl: '', homepageUrl: '', supportUrl: '',
+  keywords: '', license: '',
+};
+
+// The 11 known capabilities from the upstream EmDash CMS manifest schema
+// (source: packages/core/src/plugins/manifest-schema.ts PluginCapability enum)
+const KNOWN_CAPABILITIES = [
+  'network:fetch',
+  'network:fetch:any',
+  'read:content',
+  'write:content',
+  'read:media',
+  'write:media',
+  'read:users',
+  'email:send',
+  'email:provide',
+  'email:intercept',
+  'page:inject',
+];
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    formValues.id = (data.get('id') as string ?? '').trim();
+    formValues.name = (data.get('name') as string ?? '').trim();
+    formValues.description = (data.get('description') as string ?? '').trim();
+    formValues.capabilities = data.getAll('capabilities') as string[];
+    formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
+    formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
+    formValues.supportUrl = (data.get('supportUrl') as string ?? '').trim();
+    formValues.keywords = (data.get('keywords') as string ?? '').trim();
+    formValues.license = (data.get('license') as string ?? '').trim();
+
+    if (!formValues.id) throw new Error('Plugin ID is required');
+    if (!formValues.name) throw new Error('Name is required');
+    if (!formValues.description) throw new Error('Description is required');
+    if (formValues.capabilities.length === 0) throw new Error('Select at least one capability');
+
+    const authorId = await resolveAuthorId(env.DB, author.githubId);
+    if (!authorId) throw new Error('Author not found. Please log out and log in again.');
+
+    const keywordsArray = formValues.keywords
+      ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+      : [];
+
+    await registerPlugin(env.DB, authorId, {
+      id: formValues.id,
+      name: formValues.name,
+      description: formValues.description,
+      capabilities: formValues.capabilities,
+      keywords: keywordsArray,
+      license: formValues.license || undefined,
+      repository_url: formValues.repositoryUrl || undefined,
+      homepage_url: formValues.homepageUrl || undefined,
+      support_url: formValues.supportUrl || undefined,
+    });
+
+    return Astro.redirect('/dashboard/plugins/' + encodeURIComponent(formValues.id));
+  } catch (e) {
+    error = e instanceof Error ? e.message : 'An error occurred';
+  }
+}
+---
+<BaseLayout title="Register Plugin - Dashboard - emdashcms.org">
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-2xl">
+
+      <a href="/dashboard" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Dashboard</a>
+
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">Register Plugin</h1>
+
+      {error && (
+        <div class="mt-6" id="form-error">
+          <DashboardBanner type="error" message={'Failed to register plugin. ' + error} />
+        </div>
+      )}
+
+      <form method="POST" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4" aria-describedby={error ? 'form-error' : undefined}>
+
+        <div>
+          <label for="id" class="block text-sm font-semibold text-zinc-100">Plugin ID *</label>
+          <p class="mt-1 text-xs text-zinc-500">Use @scope/name or kebab-case (e.g. my-plugin)</p>
+          <input type="text" id="id" name="id" value={formValues.id}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm font-mono focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            aria-required="true" />
+        </div>
+
+        <div>
+          <label for="name" class="block text-sm font-semibold text-zinc-100">Name *</label>
+          <input type="text" id="name" name="name" value={formValues.name}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            aria-required="true" />
+        </div>
+
+        <div>
+          <label for="description" class="block text-sm font-semibold text-zinc-100">Description *</label>
+          <textarea id="description" name="description"
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            aria-required="true">{formValues.description}</textarea>
+        </div>
+
+        <div>
+          <span class="block text-sm font-semibold text-zinc-100">Capabilities *</span>
+          <p class="mt-1 text-xs text-zinc-500">Select at least one capability</p>
+          <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {KNOWN_CAPABILITIES.map(cap => (
+              <label class="flex items-center gap-2 text-sm text-zinc-300">
+                <input type="checkbox" name="capabilities" value={cap}
+                  class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-zinc-100"
+                  checked={formValues.capabilities.includes(cap)} />
+                <code class="font-mono text-xs">{cap}</code>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
+          <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
+          <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="supportUrl" class="block text-sm font-semibold text-zinc-100">Support URL</label>
+          <input type="url" id="supportUrl" name="supportUrl" value={formValues.supportUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
+          <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. markdown, editor, syntax)</p>
+          <input type="text" id="keywords" name="keywords" value={formValues.keywords}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
+          <p class="mt-1 text-xs text-zinc-500">e.g. MIT, Apache-2.0</p>
+          <input type="text" id="license" name="license" value={formValues.license}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Register Plugin</button>
+
+      </form>
+
+    </div>
+  </section>
+</BaseLayout>
