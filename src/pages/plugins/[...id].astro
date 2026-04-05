@@ -86,17 +86,33 @@ const formatSize = (bytes: number) => {
               </div>
             )}
 
-            <div class="mt-8">
-              <h2 class="text-sm font-semibold text-zinc-100">Plugin ID</h2>
-              <div class="mt-2 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-                <code class="flex-1 text-sm font-mono text-zinc-300">{plugin.id}</code>
-                <button
-                  data-copy={plugin.id}
-                  class="flex-shrink-0 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
-                  aria-label="Copy plugin ID"
-                >Copy</button>
+            <div class="mt-8 space-y-4">
+              {plugin.latestVersion && (plugin.latestVersion.status === 'published' || plugin.latestVersion.status === 'flagged') && (
+                <a
+                  href={`/api/v1/plugins/${encodeURIComponent(plugin.id)}/versions/${plugin.latestVersion.version}/bundle`}
+                  class="flex items-center justify-center gap-2 w-full rounded-lg bg-white text-zinc-950 px-5 py-3 text-sm font-semibold hover:bg-zinc-200 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  Download v{plugin.latestVersion.version} ({formatSize(plugin.latestVersion.bundleSize)})
+                </a>
+              )}
+
+              <div>
+                <h2 class="text-sm font-semibold text-zinc-100">Plugin ID</h2>
+                <div class="mt-2 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+                  <code class="flex-1 text-sm font-mono text-zinc-300">{plugin.id}</code>
+                  <button
+                    data-copy={plugin.id}
+                    class="flex-shrink-0 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
+                    aria-label="Copy plugin ID"
+                  >Copy</button>
+                </div>
               </div>
-              <p class="mt-2 text-xs text-zinc-500">Installation requires EmDash CMS to be configured with this marketplace as its registry.</p>
+
+              <a href="/guide" class="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
+                How to install plugins &rarr;
+              </a>
             </div>
 
             {plugin.description && (
@@ -212,7 +228,8 @@ const formatSize = (bytes: number) => {
                     <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
                     <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Audit</th>
                     <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Size</th>
-                    <th class="pb-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Date</th>
+                    <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Date</th>
+                    <th class="pb-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide"></th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800/60">
@@ -222,7 +239,12 @@ const formatSize = (bytes: number) => {
                       <td class="py-3 pr-4"><StatusBadge status={v.status} /></td>
                       <td class="py-3 pr-4"><AuditBadge verdict={v.auditVerdict} /></td>
                       <td class="py-3 pr-4 text-zinc-500">{formatSize(v.bundleSize)}</td>
-                      <td class="py-3 text-zinc-500">{formatDate(v.publishedAt)}</td>
+                      <td class="py-3 pr-4 text-zinc-500">{formatDate(v.publishedAt)}</td>
+                      <td class="py-3">
+                        {(v.status === 'published' || v.status === 'flagged') && (
+                          <a href={`/api/v1/plugins/${encodeURIComponent(plugin.id)}/versions/${v.version}/bundle`} class="text-xs text-zinc-400 hover:text-zinc-100 transition-colors">Download</a>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

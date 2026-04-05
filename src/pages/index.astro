@@ -1,10 +1,21 @@
 ---
 export const prerender = false;
 
+import { env } from 'cloudflare:workers';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import PluginCard from '../components/PluginCard.astro';
+import { searchPlugins, searchThemes } from '../lib/db/queries';
 
 const title = "emdashcms.org — Community marketplace for EmDash CMS";
 const description = "An open, community-driven plugin and theme marketplace for EmDash CMS. Browse, publish, and install plugins with automated security auditing. Built on Cloudflare.";
+
+const [latestResult, popularResult, themesResult] = await Promise.all([
+  searchPlugins(env.DB, { query: '', category: null, capability: null, sort: 'created', cursor: null, limit: 6 }),
+  searchPlugins(env.DB, { query: '', category: null, capability: null, sort: 'installs', cursor: null, limit: 6 }),
+  searchThemes(env.DB, { query: '', keyword: null, sort: 'created', cursor: null, limit: 4 }),
+]);
+
+const popularWithInstalls = popularResult.items.filter(p => p.installCount > 0);
 ---
 <BaseLayout title={title} description={description}>
 
@@ -16,7 +27,7 @@ const description = "An open, community-driven plugin and theme marketplace for 
   <div class="absolute inset-0 bg-grid-pattern h-[800px] z-[-1] opacity-50"></div>
 
   <!-- Hero -->
-  <section class="pt-32 pb-0 px-6">
+  <section class="pt-32 pb-20 px-6">
     <div class="mx-auto max-w-7xl flex flex-col items-center text-center">
 
       <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer"
@@ -40,7 +51,7 @@ const description = "An open, community-driven plugin and theme marketplace for 
         Every submission is AI-audited, structurally validated, and ready for production.
       </p>
 
-      <div class="flex flex-col sm:flex-row gap-4 mb-24 w-full sm:w-auto">
+      <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
         <a href="/plugins"
            class="bg-white text-black px-8 py-3.5 rounded-lg font-medium hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,255,255,0.15)]">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .657-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z" /></svg>
@@ -54,258 +65,148 @@ const description = "An open, community-driven plugin and theme marketplace for 
         </a>
       </div>
 
-      <!-- Floating preview cards -->
-      <div class="relative w-full max-w-5xl h-[300px] md:h-[400px] flex justify-center">
-
-        <!-- Left: Theme card -->
-        <div class="absolute w-[280px] md:w-[320px] left-0 md:left-10 top-12 glass-card rounded-xl p-5 -rotate-6 animate-float-slow z-10 hidden sm:block">
-          <div class="h-32 bg-tungsten rounded-lg mb-4 relative overflow-hidden">
-            <div class="absolute inset-0 bg-gradient-to-br from-purple-900/40 to-blue-900/40"></div>
-            <div class="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-mono border border-white/10 uppercase">Theme</div>
-          </div>
-          <div class="flex justify-between items-start mb-1">
-            <h3 class="font-semibold text-white text-sm">Aura Minimalist</h3>
-          </div>
-          <p class="text-xs text-ash mb-3 text-left">A strictly typography-first portfolio theme.</p>
-          <div class="flex items-center justify-between text-xs border-t border-white/10 pt-3">
-            <span class="text-ash">@designco</span>
-            <span class="text-ash font-mono">1.2k installs</span>
-          </div>
-        </div>
-
-        <!-- Center: Plugin card (hero) -->
-        <div class="absolute w-[300px] md:w-[350px] top-0 glass-card rounded-xl p-6 shadow-2xl scale-105 animate-float-medium z-30">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center mb-5 shadow-lg border border-white/20">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>
-          </div>
-          <h3 class="font-bold text-lg text-white mb-1 text-left flex items-center gap-2">
-            Stripe Commerce Bridge
-            <svg class="w-4 h-4 text-blue-400 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M8.603 3.799A4.49 4.49 0 0 1 12 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 0 1 3.498 1.307 4.491 4.491 0 0 1 1.307 3.497A4.49 4.49 0 0 1 21.75 12a4.49 4.49 0 0 1-1.549 3.397 4.491 4.491 0 0 1-1.307 3.497 4.491 4.491 0 0 1-3.497 1.307A4.49 4.49 0 0 1 12 21.75a4.49 4.49 0 0 1-3.397-1.549 4.49 4.49 0 0 1-3.498-1.306 4.491 4.491 0 0 1-1.307-3.498A4.49 4.49 0 0 1 2.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 0 1 1.307-3.497 4.49 4.49 0 0 1 3.497-1.307Zm7.007 6.387a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
-          </h3>
-          <p class="text-sm text-ash mb-5 text-left leading-relaxed">Full checkouts, webhook syncing, and product inventory management inside your CMS.</p>
-
-          <div class="flex items-center gap-2 mb-5">
-            <div class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded text-xs flex items-center gap-1 font-medium">
-              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Zm3.094 8.016a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
-              Safely Audited
-            </div>
-            <div class="bg-white/5 text-ash border border-white/10 px-2 py-1 rounded text-xs font-mono">
-              v2.4.1
-            </div>
-          </div>
-
-          <div class="w-full bg-white text-black py-2 rounded-md text-sm font-medium text-center">
-            View Plugin
-          </div>
-        </div>
-
-        <!-- Right: Plugin card -->
-        <div class="absolute w-[280px] md:w-[320px] right-0 md:right-10 top-20 glass-card rounded-xl p-5 rotate-3 animate-float-fast z-20 hidden md:block">
-          <div class="w-10 h-10 rounded-lg bg-carbon border border-white/10 flex items-center justify-center mb-4">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-          </div>
-          <h3 class="font-semibold text-white text-sm mb-1">Algolia Search Sync</h3>
-          <p class="text-xs text-ash mb-3 text-left">Push your content nodes directly to Algolia indices on publish.</p>
-          <div class="flex items-center justify-between text-xs border-t border-white/10 pt-3">
-            <span class="text-ash">@searchteam</span>
-            <span class="text-ash font-mono text-emerald-400">Free</span>
-          </div>
-        </div>
-
-      </div>
     </div>
   </section>
 
-  <!-- Value propositions -->
-  <section class="py-20 sm:py-32 px-6">
-    <div class="mx-auto max-w-7xl">
-      <div class="mb-16">
-        <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">A catalog built on trust.</h2>
-        <p class="text-ash max-w-2xl">A centralized, secure, and beautiful way to expand your EmDash site without compromising safety or performance.</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <!-- Rich Discovery -->
-        <div class="border-gradient md:col-span-2 p-8 md:p-10 flex flex-col md:flex-row gap-8 overflow-hidden group">
-          <div class="flex-1 z-10 flex flex-col justify-center">
-            <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center mb-5">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" /></svg>
-            </div>
-            <h3 class="text-xl md:text-2xl font-bold mb-3">Rich Discovery.</h3>
-            <p class="text-ash text-sm leading-relaxed max-w-sm">
-              Find exactly what you need. Filter by capability, search by keyword, or browse by author. Every listing includes descriptions, version history, and audit results.
-            </p>
-          </div>
-
-          <div class="flex-1 relative translate-x-4 md:translate-x-10 translate-y-4 md:translate-y-10 group-hover:-translate-y-2 group-hover:-translate-x-2 transition-transform duration-500">
-            <div class="bg-carbon border border-white/10 rounded-tl-xl p-4 h-full shadow-2xl flex flex-col gap-3">
-              <div class="bg-tungsten border border-white/5 rounded-md p-2 flex gap-2 overflow-hidden mb-2">
-                <span class="bg-white/10 text-white text-[10px] px-2 py-1 rounded">E-Commerce</span>
-                <span class="bg-white/10 text-white text-[10px] px-2 py-1 rounded">v2.x</span>
-                <span class="text-ash text-[10px] py-1">Type to filter...</span>
-              </div>
-              <div class="flex items-center gap-3 bg-white/5 rounded-md p-3 border border-white/5">
-                <div class="w-8 h-8 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4.5 3.75a3 3 0 0 0-3 3v.75h21v-.75a3 3 0 0 0-3-3h-15Z" /><path fill-rule="evenodd" d="M22.5 9.75h-21v7.5a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3v-7.5Zm-18 3.75a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 0 1.5h-6a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5h3a.75.75 0 0 0 0-1.5h-3Z" clip-rule="evenodd" /></svg>
-                </div>
-                <div>
-                  <div class="text-xs font-semibold text-white">Stripe Checkout</div>
-                  <div class="text-[10px] text-ash">Payment gateways</div>
-                </div>
-              </div>
-              <div class="flex items-center gap-3 bg-white/5 rounded-md p-3 border border-white/5">
-                <div class="w-8 h-8 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center">
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M1.5 8.67v8.58a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3V8.67l-8.928 5.493a3 3 0 0 1-3.144 0L1.5 8.67Z" /><path d="M22.5 6.908V6.75a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3v.158l9.714 5.978a1.5 1.5 0 0 0 1.572 0L22.5 6.908Z" /></svg>
-                </div>
-                <div>
-                  <div class="text-xs font-semibold text-white">SendGrid Sync</div>
-                  <div class="text-[10px] text-ash">Marketing</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- AI Auditing -->
-        <div class="border-gradient p-8 flex flex-col group relative overflow-hidden">
-          <div class="absolute -right-10 -bottom-10 w-[180px] h-[180px] text-emerald-500/5 rotate-12 group-hover:scale-110 transition-transform duration-700">
-            <svg class="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Zm3.094 8.016a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
-          </div>
-
-          <div class="z-10 h-full flex flex-col pt-2">
-            <div class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
-              <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
-            </div>
-            <h3 class="text-xl md:text-2xl font-bold mb-3">Audited automatically.</h3>
-            <p class="text-ash text-sm leading-relaxed mb-6 flex-grow">
-              Every plugin and theme upload is AI-scanned for security vulnerabilities before it reaches the registry. Fail-closed &mdash; nothing publishes without passing audit.
-            </p>
-
-            <div class="bg-black/40 border border-white/5 rounded-lg p-3 space-y-2 mt-auto">
-              <div class="flex justify-between items-center text-xs">
-                <span class="text-white flex items-center gap-2">
-                  <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
-                  Code Quality
-                </span>
-                <span class="font-mono text-ash/60">PASS</span>
-              </div>
-              <div class="flex justify-between items-center text-xs">
-                <span class="text-white flex items-center gap-2">
-                  <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
-                  Security Scan
-                </span>
-                <span class="font-mono text-ash/60">PASS</span>
-              </div>
-              <div class="flex justify-between items-center text-xs">
-                <span class="text-white flex items-center gap-2">
-                  <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>
-                  Dependencies
-                </span>
-                <span class="font-mono text-ash/60">CLEAN</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Open Infrastructure (full width) -->
-        <div class="border-gradient md:col-span-3 p-8 md:p-10 flex flex-col md:flex-row items-center gap-10 group overflow-hidden">
-          <div class="flex-1 z-10 w-full">
-            <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center mb-5">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" /></svg>
-            </div>
-            <h3 class="text-xl md:text-2xl font-bold mb-3">Open infrastructure. Community first.</h3>
-            <p class="text-ash text-sm leading-relaxed max-w-lg mb-6">
-              Built on Cloudflare Workers. Open source under MIT. Compatible with the EmDash marketplace API &mdash; point any EmDash site here and it just works.
-            </p>
-            <div class="flex gap-4">
-              <div class="text-left border-l-2 border-white/10 pl-3">
-                <div class="text-white font-bold text-xl mb-1">MIT</div>
-                <div class="text-xs text-ash font-mono uppercase tracking-widest">Licensed</div>
-              </div>
-              <div class="text-left border-l-2 border-white/10 pl-3">
-                <div class="text-white font-bold text-xl mb-1">Edge</div>
-                <div class="text-xs text-ash font-mono uppercase tracking-widest">Deployed</div>
-              </div>
-              <div class="text-left border-l-2 border-white/10 pl-3">
-                <div class="text-white font-bold text-xl mb-1">API</div>
-                <div class="text-xs text-ash font-mono uppercase tracking-widest">Compatible</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- Status section -->
-  <section class="px-6 border-t border-b border-white/5 py-24 relative overflow-hidden">
-    <div class="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none"></div>
-
-    <div class="mx-auto max-w-7xl flex flex-col md:flex-row gap-16 justify-between items-center relative z-10">
-
-      <div class="md:w-1/2">
-        <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-mono text-ash mb-6">
-          <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div> Under Active Development
-        </div>
-        <h2 class="text-3xl md:text-4xl font-bold tracking-tight mb-4">An independent project.</h2>
-        <p class="text-ash leading-relaxed mb-6 max-w-md">
-          <strong class="text-silver">emdashcms.org</strong> is an open-source, community-driven catalog. It is maintained independently and is not officially affiliated with the core EmDash CMS team.
-        </p>
-        <p class="text-ash/60 text-sm italic max-w-md">
-          Once complete, the goal is to offer the code upstream to the <a href="https://github.com/emdash-cms/emdash" target="_blank" rel="noopener noreferrer" class="text-ash hover:text-white underline underline-offset-2 transition-colors">EmDash&nbsp;project</a>.
-        </p>
-
-        <div class="mt-8">
-          <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-white text-sm font-medium hover:underline underline-offset-4 decoration-white/30 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" /></svg>
-            Follow progress on GitHub &rarr;
+  <!-- Latest Plugins -->
+  {latestResult.items.length > 0 && (
+    <section class="py-20 px-6">
+      <div class="mx-auto max-w-7xl">
+        <div class="flex items-end justify-between mb-8">
+          <h2 class="text-2xl md:text-3xl font-bold tracking-tight">Latest Plugins</h2>
+          <a href="/plugins" class="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+            View all plugins
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
           </a>
         </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {latestResult.items.map((p) => (
+            <PluginCard plugin={p} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- Most Installed -->
+  {popularWithInstalls.length > 0 && (
+    <section class="py-20 px-6">
+      <div class="mx-auto max-w-7xl">
+        <div class="flex items-end justify-between mb-8">
+          <h2 class="text-2xl md:text-3xl font-bold tracking-tight">Most Installed</h2>
+          <a href="/plugins" class="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+            View all plugins
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+          </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {popularWithInstalls.map((p) => (
+            <PluginCard plugin={p} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- Latest Themes -->
+  {themesResult.items.length > 0 && (
+    <section class="py-20 px-6">
+      <div class="mx-auto max-w-7xl">
+        <div class="flex items-end justify-between mb-8">
+          <h2 class="text-2xl md:text-3xl font-bold tracking-tight">Latest Themes</h2>
+          <a href="/themes" class="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+            View all themes
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+          </a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {themesResult.items.map((t) => (
+            <a href={`/themes/${t.id}`} class="block rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 hover:border-zinc-700/60 hover:bg-zinc-900/60 transition-colors">
+              <div class="flex items-center gap-2 mb-3">
+                {t.author.avatarUrl ? (
+                  <img src={t.author.avatarUrl} alt={t.author.name} class="w-4 h-4 rounded-full" />
+                ) : (
+                  <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                )}
+                <span class="text-xs text-zinc-500">{t.author.name}</span>
+              </div>
+              <h3 class="text-sm font-semibold text-zinc-100">{t.name}</h3>
+              {t.description && (
+                <p class="mt-1 text-sm text-zinc-400 leading-relaxed line-clamp-2">{t.description}</p>
+              )}
+              {t.keywords.length > 0 && (
+                <div class="mt-4 flex items-center gap-2 flex-wrap">
+                  {t.keywords.map((kw) => (
+                    <span class="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-400">{kw}</span>
+                  ))}
+                </div>
+              )}
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- How It Works -->
+  <section class="py-20 px-6 border-t border-white/5">
+    <div class="mx-auto max-w-7xl">
+      <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-12 text-center">How It Works</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-5">
+            <span class="text-lg font-bold text-white">1</span>
+          </div>
+          <h3 class="text-lg font-semibold text-white mb-2">Browse</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed max-w-xs mx-auto">Find plugins and themes in the marketplace. Filter by category, capability, or keyword.</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-5">
+            <span class="text-lg font-bold text-white">2</span>
+          </div>
+          <h3 class="text-lg font-semibold text-white mb-2">Install</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed max-w-xs mx-auto">Download directly or point your EmDash instance at our registry. It just works.</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-5">
+            <span class="text-lg font-bold text-white">3</span>
+          </div>
+          <h3 class="text-lg font-semibold text-white mb-2">Trust</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed max-w-xs mx-auto">Every plugin is AI-audited for security before publication. Fail-closed &mdash; nothing ships without passing.</p>
+        </div>
+
       </div>
 
-      <div class="md:w-1/2 w-full grid grid-cols-2 gap-4">
-        <div class="bg-obsidian border border-white/5 rounded-xl p-6 shadow-inner flex flex-col justify-center items-center text-center">
-          <svg class="w-6 h-6 text-ash mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .657-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z" /></svg>
-          <span class="text-2xl font-bold text-white mb-1">100%</span>
-          <span class="text-xs text-ash uppercase tracking-widest font-mono">AI Scanned</span>
-        </div>
-        <div class="bg-obsidian border border-white/5 rounded-xl p-6 shadow-inner flex flex-col justify-center items-center text-center">
-          <svg class="w-6 h-6 text-emerald-500 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
-          <span class="text-2xl font-bold text-white mb-1">Fail-closed</span>
-          <span class="text-xs text-ash uppercase tracking-widest font-mono">Audit Policy</span>
-        </div>
-        <div class="bg-obsidian border border-white/5 rounded-xl p-6 shadow-inner flex flex-col justify-center items-center text-center">
-          <svg class="w-6 h-6 text-ash mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" /></svg>
-          <span class="text-2xl font-bold text-white mb-1">Free</span>
-          <span class="text-xs text-ash uppercase tracking-widest font-mono">Cloudflare Tier</span>
-        </div>
-        <div class="bg-obsidian border border-white/5 rounded-xl p-6 shadow-inner flex flex-col justify-center items-center text-center">
-          <svg class="w-6 h-6 text-ash mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-          <span class="text-2xl font-bold text-white mb-1">MIT</span>
-          <span class="text-xs text-ash uppercase tracking-widest font-mono">Open Source</span>
-        </div>
+      <div class="mt-12 text-center">
+        <a href="/guide" class="text-sm text-zinc-400 hover:text-white transition-colors inline-flex items-center gap-1">
+          Read the installation guide
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+        </a>
       </div>
     </div>
   </section>
 
-  <!-- Bottom CTA -->
-  <section class="py-20 sm:py-28 px-6">
+  <!-- Footer CTA -->
+  <section class="py-20 px-6 border-t border-white/5">
     <div class="mx-auto max-w-4xl text-center">
-      <h2 class="text-3xl md:text-5xl font-bold tracking-tight mb-6">Start expanding your site.</h2>
-      <p class="text-ash mb-10 max-w-lg mx-auto leading-relaxed">
-        Browse the catalog or submit your own plugin or theme today.
+      <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-4">Built for the EmDash community</h2>
+      <p class="text-zinc-400 mb-10 max-w-lg mx-auto leading-relaxed">
+        An open-source, community-driven marketplace. MIT licensed, deployed on Cloudflare Workers, and compatible with the EmDash marketplace API.
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4">
-        <a href="/plugins"
-           class="bg-white text-black px-8 py-3.5 rounded-lg font-medium hover:bg-gray-200 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] inline-flex items-center justify-center gap-2 text-sm">
-          Browse the Directory
+        <a href="/guide"
+           class="bg-white text-black px-8 py-3.5 rounded-lg font-medium hover:bg-gray-200 transition-all inline-flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,255,255,0.15)]">
+          Installation Guide
         </a>
-        <a href="/dashboard/plugins/new"
+        <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer"
            class="bg-transparent border border-white/20 text-white px-8 py-3.5 rounded-lg font-medium hover:bg-white/5 transition-all inline-flex items-center justify-center gap-2 text-sm">
-          Submit a Plugin
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" /></svg>
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" /></svg>
+          View on GitHub
         </a>
       </div>
     </div>
