@@ -8,7 +8,8 @@ import AuditBadge from '../../../components/AuditBadge.astro';
 import SourceBadge from '../../../components/SourceBadge.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import { getPluginDetail, getPluginVersions } from '../../../lib/db/queries';
-import { resolveAuthorId, getPluginOwner, updatePluginMetadata } from '../../../lib/publishing/plugin-queries';
+import { resolveAuthorId, updatePluginMetadata } from '../../../lib/publishing/plugin-queries';
+import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permissions';
 import {
   getPluginGitHubLink,
   getInstallationByAuthor,
@@ -27,14 +28,15 @@ import type { MarketplaceVersionSummary } from '../../../types/marketplace';
 const { id: pluginId } = Astro.params;
 const author = Astro.locals.author!;
 
-// Ownership check (D-09) — use githubId to resolve internal UUID
+// RBAC check — any collaborator role can view (D-06, D-10)
 const authorId = await resolveAuthorId(env.DB, author.githubId);
 if (!authorId) return Astro.redirect('/dashboard');
 
-const owner = await getPluginOwner(env.DB, pluginId!);
-if (!owner || owner.authorId !== authorId) {
-  return Astro.redirect('/dashboard');
-}
+const access = await checkPluginAccess(env.DB, authorId, pluginId!);
+if (!access.found || !access.role) return Astro.redirect('/dashboard');
+const userRole = access.role as Role;
+const isOwner = userRole === 'owner';
+const isMaintainer = hasRole(userRole, 'maintainer');
 
 // Handle metadata edit POST (D-16)
 let saveSuccess = false;
@@ -48,6 +50,7 @@ if (Astro.request.method === 'POST') {
     const action = data.get('_action') as string;
 
     if (action === 'metadata') {
+      if (!isMaintainer) throw new Error('Maintainer role required to edit metadata');
       await updatePluginMetadata(env.DB, pluginId!, {
         description: (data.get('description') as string) ?? undefined,
         keywords: (data.get('keywords') as string ?? '')
@@ -60,6 +63,7 @@ if (Astro.request.method === 'POST') {
       });
       saveSuccess = true;
     } else if (action === 'connect-repo') {
+      if (!isMaintainer) throw new Error('Maintainer role required');
       const repoFullName = data.get('repo_full_name') as string;
       const repoId = Number(data.get('repo_id'));
       if (!repoFullName || !repoId) throw new Error('Select a repository');
@@ -73,17 +77,20 @@ if (Astro.request.method === 'POST') {
       });
       githubSuccess = 'GitHub repository connected.';
     } else if (action === 'toggle-auto-submit') {
+      if (!isMaintainer) throw new Error('Maintainer role required');
       const link = await getPluginGitHubLink(env.DB, pluginId!);
       if (link) {
         await toggleAutoSubmit(env.DB, pluginId!, !link.autoSubmit);
         githubSuccess = 'Auto-submit setting updated.';
       }
     } else if (action === 'update-tag-pattern') {
+      if (!isMaintainer) throw new Error('Maintainer role required');
       const pattern = (data.get('tag_pattern') as string ?? '').trim();
       if (!pattern) throw new Error('Tag pattern cannot be empty');
       await setTagPattern(env.DB, pluginId!, pattern);
       githubSuccess = 'Tag pattern updated.';
     } else if (action === 'disconnect') {
+      if (!isOwner) throw new Error('Only the owner can disconnect GitHub');
       await unlinkPlugin(env.DB, pluginId!);
       githubSuccess = 'GitHub repository disconnected.';
     }
@@ -181,69 +188,94 @@ const formatDate = (iso: string) =>
         </div>
       )}
 
-      <!-- Section 1: Plugin Details (metadata edit form) -->
+      <!-- Section 1: Plugin Details -->
       <div class="mt-8">
         <h2 class="text-xl font-semibold text-zinc-100">Plugin Details</h2>
-        <form method="POST" class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
-          <input type="hidden" name="_action" value="metadata" />
+        {isMaintainer ? (
+          <form method="POST" class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+            <input type="hidden" name="_action" value="metadata" />
 
-          <div>
-            <dt class="text-sm font-semibold text-zinc-100">Plugin ID</dt>
-            <dd class="mt-1 text-sm text-zinc-400 font-mono">{plugin.id}</dd>
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">Plugin ID</dt>
+              <dd class="mt-1 text-sm text-zinc-400 font-mono">{plugin.id}</dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">Name</dt>
+              <dd class="mt-1 text-sm text-zinc-400">{plugin.name}</dd>
+            </div>
+
+            <div>
+              <label for="description" class="block text-sm font-semibold text-zinc-100">Description</label>
+              <textarea id="description" name="description"
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+              >{rawPlugin?.description ?? ''}</textarea>
+            </div>
+
+            <div>
+              <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
+              <input type="url" id="repositoryUrl" name="repositoryUrl" value={rawPlugin?.repository_url ?? ''}
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
+            <div>
+              <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
+              <input type="url" id="homepageUrl" name="homepageUrl" value={rawPlugin?.homepage_url ?? ''}
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
+            <div>
+              <label for="supportUrl" class="block text-sm font-semibold text-zinc-100">Support URL</label>
+              <input type="url" id="supportUrl" name="supportUrl" value={rawPlugin?.support_url ?? ''}
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
+            <div>
+              <label for="fundingUrl" class="block text-sm font-semibold text-zinc-100">Funding URL</label>
+              <input type="url" id="fundingUrl" name="fundingUrl" value={rawPlugin?.funding_url ?? ''}
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
+            <div>
+              <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
+              <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. markdown, editor, syntax)</p>
+              <input type="text" id="keywords" name="keywords" value={parsedKeywords}
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
+            <div>
+              <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
+              <input type="text" id="license" name="license" value={rawPlugin?.license ?? ''}
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
+            <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Save Plugin Details</button>
+
+          </form>
+        ) : (
+          <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">Plugin ID</dt>
+              <dd class="mt-1 text-sm text-zinc-400 font-mono">{plugin.id}</dd>
+            </div>
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">Name</dt>
+              <dd class="mt-1 text-sm text-zinc-400">{plugin.name}</dd>
+            </div>
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">Description</dt>
+              <dd class="mt-1 text-sm text-zinc-400">{rawPlugin?.description ?? 'No description'}</dd>
+            </div>
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">Keywords</dt>
+              <dd class="mt-1 text-sm text-zinc-400">{parsedKeywords || 'None'}</dd>
+            </div>
+            <div>
+              <dt class="text-sm font-semibold text-zinc-100">License</dt>
+              <dd class="mt-1 text-sm text-zinc-400">{rawPlugin?.license ?? 'Not specified'}</dd>
+            </div>
           </div>
-
-          <div>
-            <dt class="text-sm font-semibold text-zinc-100">Name</dt>
-            <dd class="mt-1 text-sm text-zinc-400">{plugin.name}</dd>
-          </div>
-
-          <div>
-            <label for="description" class="block text-sm font-semibold text-zinc-100">Description</label>
-            <textarea id="description" name="description"
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            >{rawPlugin?.description ?? ''}</textarea>
-          </div>
-
-          <div>
-            <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
-            <input type="url" id="repositoryUrl" name="repositoryUrl" value={rawPlugin?.repository_url ?? ''}
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-          </div>
-
-          <div>
-            <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
-            <input type="url" id="homepageUrl" name="homepageUrl" value={rawPlugin?.homepage_url ?? ''}
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-          </div>
-
-          <div>
-            <label for="supportUrl" class="block text-sm font-semibold text-zinc-100">Support URL</label>
-            <input type="url" id="supportUrl" name="supportUrl" value={rawPlugin?.support_url ?? ''}
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-          </div>
-
-          <div>
-            <label for="fundingUrl" class="block text-sm font-semibold text-zinc-100">Funding URL</label>
-            <input type="url" id="fundingUrl" name="fundingUrl" value={rawPlugin?.funding_url ?? ''}
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-          </div>
-
-          <div>
-            <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
-            <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. markdown, editor, syntax)</p>
-            <input type="text" id="keywords" name="keywords" value={parsedKeywords}
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-          </div>
-
-          <div>
-            <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
-            <input type="text" id="license" name="license" value={rawPlugin?.license ?? ''}
-              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-          </div>
-
-          <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Save Plugin Details</button>
-
-        </form>
+        )}
       </div>
 
       {githubSuccess && (
@@ -266,40 +298,59 @@ const formatDate = (iso: string) =>
                 <span class="text-sm text-zinc-100 font-mono">{githubLink.repoFullName}</span>
                 <span class="ml-3 text-sm text-emerald-400">Connected</span>
               </div>
-              <div class="flex items-center gap-3">
-                <form method="POST">
-                  <input type="hidden" name="_action" value="toggle-auto-submit" />
-                  <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
-                    {githubLink.autoSubmit ? 'Pause auto-submit' : 'Enable auto-submit'}
-                  </button>
-                </form>
-                <span class:list={['text-sm', githubLink.autoSubmit ? 'text-emerald-400' : 'text-amber-400']}>
-                  {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
-                </span>
-              </div>
-              <form method="POST" class="flex items-end gap-3">
-                <input type="hidden" name="_action" value="update-tag-pattern" />
-                <div class="flex-1">
-                  <label for="tag_pattern" class="block text-sm font-semibold text-zinc-100">Tag pattern</label>
-                  <p class="mt-1 text-xs text-zinc-500">Glob pattern for release tags (e.g. v*, release-*, *). Only matching tags trigger auto-submit.</p>
-                  <input type="text" id="tag_pattern" name="tag_pattern" value={githubLink.tagPattern}
-                    class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-                    placeholder="*" />
+              {isMaintainer && (
+                <div class="flex items-center gap-3">
+                  <form method="POST">
+                    <input type="hidden" name="_action" value="toggle-auto-submit" />
+                    <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+                      {githubLink.autoSubmit ? 'Pause auto-submit' : 'Enable auto-submit'}
+                    </button>
+                  </form>
+                  <span class:list={['text-sm', githubLink.autoSubmit ? 'text-emerald-400' : 'text-amber-400']}>
+                    {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
+                  </span>
                 </div>
-                <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
-                  Save pattern
-                </button>
-              </form>
-              <div class="flex justify-end">
-                <form method="POST">
-                  <input type="hidden" name="_action" value="disconnect" />
-                  <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-4 py-2 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">
-                    Disconnect {githubLink.repoFullName}
+              )}
+              {!isMaintainer && (
+                <div class="flex items-center gap-3">
+                  <span class:list={['text-sm', githubLink.autoSubmit ? 'text-emerald-400' : 'text-amber-400']}>
+                    {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
+                  </span>
+                </div>
+              )}
+              {isMaintainer && (
+                <form method="POST" class="flex items-end gap-3">
+                  <input type="hidden" name="_action" value="update-tag-pattern" />
+                  <div class="flex-1">
+                    <label for="tag_pattern" class="block text-sm font-semibold text-zinc-100">Tag pattern</label>
+                    <p class="mt-1 text-xs text-zinc-500">Glob pattern for release tags (e.g. v*, release-*, *). Only matching tags trigger auto-submit.</p>
+                    <input type="text" id="tag_pattern" name="tag_pattern" value={githubLink.tagPattern}
+                      class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                      placeholder="*" />
+                  </div>
+                  <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+                    Save pattern
                   </button>
                 </form>
-              </div>
+              )}
+              {!isMaintainer && (
+                <div>
+                  <dt class="text-sm font-semibold text-zinc-100">Tag pattern</dt>
+                  <dd class="mt-1 text-sm text-zinc-400 font-mono">{githubLink.tagPattern}</dd>
+                </div>
+              )}
+              {isOwner && (
+                <div class="flex justify-end">
+                  <form method="POST">
+                    <input type="hidden" name="_action" value="disconnect" />
+                    <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-4 py-2 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">
+                      Disconnect {githubLink.repoFullName}
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
-          ) : installation ? (
+          ) : isMaintainer && installation ? (
             <form method="POST" class="space-y-4">
               <input type="hidden" name="_action" value="connect-repo" />
               <input type="hidden" name="repo_id" id="repo_id" value="" />
@@ -327,7 +378,7 @@ const formatDate = (iso: string) =>
                 });
               </script>
             </form>
-          ) : (
+          ) : isMaintainer ? (
             <div>
               <p class="text-sm text-zinc-400">No GitHub repository connected.</p>
               <p class="mt-1 text-sm text-zinc-500">Connect a repo to automatically submit new versions when you publish a release.</p>
@@ -338,6 +389,10 @@ const formatDate = (iso: string) =>
                 </a>
               </div>
             </div>
+          ) : (
+            <div>
+              <p class="text-sm text-zinc-400">No GitHub repository connected.</p>
+            </div>
           )}
         </div>
       </div>
@@ -346,7 +401,9 @@ const formatDate = (iso: string) =>
       <div class="mt-12">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold text-zinc-100">Versions</h2>
-          <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/upload'} class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Upload Version</a>
+          {isMaintainer && (
+            <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/upload'} class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Upload Version</a>
+          )}
         </div>
 
         {versions.length === 0 ? (

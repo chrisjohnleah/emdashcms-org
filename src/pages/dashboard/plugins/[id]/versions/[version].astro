@@ -9,23 +9,22 @@ import DashboardBanner from '../../../../../components/DashboardBanner.astro';
 import { getVersionDetail } from '../../../../../lib/db/queries';
 import {
   resolveAuthorId,
-  getPluginOwner,
   getVersionForRetry,
   incrementRetryCount,
 } from '../../../../../lib/publishing/plugin-queries';
+import { checkPluginAccess, hasRole } from '../../../../../lib/auth/permissions';
 import { enqueueAuditJob } from '../../../../../lib/publishing/queue';
 
 const { id: pluginId, version: versionStr } = Astro.params;
 const author = Astro.locals.author!;
 
-// Ownership check (D-09)
+// RBAC check — any collaborator can view audit details (D-10)
 const authorId = await resolveAuthorId(env.DB, author.githubId);
 if (!authorId) return Astro.redirect('/dashboard');
 
-const owner = await getPluginOwner(env.DB, pluginId!);
-if (!owner || owner.authorId !== authorId) {
-  return Astro.redirect('/dashboard');
-}
+const access = await checkPluginAccess(env.DB, authorId, pluginId!);
+if (!access.found || !access.role) return Astro.redirect('/dashboard');
+const isMaintainer = hasRole(access.role, 'maintainer');
 
 // Get plugin name for breadcrumb
 const pluginRow = await env.DB.prepare('SELECT name FROM plugins WHERE id = ?')
@@ -38,6 +37,7 @@ let retryError = '';
 
 if (Astro.request.method === 'POST') {
   try {
+    if (!isMaintainer) throw new Error('Maintainer role required to retry audit');
     const ver = await getVersionForRetry(env.DB, pluginId!, versionStr!);
     if (!ver) throw new Error('Version not found');
     if (ver.status !== 'rejected') {
@@ -138,7 +138,7 @@ const severityClasses = (severity: string) => {
                 <p class="text-sm text-zinc-400">
                   {versionDetail.retryCount} of 3 retry attempts used
                 </p>
-                {versionDetail.retryCount < 3 ? (
+                {isMaintainer && versionDetail.retryCount < 3 ? (
                   <form method="POST" class="inline">
                     <button
                       type="submit"
@@ -147,9 +147,9 @@ const severityClasses = (severity: string) => {
                       Retry Audit
                     </button>
                   </form>
-                ) : (
+                ) : versionDetail.retryCount >= 3 ? (
                   <p class="text-sm text-red-400">Maximum retries reached. Upload a new version.</p>
-                )}
+                ) : null}
               </div>
             )}
           </div>

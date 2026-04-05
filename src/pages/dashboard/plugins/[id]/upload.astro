@@ -6,11 +6,11 @@ import BaseLayout from '../../../../layouts/BaseLayout.astro';
 import DashboardBanner from '../../../../components/DashboardBanner.astro';
 import {
   resolveAuthorId,
-  getPluginOwner,
   checkUploadRateLimit,
   checkVersionExists,
   createVersion,
 } from '../../../../lib/publishing/plugin-queries';
+import { checkPluginAccess, hasRole } from '../../../../lib/auth/permissions';
 import { validateBundle } from '../../../../lib/publishing/bundle-validator';
 import { storeBundleInR2 } from '../../../../lib/publishing/r2-storage';
 import { enqueueAuditJob } from '../../../../lib/publishing/queue';
@@ -18,12 +18,12 @@ import { enqueueAuditJob } from '../../../../lib/publishing/queue';
 const { id: pluginId } = Astro.params;
 const author = Astro.locals.author!;
 
-// Ownership check (D-09) — use githubId, not id
+// RBAC check — maintainer+ required for upload (D-06)
 const authorId = await resolveAuthorId(env.DB, author.githubId);
 if (!authorId) return Astro.redirect('/dashboard');
 
-const owner = await getPluginOwner(env.DB, pluginId!);
-if (!owner || owner.authorId !== authorId) {
+const access = await checkPluginAccess(env.DB, authorId, pluginId!);
+if (!access.found || !access.role || !hasRole(access.role, 'maintainer')) {
   return Astro.redirect('/dashboard');
 }
 
