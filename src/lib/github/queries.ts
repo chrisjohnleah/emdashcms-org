@@ -96,6 +96,7 @@ export interface PluginGitHubLink {
   repoFullName: string;
   repoId: number;
   autoSubmit: boolean;
+  tagPattern: string;
 }
 
 export async function getPluginGitHubLink(
@@ -104,7 +105,7 @@ export async function getPluginGitHubLink(
 ): Promise<PluginGitHubLink | null> {
   const row = await db
     .prepare(
-      "SELECT id, plugin_id, installation_id, repo_full_name, repo_id, auto_submit FROM plugin_github_links WHERE plugin_id = ?",
+      "SELECT id, plugin_id, installation_id, repo_full_name, repo_id, auto_submit, tag_pattern FROM plugin_github_links WHERE plugin_id = ?",
     )
     .bind(pluginId)
     .first<{
@@ -114,6 +115,7 @@ export async function getPluginGitHubLink(
       repo_full_name: string;
       repo_id: number;
       auto_submit: number;
+      tag_pattern: string;
     }>();
   if (!row) return null;
   return {
@@ -123,6 +125,7 @@ export async function getPluginGitHubLink(
     repoFullName: row.repo_full_name,
     repoId: row.repo_id,
     autoSubmit: row.auto_submit === 1,
+    tagPattern: row.tag_pattern,
   };
 }
 
@@ -133,7 +136,7 @@ export async function getLinkByRepoFullName(
   const row = await db
     .prepare(
       `SELECT l.id, l.plugin_id, l.installation_id, l.repo_full_name, l.repo_id, l.auto_submit,
-              i.author_id
+              l.tag_pattern, i.author_id
        FROM plugin_github_links l
        JOIN github_installations i ON l.installation_id = i.id
        WHERE l.repo_full_name = ?`,
@@ -146,6 +149,7 @@ export async function getLinkByRepoFullName(
       repo_full_name: string;
       repo_id: number;
       auto_submit: number;
+      tag_pattern: string;
       author_id: string;
     }>();
   if (!row) return null;
@@ -156,6 +160,7 @@ export async function getLinkByRepoFullName(
     repoFullName: row.repo_full_name,
     repoId: row.repo_id,
     autoSubmit: row.auto_submit === 1,
+    tagPattern: row.tag_pattern,
     authorId: row.author_id,
   };
 }
@@ -182,5 +187,20 @@ export async function unlinkPlugin(
   await db
     .prepare("DELETE FROM plugin_github_links WHERE plugin_id = ?")
     .bind(pluginId)
+    .run();
+}
+
+export async function setTagPattern(
+  db: D1Database,
+  pluginId: string,
+  pattern: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE plugin_github_links
+       SET tag_pattern = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE plugin_id = ?`,
+    )
+    .bind(pattern, pluginId)
     .run();
 }

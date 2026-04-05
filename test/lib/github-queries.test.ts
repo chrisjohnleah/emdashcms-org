@@ -141,12 +141,6 @@ describe("plugin_github_links CRUD", () => {
     expect(link!.autoSubmit).toBe(true);
   });
 
-  it("unlinkPlugin deletes the link", async () => {
-    await unlinkPlugin(env.DB, PLUGIN_ID);
-    const link = await getPluginGitHubLink(env.DB, PLUGIN_ID);
-    expect(link).toBeNull();
-  });
-
   it("getPluginGitHubLink returns tagPattern defaulting to '*'", async () => {
     const link = await getPluginGitHubLink(env.DB, PLUGIN_ID);
     expect(link).not.toBeNull();
@@ -166,6 +160,12 @@ describe("plugin_github_links CRUD", () => {
     const link = await getLinkByRepoFullName(env.DB, "test-org/test-repo");
     expect(link).not.toBeNull();
     expect(link!.tagPattern).toBe("*");
+  });
+
+  it("unlinkPlugin deletes the link", async () => {
+    await unlinkPlugin(env.DB, PLUGIN_ID);
+    const link = await getPluginGitHubLink(env.DB, PLUGIN_ID);
+    expect(link).toBeNull();
   });
 
   it("duplicate linkPluginToRepo for same plugin throws UNIQUE constraint error", async () => {

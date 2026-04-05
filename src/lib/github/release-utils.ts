@@ -32,3 +32,18 @@ export function hasPrereleaseSuffix(tagName: string): boolean {
   const lower = tagName.toLowerCase();
   return PRERELEASE_SUFFIXES.some((s) => lower.includes(s));
 }
+
+/**
+ * Check if a release tag matches a publisher-configured glob pattern.
+ * Supports `*` as wildcard (e.g. "v*", "release-*", "v2.*").
+ * Pattern "*" matches all non-empty tags. Empty tags never match.
+ */
+export function matchesTagPattern(tagName: string, pattern: string): boolean {
+  if (!tagName) return false;
+  if (pattern === "*") return true;
+
+  // Escape regex special chars except *, then replace * with .*
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`^${escaped.replace(/\*/g, ".*")}$`);
+  return regex.test(tagName);
+}
