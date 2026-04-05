@@ -16,8 +16,11 @@ const keyword = url.searchParams.get('keyword') ?? null;
 const sort = url.searchParams.get('sort') ?? 'created';
 const cursor = url.searchParams.get('cursor') ?? null;
 
+const category = url.searchParams.get('category') ?? null;
+
 const { items: themes, nextCursor } = await searchThemes(env.DB, {
   query: q,
+  category,
   keyword,
   sort,
   cursor,

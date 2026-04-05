@@ -18,6 +18,7 @@ export const prerender = false;
 export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   const query = url.searchParams.get("query") ?? "";
+  const category = url.searchParams.get("category") ?? null;
   const keyword = url.searchParams.get("keyword") ?? null;
   const sort = url.searchParams.get("sort") ?? "created";
   const { cursor, limit } = parsePaginationParams(url);
@@ -25,6 +26,7 @@ export const GET: APIRoute = async ({ request }) => {
   try {
     const results = await searchThemes(env.DB, {
       query,
+      category,
       keyword,
       sort,
       cursor,

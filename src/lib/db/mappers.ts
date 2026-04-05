@@ -50,16 +50,18 @@ export function mapPluginSummary(row: Row): MarketplacePluginSummary {
       }
     : null;
 
+  const iconKey = row.icon_key as string | null;
   return {
     id: row.id as string,
     name: row.name as string,
+    shortDescription: (row.short_description as string) ?? null,
     description: (row.description as string) ?? null,
     author: mapAuthor(row),
     capabilities: JSON.parse((row.capabilities as string) || "[]"),
     keywords: JSON.parse((row.keywords as string) || "[]"),
     installCount: (row.installs_count as number) ?? 0,
-    hasIcon: row.icon_key !== null,
-    iconUrl: null, // Download endpoints in Phase 6
+    hasIcon: iconKey !== null,
+    iconUrl: iconKey ? `/api/v1/images/${iconKey}` : null,
     latestVersion,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -97,6 +99,7 @@ export function mapPluginDetail(
 
   return {
     ...base,
+    category: (pluginRow.category as string) ?? null,
     repositoryUrl: (pluginRow.repository_url as string) ?? null,
     homepageUrl: (pluginRow.homepage_url as string) ?? null,
     license: (pluginRow.license as string) ?? null,
@@ -127,6 +130,7 @@ export function mapThemeSummary(row: Row): MarketplaceThemeSummary {
   return {
     id: row.id as string,
     name: row.name as string,
+    shortDescription: (row.short_description as string) ?? null,
     description: (row.description as string) ?? null,
     author: mapAuthor(row),
     keywords: JSON.parse((row.keywords as string) || "[]"),
@@ -143,6 +147,7 @@ export function mapThemeDetail(row: Row): MarketplaceThemeDetail {
   );
   return {
     ...mapThemeSummary(row),
+    category: (row.category as string) ?? null,
     repositoryUrl: (row.repository_url as string) ?? null,
     homepageUrl: (row.homepage_url as string) ?? null,
     license: (row.license as string) ?? null,

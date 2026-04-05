@@ -12,7 +12,7 @@ const description = "An open, community-driven plugin and theme marketplace for 
 const [latestResult, popularResult, themesResult] = await Promise.all([
   searchPlugins(env.DB, { query: '', category: null, capability: null, sort: 'created', cursor: null, limit: 6 }),
   searchPlugins(env.DB, { query: '', category: null, capability: null, sort: 'installs', cursor: null, limit: 6 }),
-  searchThemes(env.DB, { query: '', keyword: null, sort: 'created', cursor: null, limit: 4 }),
+  searchThemes(env.DB, { query: '', category: null, keyword: null, sort: 'created', cursor: null, limit: 4 }),
 ]);
 
 const popularWithInstalls = popularResult.items.filter(p => p.installCount > 0);

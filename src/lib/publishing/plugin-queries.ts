@@ -12,6 +12,7 @@
 export interface PluginRegistrationInput {
   id: string;
   name: string;
+  short_description?: string;
   description: string;
   capabilities: string[];
   keywords?: string[];
@@ -69,11 +70,11 @@ export async function registerPlugin(
   await db
     .prepare(
       `INSERT INTO plugins (
-        id, author_id, name, description, capabilities, keywords,
+        id, author_id, name, short_description, description, capabilities, keywords,
         license, category, repository_url, homepage_url, support_url, funding_url,
         installs_count, created_at, updated_at
       ) VALUES (
-        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?,
         0, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       )`,
@@ -82,6 +83,7 @@ export async function registerPlugin(
       data.id,
       authorId,
       data.name,
+      data.short_description ?? null,
       data.description,
       JSON.stringify(data.capabilities),
       JSON.stringify(data.keywords ?? []),
@@ -114,8 +116,10 @@ export async function getPluginOwner(
 // --- Metadata Update ---
 
 export interface UpdatePluginMetadataInput {
+  shortDescription?: string;
   description?: string;
   keywords?: string[];
+  category?: string;
   repositoryUrl?: string;
   homepageUrl?: string;
   supportUrl?: string;
@@ -135,10 +139,14 @@ export async function updatePluginMetadata(
 ): Promise<void> {
   const fields: { col: string; val: unknown }[] = [];
 
+  if (data.shortDescription !== undefined)
+    fields.push({ col: "short_description", val: data.shortDescription });
   if (data.description !== undefined)
     fields.push({ col: "description", val: data.description });
   if (data.keywords !== undefined)
     fields.push({ col: "keywords", val: JSON.stringify(data.keywords) });
+  if (data.category !== undefined)
+    fields.push({ col: "category", val: data.category });
   if (data.repositoryUrl !== undefined)
     fields.push({ col: "repository_url", val: data.repositoryUrl });
   if (data.homepageUrl !== undefined)
@@ -161,6 +169,24 @@ export async function updatePluginMetadata(
   await db
     .prepare(sql)
     .bind(...params)
+    .run();
+}
+
+// --- Icon Key Update ---
+
+/**
+ * Set or clear the icon R2 key for a plugin.
+ */
+export async function updatePluginIconKey(
+  db: D1Database,
+  pluginId: string,
+  key: string | null,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE plugins SET icon_key = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?`,
+    )
+    .bind(key, pluginId)
     .run();
 }
 

@@ -48,6 +48,8 @@ export function validateKeywords(
 /** Max lengths for common string fields. */
 const STRING_LIMITS: Record<string, number> = {
   name: 100,
+  short_description: 150,
+  shortDescription: 150,
   description: 5000,
   license: 50,
   repositoryUrl: 2048,
@@ -63,6 +65,30 @@ const STRING_LIMITS: Record<string, number> = {
   preview_url: 2048,
   demo_url: 2048,
 };
+
+/** Known plugin and theme categories. */
+export const KNOWN_CATEGORIES = [
+  "content",
+  "media",
+  "seo",
+  "analytics",
+  "security",
+  "performance",
+  "integration",
+  "workflow",
+  "developer-tools",
+  "ui",
+] as const;
+
+export type KnownCategory = (typeof KNOWN_CATEGORIES)[number];
+
+/** Validate a category against known values. Returns error string or null. */
+export function validateCategory(category: string): string | null {
+  if (!KNOWN_CATEGORIES.includes(category as KnownCategory)) {
+    return `Invalid category: ${category}. Must be one of: ${KNOWN_CATEGORIES.join(", ")}`;
+  }
+  return null;
+}
 
 /** Validate string field lengths. Returns first error or null. */
 export function validateStringLengths(

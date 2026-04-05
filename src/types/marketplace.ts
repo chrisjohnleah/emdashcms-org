@@ -55,6 +55,7 @@ export interface MarketplaceVersionDetail extends MarketplaceVersionSummary {
 export interface MarketplacePluginSummary {
   id: string;
   name: string;
+  shortDescription: string | null;
   description: string | null;
   author: MarketplaceAuthor;
   capabilities: string[];
@@ -71,6 +72,7 @@ export interface MarketplacePluginSummary {
 }
 
 export interface MarketplacePluginDetail extends MarketplacePluginSummary {
+  category: string | null;
   repositoryUrl: string | null;
   homepageUrl: string | null;
   license: string | null;
@@ -93,6 +95,7 @@ export interface MarketplacePluginDetail extends MarketplacePluginSummary {
 export interface MarketplaceThemeSummary {
   id: string;
   name: string;
+  shortDescription: string | null;
   description: string | null;
   author: MarketplaceAuthor;
   keywords: string[];
@@ -103,6 +106,7 @@ export interface MarketplaceThemeSummary {
 }
 
 export interface MarketplaceThemeDetail extends MarketplaceThemeSummary {
+  category: string | null;
   repositoryUrl: string | null;
   homepageUrl: string | null;
   license: string | null;

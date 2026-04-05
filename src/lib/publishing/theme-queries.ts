@@ -12,8 +12,10 @@
 export interface ThemeRegistrationInput {
   id: string;
   name: string;
+  short_description?: string;
   description: string;
   keywords?: string[];
+  category?: string;
   preview_url?: string;
   demo_url?: string;
   repository_url?: string;
@@ -30,8 +32,10 @@ export interface DashboardTheme {
 }
 
 export interface UpdateThemeMetadataInput {
+  shortDescription?: string;
   description?: string;
   keywords?: string[];
+  category?: string;
   previewUrl?: string;
   demoUrl?: string;
   repositoryUrl?: string;
@@ -53,12 +57,12 @@ export async function registerTheme(
   await db
     .prepare(
       `INSERT INTO themes (
-        id, author_id, name, description, keywords,
-        preview_url, demo_url, repository_url, homepage_url, license,
+        id, author_id, name, short_description, description, keywords,
+        category, preview_url, demo_url, repository_url, homepage_url, license,
         created_at, updated_at
       ) VALUES (
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
         strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       )`,
     )
@@ -66,8 +70,10 @@ export async function registerTheme(
       data.id,
       authorId,
       data.name,
+      data.short_description ?? null,
       data.description,
       JSON.stringify(data.keywords ?? []),
+      data.category ?? null,
       data.preview_url ?? null,
       data.demo_url ?? null,
       data.repository_url ?? null,
@@ -135,10 +141,14 @@ export async function updateThemeMetadata(
 ): Promise<void> {
   const fields: { col: string; val: unknown }[] = [];
 
+  if (data.shortDescription !== undefined)
+    fields.push({ col: "short_description", val: data.shortDescription });
   if (data.description !== undefined)
     fields.push({ col: "description", val: data.description });
   if (data.keywords !== undefined)
     fields.push({ col: "keywords", val: JSON.stringify(data.keywords) });
+  if (data.category !== undefined)
+    fields.push({ col: "category", val: data.category });
   if (data.previewUrl !== undefined)
     fields.push({ col: "preview_url", val: data.previewUrl });
   if (data.demoUrl !== undefined)

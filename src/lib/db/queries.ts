@@ -47,10 +47,10 @@ export async function searchPlugins(
 
   if (opts.query) {
     conditions.push(
-      "(p.name LIKE ? COLLATE NOCASE OR p.description LIKE ? COLLATE NOCASE)",
+      "(p.name LIKE ? COLLATE NOCASE OR p.short_description LIKE ? COLLATE NOCASE OR p.description LIKE ? COLLATE NOCASE)",
     );
     const pattern = `%${opts.query}%`;
-    params.push(pattern, pattern);
+    params.push(pattern, pattern, pattern);
   }
 
   if (opts.category) {
@@ -265,6 +265,7 @@ export async function getVersionDetail(
 
 interface SearchThemesOpts {
   query: string;
+  category: string | null;
   keyword: string | null;
   sort: string;
   cursor: string | null;
@@ -288,10 +289,15 @@ export async function searchThemes(
 
   if (opts.query) {
     conditions.push(
-      "(t.name LIKE ? COLLATE NOCASE OR t.description LIKE ? COLLATE NOCASE)",
+      "(t.name LIKE ? COLLATE NOCASE OR t.short_description LIKE ? COLLATE NOCASE OR t.description LIKE ? COLLATE NOCASE)",
     );
     const pattern = `%${opts.query}%`;
-    params.push(pattern, pattern);
+    params.push(pattern, pattern, pattern);
+  }
+
+  if (opts.category) {
+    conditions.push("t.category = ?");
+    params.push(opts.category);
   }
 
   if (opts.keyword) {

@@ -24,6 +24,7 @@ describe("Theme Search (DISC-04)", () => {
   it("returns items array and nextCursor", async () => {
     const result = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: null,
       sort: "created",
       cursor: null,
@@ -38,6 +39,7 @@ describe("Theme Search (DISC-04)", () => {
   it("filters by query text (case-insensitive)", async () => {
     const result = await searchThemes(env.DB, {
       query: "blog",
+      category: null,
       keyword: null,
       sort: "created",
       cursor: null,
@@ -56,6 +58,7 @@ describe("Theme Search (DISC-04)", () => {
   it("filters by keyword using json_each", async () => {
     const result = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: "portfolio",
       sort: "created",
       cursor: null,
@@ -68,6 +71,7 @@ describe("Theme Search (DISC-04)", () => {
   it("sorts by name ascending", async () => {
     const result = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: null,
       sort: "name",
       cursor: null,
@@ -80,6 +84,7 @@ describe("Theme Search (DISC-04)", () => {
   it("paginates with limit and cursor", async () => {
     const page1 = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: null,
       sort: "name",
       cursor: null,
@@ -90,6 +95,7 @@ describe("Theme Search (DISC-04)", () => {
 
     const page2 = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: null,
       sort: "name",
       cursor: page1.nextCursor,
@@ -105,6 +111,7 @@ describe("Theme Search (DISC-04)", () => {
   it("returns empty items for no-match query", async () => {
     const result = await searchThemes(env.DB, {
       query: "nonexistent-xyz-12345",
+      category: null,
       keyword: null,
       sort: "created",
       cursor: null,
@@ -117,6 +124,7 @@ describe("Theme Search (DISC-04)", () => {
   it("returns correct MarketplaceThemeSummary shape", async () => {
     const result = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: "blog",
       sort: "created",
       cursor: null,
@@ -177,6 +185,7 @@ describe("Theme Detail (DISC-05)", () => {
   it("mapThemeSummary generates thumbnailUrl from thumbnail_key", async () => {
     const result = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: "blog",
       sort: "created",
       cursor: null,
@@ -190,6 +199,7 @@ describe("Theme Detail (DISC-05)", () => {
 
     const docsResult = await searchThemes(env.DB, {
       query: "",
+      category: null,
       keyword: "documentation",
       sort: "created",
       cursor: null,
