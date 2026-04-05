@@ -34,6 +34,7 @@ export interface CreateVersionInput {
   decompressedSize: number;
   changelog?: string;
   minEmDashVersion?: string;
+  source?: "upload" | "github";
 }
 
 // --- Author ID Resolution ---
@@ -235,12 +236,12 @@ export async function createVersion(
       `INSERT INTO plugin_versions (
         id, plugin_id, version, status, bundle_key, manifest,
         file_count, compressed_size, decompressed_size, min_emdash_version,
-        checksum, changelog, screenshots, retry_count,
+        checksum, changelog, screenshots, retry_count, source,
         created_at, updated_at
       ) VALUES (
         ?, ?, ?, 'pending', ?, ?,
         ?, ?, ?, ?,
-        ?, ?, '[]', 0,
+        ?, ?, '[]', 0, ?,
         strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       )`,
     )
@@ -256,6 +257,7 @@ export async function createVersion(
       input.minEmDashVersion ?? null,
       input.checksum,
       input.changelog ?? null,
+      input.source ?? "upload",
     )
     .run();
 
