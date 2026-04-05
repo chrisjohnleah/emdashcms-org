@@ -9,6 +9,7 @@ import {
   getLinkByRepoFullName,
   toggleAutoSubmit,
   unlinkPlugin,
+  setTagPattern,
 } from "../../src/lib/github/queries";
 
 // ---------------------------------------------------------------------------
@@ -144,6 +145,27 @@ describe("plugin_github_links CRUD", () => {
     await unlinkPlugin(env.DB, PLUGIN_ID);
     const link = await getPluginGitHubLink(env.DB, PLUGIN_ID);
     expect(link).toBeNull();
+  });
+
+  it("getPluginGitHubLink returns tagPattern defaulting to '*'", async () => {
+    const link = await getPluginGitHubLink(env.DB, PLUGIN_ID);
+    expect(link).not.toBeNull();
+    expect(link!.tagPattern).toBe("*");
+  });
+
+  it("setTagPattern updates the tag_pattern for a plugin", async () => {
+    await setTagPattern(env.DB, PLUGIN_ID, "v*");
+    const link = await getPluginGitHubLink(env.DB, PLUGIN_ID);
+    expect(link).not.toBeNull();
+    expect(link!.tagPattern).toBe("v*");
+    // Reset back to default
+    await setTagPattern(env.DB, PLUGIN_ID, "*");
+  });
+
+  it("getLinkByRepoFullName returns tagPattern", async () => {
+    const link = await getLinkByRepoFullName(env.DB, "test-org/test-repo");
+    expect(link).not.toBeNull();
+    expect(link!.tagPattern).toBe("*");
   });
 
   it("duplicate linkPluginToRepo for same plugin throws UNIQUE constraint error", async () => {

@@ -15,6 +15,7 @@ import {
 import {
   extractVersion,
   hasPrereleaseSuffix,
+  matchesTagPattern,
 } from "../../src/lib/github/release-utils";
 
 // ---------------------------------------------------------------------------
@@ -148,6 +149,44 @@ describe("Release tag filtering", () => {
   it("hasPrereleaseSuffix returns false for stable tags", () => {
     expect(hasPrereleaseSuffix("v1.0.0")).toBe(false);
     expect(hasPrereleaseSuffix("2.3.4")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tag pattern matching (glob-style)
+// ---------------------------------------------------------------------------
+
+describe("Tag pattern matching", () => {
+  it("wildcard '*' matches any non-empty tag", () => {
+    expect(matchesTagPattern("v1.0.0", "*")).toBe(true);
+  });
+
+  it("'v*' matches tags starting with v", () => {
+    expect(matchesTagPattern("v1.0.0", "v*")).toBe(true);
+  });
+
+  it("'v*' does not match tags not starting with v", () => {
+    expect(matchesTagPattern("release-1.0", "v*")).toBe(false);
+  });
+
+  it("'v*' does not match tag without v prefix", () => {
+    expect(matchesTagPattern("1.0.0", "v*")).toBe(false);
+  });
+
+  it("'v2.*' matches v2.x tags", () => {
+    expect(matchesTagPattern("v2.0.0", "v2.*")).toBe(true);
+  });
+
+  it("'v2.*' does not match v1.x tags", () => {
+    expect(matchesTagPattern("v1.0.0", "v2.*")).toBe(false);
+  });
+
+  it("'release-*' matches release- prefixed tags", () => {
+    expect(matchesTagPattern("release-2025.04", "release-*")).toBe(true);
+  });
+
+  it("empty tag never matches wildcard", () => {
+    expect(matchesTagPattern("", "*")).toBe(false);
   });
 });
 

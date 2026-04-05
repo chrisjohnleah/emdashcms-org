@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Browsing UI** - Public SSR pages for plugin search, plugin detail, and theme browsing (completed 2026-04-05)
 - [ ] **Phase 8: Publisher Dashboard** - Authenticated UI for plugin management, audit results, version submission
 - [x] **Phase 9: Theme Listings** - Theme submission, screenshot uploads, theme browsing pages (completed 2026-04-05)
-- [ ] **Phase 10: GitHub App Integration** - Auto-publish on GitHub release, repo-scoped webhook, private repo support
+- [ ] **Phase 10: GitHub App Integration** - Auto-publish on GitHub release, repo-scoped webhook, private repo support (gap closure in progress)
 - [ ] **Phase 11: Team & Collaborator Access** - Multi-owner plugin management, invitation flow, role-based permissions
 
 ## Phase Details
@@ -175,12 +175,13 @@ Plans:
   2. When a GitHub release is published on a connected repo, a webhook triggers automatic tarball download, validation, and audit queue submission
   3. Private repositories work — the GitHub App's installation token provides secure, repo-scoped access without broad OAuth permissions
   4. Publisher can configure which branch/release tag pattern triggers submissions, and can disconnect the integration at any time
-**Plans:** 2/3 plans executed
+**Plans:** 4 plans
 
 Plans:
 - [x] 10-01-PLAN.md — D1 migration (github_installations, plugin_github_links, version source), GitHub library modules (RS256 JWT, HMAC webhook verify, installation tokens, D1 queries), unit tests
 - [x] 10-02-PLAN.md — Webhook endpoint (POST /api/v1/webhooks/github), middleware exemptions (CSRF, rate limit), release filtering, full pipeline integration tests
-- [ ] 10-03-PLAN.md — Installation callback, repo listing endpoint, SourceBadge component, dashboard GitHub sections on plugin/theme detail pages
+- [x] 10-03-PLAN.md — Installation callback, repo listing endpoint, SourceBadge component, dashboard GitHub sections on plugin/theme detail pages
+- [ ] 10-04-PLAN.md — Gap closure: tag pattern column, matchesTagPattern function, webhook pattern check, dashboard tag pattern UI
 
 ### Phase 11: Team & Collaborator Access
 **Goal**: Multiple people can manage a plugin with appropriate role-based permissions
@@ -215,5 +216,5 @@ Note: Phases 10-11 are post-v1 enhancements — can ship v1 without them.
 | 7. Browsing UI | 3/3 | Complete   | 2026-04-05 |
 | 8. Publisher Dashboard | 0/3 | Not started | - |
 | 9. Theme Listings | 2/2 | Complete   | 2026-04-05 |
-| 10. GitHub App Integration | 2/3 | In Progress|  |
+| 10. GitHub App Integration | 3/4 | Gap closure | 2026-04-05 |
 | 11. Team & Collaborator Access | 0/2 | Not started | - |
