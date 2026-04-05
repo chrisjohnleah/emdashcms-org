@@ -247,6 +247,17 @@ const severityStyle = (severity: string) => {
                               <span class="mx-2 text-zinc-700">|</span>
                               ID: <span class="text-zinc-400 font-mono">{v.id}</span>
                             </p>
+                            {v.status === 'rejected' && (
+                              <button
+                                type="button"
+                                data-retry-audit
+                                data-plugin-id={plugin.id}
+                                data-version={v.version}
+                                class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-950/60 transition-colors"
+                              >
+                                Re-audit
+                              </button>
+                            )}
                           </div>
 
                           <!-- Findings -->
@@ -313,6 +324,35 @@ const severityStyle = (severity: string) => {
   </section>
 
   <script>
+    document.querySelectorAll('[data-retry-audit]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const el = btn as HTMLButtonElement;
+        const pluginId = el.dataset.pluginId;
+        const version = el.dataset.version;
+        if (!pluginId || !version) return;
+
+        if (!confirm(`Re-audit ${pluginId}@${version}? This will re-queue the AI audit.`)) return;
+
+        el.disabled = true;
+        el.textContent = 'Queuing...';
+
+        const res = await fetch(`/api/v1/admin/plugins/${pluginId}/retry-audit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version }),
+        });
+
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
+          alert(`Failed: ${body.error}`);
+          el.disabled = false;
+          el.textContent = 'Re-audit';
+        }
+      });
+    });
+
     document.querySelectorAll('[data-admin-action]').forEach(form => {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
