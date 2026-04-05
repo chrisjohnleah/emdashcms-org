@@ -165,9 +165,65 @@ describe("Theme Detail (DISC-05)", () => {
   it("includes hasThumbnail derived from thumbnail_key", async () => {
     const withThumb = await getThemeDetail(env.DB, "minimal-blog");
     expect(withThumb!.hasThumbnail).toBe(true);
+    expect(withThumb!.thumbnailUrl).toBe(
+      "/api/v1/images/themes/minimal-blog/thumbnail.png",
+    );
 
     const withoutThumb = await getThemeDetail(env.DB, "docs-theme");
     expect(withoutThumb!.hasThumbnail).toBe(false);
+    expect(withoutThumb!.thumbnailUrl).toBeNull();
+  });
+
+  it("mapThemeSummary generates thumbnailUrl from thumbnail_key", async () => {
+    const result = await searchThemes(env.DB, {
+      query: "",
+      keyword: "blog",
+      sort: "created",
+      cursor: null,
+      limit: 20,
+    });
+    const theme = result.items[0];
+    expect(theme.id).toBe("minimal-blog");
+    expect(theme.thumbnailUrl).toBe(
+      "/api/v1/images/themes/minimal-blog/thumbnail.png",
+    );
+
+    const docsResult = await searchThemes(env.DB, {
+      query: "",
+      keyword: "documentation",
+      sort: "created",
+      cursor: null,
+      limit: 20,
+    });
+    expect(docsResult.items[0].thumbnailUrl).toBeNull();
+  });
+
+  it("mapThemeDetail generates screenshotUrls from screenshot_keys", async () => {
+    // Insert a theme with screenshot_keys
+    await env.DB.prepare(
+      `INSERT INTO themes (id, author_id, name, description, keywords, repository_url, screenshot_keys, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        "screenshots-test",
+        "author-1",
+        "Screenshots Test",
+        "A theme for testing screenshots",
+        '["test"]',
+        "https://github.com/test/screenshots",
+        '["themes/screenshots-test/screenshots/0.jpg","themes/screenshots-test/screenshots/1.png"]',
+        "2026-04-01T08:00:00Z",
+        "2026-04-01T08:00:00Z",
+      )
+      .run();
+
+    const theme = await getThemeDetail(env.DB, "screenshots-test");
+    expect(theme).not.toBeNull();
+    expect(theme!.screenshotCount).toBe(2);
+    expect(theme!.screenshotUrls).toEqual([
+      "/api/v1/images/themes/screenshots-test/screenshots/0.jpg",
+      "/api/v1/images/themes/screenshots-test/screenshots/1.png",
+    ]);
   });
 
   it("returns optional fields correctly", async () => {

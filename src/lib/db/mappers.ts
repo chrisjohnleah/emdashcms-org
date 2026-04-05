@@ -123,6 +123,7 @@ export function mapVersionSummary(row: Row): MarketplaceVersionSummary {
 }
 
 export function mapThemeSummary(row: Row): MarketplaceThemeSummary {
+  const thumbnailKey = row.thumbnail_key as string | null;
   return {
     id: row.id as string,
     name: row.name as string,
@@ -131,19 +132,22 @@ export function mapThemeSummary(row: Row): MarketplaceThemeSummary {
     keywords: JSON.parse((row.keywords as string) || "[]"),
     previewUrl: (row.preview_url as string) ?? null,
     demoUrl: (row.demo_url as string) ?? null,
-    hasThumbnail: row.thumbnail_key !== null,
-    thumbnailUrl: null, // Download endpoints in Phase 6
+    hasThumbnail: thumbnailKey !== null,
+    thumbnailUrl: thumbnailKey ? `/api/v1/images/${thumbnailKey}` : null,
   };
 }
 
 export function mapThemeDetail(row: Row): MarketplaceThemeDetail {
+  const screenshotKeys: string[] = JSON.parse(
+    (row.screenshot_keys as string) || "[]",
+  );
   return {
     ...mapThemeSummary(row),
     repositoryUrl: (row.repository_url as string) ?? null,
     homepageUrl: (row.homepage_url as string) ?? null,
     license: (row.license as string) ?? null,
-    screenshotCount: 0, // No screenshot storage yet
-    screenshotUrls: [], // No screenshot storage yet
+    screenshotCount: screenshotKeys.length,
+    screenshotUrls: screenshotKeys.map((key) => `/api/v1/images/${key}`),
   };
 }
 
