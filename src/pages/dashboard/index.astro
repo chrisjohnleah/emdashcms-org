@@ -5,22 +5,52 @@ import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import EmptyState from '../../components/EmptyState.astro';
-import { getPluginsByAuthor } from '../../lib/db/queries';
+import RoleBadge from '../../components/RoleBadge.astro';
+import DashboardBanner from '../../components/DashboardBanner.astro';
+import { getDashboardPlugins, getDashboardThemes, getPendingInvitesForUser, acceptInvite, declineInvite } from '../../lib/auth/collaborator-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
-import { getThemesByAuthor } from '../../lib/publishing/theme-queries';
 import { isSuperAdmin } from '../../lib/auth/admin';
 
 const author = Astro.locals.author!;
 const isAdmin = isSuperAdmin(author.githubId);
 const authorId = await resolveAuthorId(env.DB, author.githubId);
 
-// If author not in DB yet (first login, no plugins), show empty state
-let plugins: Awaited<ReturnType<typeof getPluginsByAuthor>> = [];
-let themes: Awaited<ReturnType<typeof getThemesByAuthor>> = [];
-if (authorId) {
-  plugins = await getPluginsByAuthor(env.DB, authorId);
-  themes = await getThemesByAuthor(env.DB, authorId);
+let bannerMessage = '';
+let bannerType: 'success' | 'error' = 'success';
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const action = data.get('_action') as string;
+  const inviteId = data.get('invite_id') as string;
+
+  if (action === 'accept-invite' && inviteId && authorId) {
+    try {
+      await acceptInvite(env.DB, inviteId, authorId);
+      bannerMessage = 'Invitation accepted.';
+    } catch (e) {
+      bannerType = 'error';
+      bannerMessage = e instanceof Error ? e.message : 'Failed to accept invitation.';
+    }
+  } else if (action === 'decline-invite' && inviteId) {
+    try {
+      await declineInvite(env.DB, inviteId, author.username);
+      bannerMessage = 'Invitation declined.';
+    } catch (e) {
+      bannerType = 'error';
+      bannerMessage = e instanceof Error ? e.message : 'Failed to decline invitation.';
+    }
+  }
 }
+
+let plugins: Awaited<ReturnType<typeof getDashboardPlugins>> = [];
+let themes: Awaited<ReturnType<typeof getDashboardThemes>> = [];
+let pendingInvites: Awaited<ReturnType<typeof getPendingInvitesForUser>> = [];
+
+if (authorId) {
+  plugins = await getDashboardPlugins(env.DB, authorId);
+  themes = await getDashboardThemes(env.DB, authorId);
+}
+pendingInvites = await getPendingInvitesForUser(env.DB, author.username);
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', {
@@ -36,6 +66,43 @@ const formatDate = (iso: string) =>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
           Admin Panel
         </a>
+      )}
+
+      {bannerMessage && (
+        <div class="mb-6">
+          <DashboardBanner type={bannerType} message={bannerMessage} />
+        </div>
+      )}
+
+      {pendingInvites.length > 0 && (
+        <div class="mb-8">
+          <h2 class="text-xl font-semibold text-zinc-100 mb-4">Pending Invitations</h2>
+          <div class="space-y-3">
+            {pendingInvites.map(invite => (
+              <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4 flex items-center justify-between">
+                <div>
+                  <span class="text-sm text-zinc-100 font-medium">{invite.entityName}</span>
+                  <span class="mx-2 text-zinc-600">&middot;</span>
+                  <RoleBadge role={invite.role as 'owner' | 'maintainer' | 'contributor'} />
+                  <span class="mx-2 text-zinc-600">&middot;</span>
+                  <span class="text-sm text-zinc-500">Invited by {invite.invitedBy}</span>
+                </div>
+                <div class="flex gap-2">
+                  <form method="POST">
+                    <input type="hidden" name="_action" value="accept-invite" />
+                    <input type="hidden" name="invite_id" value={invite.id} />
+                    <button type="submit" class="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Accept</button>
+                  </form>
+                  <form method="POST">
+                    <input type="hidden" name="_action" value="decline-invite" />
+                    <input type="hidden" name="invite_id" value={invite.id} />
+                    <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">Decline</button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div class="flex items-center justify-between mb-8">
@@ -56,6 +123,7 @@ const formatDate = (iso: string) =>
             <thead>
               <tr class="border-b border-zinc-800 text-left">
                 <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Plugin</th>
+                <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Role</th>
                 <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Latest Version</th>
                 <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Status</th>
                 <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Installs</th>
@@ -68,6 +136,7 @@ const formatDate = (iso: string) =>
                   <th scope="row" class="py-3 pl-6 pr-4">
                     <a href={'/dashboard/plugins/' + encodeURIComponent(plugin.id)} class="text-zinc-100 font-medium hover:text-white hover:underline transition-colors">{plugin.name}</a>
                   </th>
+                  <td class="py-3 px-4"><RoleBadge role={plugin.role} /></td>
                   <td class="py-3 px-4 font-mono text-zinc-400">{plugin.latestVersion ?? '\u2014'}</td>
                   <td class="py-3 px-4">
                     {plugin.latestStatus ? <StatusBadge status={plugin.latestStatus} /> : <span class="text-zinc-500">{'\u2014'}</span>}
@@ -90,7 +159,14 @@ const formatDate = (iso: string) =>
         {themes.length === 0 ? (
           <p class="text-sm text-zinc-400">You haven't listed any themes yet. <a href="/dashboard/themes/new" class="text-zinc-300 hover:text-zinc-100 transition-colors underline">List your first theme</a>.</p>
         ) : (
-          <a href="/dashboard/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Manage {themes.length} theme{themes.length !== 1 ? 's' : ''} &rarr;</a>
+          <div class="space-y-2">
+            {themes.map(theme => (
+              <div class="flex items-center justify-between rounded-lg border border-zinc-800/60 bg-zinc-900/40 px-4 py-3">
+                <a href={'/dashboard/themes/' + theme.id} class="text-sm text-zinc-100 font-medium hover:text-white hover:underline transition-colors">{theme.name}</a>
+                <RoleBadge role={theme.role} />
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
