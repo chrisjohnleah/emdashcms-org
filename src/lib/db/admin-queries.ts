@@ -258,6 +258,10 @@ export async function getAdminPluginVersions(
               pa.model, pa.prompt_tokens, pa.completion_tokens, pa.neurons_used
        FROM plugin_versions pv
        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
+         AND pa.created_at = (
+           SELECT MAX(pa2.created_at) FROM plugin_audits pa2
+           WHERE pa2.plugin_version_id = pv.id
+         )
        WHERE pv.plugin_id = ?
        ORDER BY pv.created_at DESC`,
     )
@@ -402,6 +406,7 @@ export async function getModerationQueue(
               a.github_username
        FROM plugin_versions pv
        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
+         AND pa.created_at = (SELECT MAX(pa2.created_at) FROM plugin_audits pa2 WHERE pa2.plugin_version_id = pv.id)
        JOIN plugins p ON pv.plugin_id = p.id
        JOIN authors a ON p.author_id = a.id
        WHERE pv.status IN ('pending', 'flagged', 'rejected')
