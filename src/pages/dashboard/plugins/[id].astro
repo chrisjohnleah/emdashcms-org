@@ -62,9 +62,11 @@ if (Astro.request.method === 'POST') {
     if (action === 'metadata') {
       if (!isMaintainer) throw new Error('Maintainer role required to edit metadata');
       await updatePluginMetadata(env.DB, pluginId!, {
+        shortDescription: (data.get('shortDescription') as string) || undefined,
         description: (data.get('description') as string) ?? undefined,
         keywords: (data.get('keywords') as string ?? '')
           .split(',').map((k: string) => k.trim()).filter(Boolean),
+        category: (data.get('category') as string) || undefined,
         repositoryUrl: (data.get('repositoryUrl') as string) || undefined,
         homepageUrl: (data.get('homepageUrl') as string) || undefined,
         supportUrl: (data.get('supportUrl') as string) || undefined,
@@ -188,10 +190,12 @@ const sourceMap = new Map(versionSources.results.map(r => [r.version, r.source ?
 
 // Fetch raw plugin row for editable fields not on MarketplacePluginDetail
 const rawPlugin = await env.DB.prepare(
-  'SELECT description, keywords, repository_url, homepage_url, support_url, funding_url, license FROM plugins WHERE id = ?'
+  'SELECT short_description, description, keywords, category, repository_url, homepage_url, support_url, funding_url, license FROM plugins WHERE id = ?'
 ).bind(pluginId).first<{
+  short_description: string | null;
   description: string | null;
   keywords: string | null;
+  category: string | null;
   repository_url: string | null;
   homepage_url: string | null;
   support_url: string | null;
@@ -253,11 +257,43 @@ const formatDate = (iso: string) =>
               <dd class="mt-1 text-sm text-zinc-400">{plugin.name}</dd>
             </div>
 
+            {!rawPlugin?.short_description && (
+              <div class="rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3">
+                <p class="text-sm text-amber-400">Add a short description to improve your listing in search results and cards.</p>
+              </div>
+            )}
+
+            <div>
+              <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description</label>
+              <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards (150 chars max)</p>
+              <input type="text" id="shortDescription" name="shortDescription" value={rawPlugin?.short_description ?? ''}
+                maxlength="150"
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
             <div>
               <label for="description" class="block text-sm font-semibold text-zinc-100">Description</label>
               <textarea id="description" name="description"
                 class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
               >{rawPlugin?.description ?? ''}</textarea>
+            </div>
+
+            <div>
+              <label for="category" class="block text-sm font-semibold text-zinc-100">Category</label>
+              <select id="category" name="category"
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                <option value="">None</option>
+                <option value="content" selected={rawPlugin?.category === 'content'}>Content</option>
+                <option value="media" selected={rawPlugin?.category === 'media'}>Media</option>
+                <option value="seo" selected={rawPlugin?.category === 'seo'}>SEO</option>
+                <option value="analytics" selected={rawPlugin?.category === 'analytics'}>Analytics</option>
+                <option value="security" selected={rawPlugin?.category === 'security'}>Security</option>
+                <option value="performance" selected={rawPlugin?.category === 'performance'}>Performance</option>
+                <option value="integration" selected={rawPlugin?.category === 'integration'}>Integration</option>
+                <option value="workflow" selected={rawPlugin?.category === 'workflow'}>Workflow</option>
+                <option value="developer-tools" selected={rawPlugin?.category === 'developer-tools'}>Developer tools</option>
+                <option value="ui" selected={rawPlugin?.category === 'ui'}>UI</option>
+              </select>
             </div>
 
             <div>

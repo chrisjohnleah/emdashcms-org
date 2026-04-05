@@ -60,7 +60,9 @@ if (Astro.request.method === 'POST') {
   if (action === 'metadata') {
     try {
       if (!isMaintainer) throw new Error('Maintainer role required to edit metadata');
+      const shortDescription = (data.get('shortDescription') as string ?? '').trim();
       const description = (data.get('description') as string ?? '').trim();
+      const category = (data.get('category') as string ?? '').trim();
       const keywordsRaw = (data.get('keywords') as string ?? '').trim();
       const previewUrl = (data.get('previewUrl') as string ?? '').trim();
       const demoUrl = (data.get('demoUrl') as string ?? '').trim();
@@ -73,7 +75,9 @@ if (Astro.request.method === 'POST') {
         : [];
 
       await updateThemeMetadata(env.DB, themeId!, {
+        shortDescription: shortDescription || undefined,
         description,
+        category: category || undefined,
         keywords: keywordsArray,
         previewUrl: previewUrl || undefined,
         demoUrl: demoUrl || undefined,
@@ -272,10 +276,12 @@ const pendingThemeInvites = await getPendingInvitesForPlugin(env.DB, themeId!);
 
 // Fetch raw values for editable form fields
 const rawTheme = await env.DB.prepare(
-  'SELECT description, keywords, preview_url, demo_url, repository_url, homepage_url, license, thumbnail_key, screenshot_keys FROM themes WHERE id = ?'
+  'SELECT short_description, description, keywords, category, preview_url, demo_url, repository_url, homepage_url, license, thumbnail_key, screenshot_keys FROM themes WHERE id = ?'
 ).bind(themeId).first<{
+  short_description: string | null;
   description: string | null;
   keywords: string | null;
+  category: string | null;
   preview_url: string | null;
   demo_url: string | null;
   repository_url: string | null;
@@ -365,11 +371,43 @@ if (ghInstall && !githubLink) {
               <dd class="mt-1 text-sm text-zinc-400">{theme.name}</dd>
             </div>
 
+            {!rawTheme?.short_description && (
+              <div class="rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3">
+                <p class="text-sm text-amber-400">Add a short description to improve your listing in search results and cards.</p>
+              </div>
+            )}
+
+            <div>
+              <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description</label>
+              <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards (150 chars max)</p>
+              <input type="text" id="shortDescription" name="shortDescription" value={rawTheme?.short_description ?? ''}
+                maxlength="150"
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+            </div>
+
             <div>
               <label for="description" class="block text-sm font-semibold text-zinc-100">Description</label>
               <textarea id="description" name="description"
                 class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
               >{rawTheme?.description ?? ''}</textarea>
+            </div>
+
+            <div>
+              <label for="category" class="block text-sm font-semibold text-zinc-100">Category</label>
+              <select id="category" name="category"
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                <option value="">None</option>
+                <option value="content" selected={rawTheme?.category === 'content'}>Content</option>
+                <option value="media" selected={rawTheme?.category === 'media'}>Media</option>
+                <option value="seo" selected={rawTheme?.category === 'seo'}>SEO</option>
+                <option value="analytics" selected={rawTheme?.category === 'analytics'}>Analytics</option>
+                <option value="security" selected={rawTheme?.category === 'security'}>Security</option>
+                <option value="performance" selected={rawTheme?.category === 'performance'}>Performance</option>
+                <option value="integration" selected={rawTheme?.category === 'integration'}>Integration</option>
+                <option value="workflow" selected={rawTheme?.category === 'workflow'}>Workflow</option>
+                <option value="developer-tools" selected={rawTheme?.category === 'developer-tools'}>Developer tools</option>
+                <option value="ui" selected={rawTheme?.category === 'ui'}>UI</option>
+              </select>
             </div>
 
             <div>
