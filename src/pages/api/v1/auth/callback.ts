@@ -45,8 +45,8 @@ export const GET: APIRoute = async ({ request, cookies, redirect }) => {
   }
 
   // Create/update author record and issue session
-  await upsertAuthor(githubUser);
-  const jwt = await createSessionToken(githubUser.id, githubUser.login);
+  const authorId = await upsertAuthor(githubUser);
+  const jwt = await createSessionToken(authorId, githubUser.id, githubUser.login);
   setSessionCookie(cookies, jwt);
 
   return redirect("/dashboard", 302);

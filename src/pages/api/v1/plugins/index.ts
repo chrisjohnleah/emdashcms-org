@@ -8,6 +8,14 @@ import {
   registerPlugin,
   getPluginOwner,
 } from "../../../../lib/publishing/plugin-queries";
+import {
+  isValidResourceId,
+  validateUrlFields,
+  validateKeywords,
+  validateCapabilities,
+  validateStringLengths,
+  isBodyTooLarge,
+} from "../../../../lib/api/validation";
 
 export const prerender = false;
 
@@ -36,15 +44,14 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 export const POST: APIRoute = async ({ request, locals }) => {
+  if (isBodyTooLarge(request)) return errorResponse(413, "Request body too large");
+
   try {
-    // Resolve GitHub ID to internal author UUID (D-17 clarification)
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
 
-    // Parse request body
     const body = (await request.json()) as Record<string, unknown>;
 
-    // Validate required fields (D-02)
     const id = body.id;
     const name = body.name;
     const description = body.description;
@@ -59,20 +66,43 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!Array.isArray(capabilities))
       return errorResponse(400, "capabilities must be an array");
 
-    // Validate id format (D-01: lowercase alphanumeric with hyphens, optionally @scope/name)
-    if (!/^(@[a-z0-9-]+\/)?[a-z0-9-]+$/.test(id)) {
+    if (!isValidResourceId(id)) {
       return errorResponse(
         400,
         "Invalid plugin id format. Use lowercase alphanumeric with hyphens, optionally @scope/name",
       );
     }
 
-    // Check plugin id not already taken
+    // Validate capabilities against known values
+    const capsErr = validateCapabilities(capabilities);
+    if (capsErr) return errorResponse(400, capsErr);
+
+    // Validate keywords if provided
+    if (body.keywords !== undefined) {
+      if (!Array.isArray(body.keywords))
+        return errorResponse(400, "keywords must be an array");
+      const kwErr = validateKeywords(body.keywords);
+      if (kwErr) return errorResponse(400, kwErr);
+    }
+
+    // Validate URL schemes
+    const urlFields = [
+      "repository_url",
+      "homepage_url",
+      "support_url",
+      "funding_url",
+    ];
+    const badUrl = validateUrlFields(body, urlFields);
+    if (badUrl) return errorResponse(400, `${badUrl} must be a valid http/https URL`);
+
+    // Validate string lengths
+    const lenErr = validateStringLengths(body);
+    if (lenErr) return errorResponse(400, lenErr);
+
     const existing = await getPluginOwner(env.DB, id);
     if (existing)
       return errorResponse(409, `Plugin id '${id}' is already registered`);
 
-    // Register plugin
     await registerPlugin(env.DB, authorId, {
       id,
       name,

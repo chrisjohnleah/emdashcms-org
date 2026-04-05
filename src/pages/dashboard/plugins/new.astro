@@ -70,7 +70,8 @@ if (Astro.request.method === 'POST') {
 
     return Astro.redirect('/dashboard/plugins/' + encodeURIComponent(formValues.id));
   } catch (e) {
-    error = e instanceof Error ? e.message : 'An error occurred';
+    const msg = e instanceof Error ? e.message : '';
+    error = msg.includes('UNIQUE') ? 'A plugin with this ID already exists.' : 'An unexpected error occurred. Please try again.';
   }
 }
 ---

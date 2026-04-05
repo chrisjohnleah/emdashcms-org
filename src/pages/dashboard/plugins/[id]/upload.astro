@@ -97,7 +97,7 @@ if (Astro.request.method === 'POST') {
     // Redirect to plugin detail with success banner (D-11)
     return Astro.redirect(`/dashboard/plugins/${encodeURIComponent(pluginId!)}?uploaded=true`);
   } catch (e) {
-    error = e instanceof Error ? e.message : 'An error occurred during upload.';
+    error = 'An error occurred during upload. Please check your file and try again.';
   }
 }
 ---

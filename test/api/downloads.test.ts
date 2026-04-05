@@ -318,21 +318,22 @@ describe("COST-04: Rate limiting", () => {
   });
 
   it("allows requests under 60/min threshold", async () => {
-    const result = await checkRateLimit(env.DB);
+    const result = await checkRateLimit(env.DB, "127.0.0.1", 60);
     expect(result.allowed).toBe(true);
   });
 
   it("blocks requests after 60 in the same minute", async () => {
     // Seed the rate_limits table with 60 requests for the current minute
     const minute = new Date().toISOString().slice(0, 16);
+    const key = `127.0.0.1:${minute}`;
     await env.DB.prepare(
       "INSERT INTO rate_limits (minute, request_count) VALUES (?, 60)",
     )
-      .bind(minute)
+      .bind(key)
       .run();
 
     // The 61st request should be blocked
-    const result = await checkRateLimit(env.DB);
+    const result = await checkRateLimit(env.DB, "127.0.0.1", 60);
     expect(result.allowed).toBe(false);
   });
 });

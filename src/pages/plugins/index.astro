@@ -64,7 +64,7 @@ const isFiltered = q || capability || category;
           {category && <input type="hidden" name="category" value={category} />}
           <select
             name="sort"
-            onchange="this.form.submit()"
+            data-auto-submit
             class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
           >
             {sortOptions.map(opt => (
@@ -104,4 +104,13 @@ const isFiltered = q || capability || category;
 
     </div>
   </section>
+
+  <script>
+    document.querySelectorAll('[data-auto-submit]').forEach(el => {
+      el.addEventListener('change', () => {
+        const select = el as unknown as HTMLSelectElement;
+        select.form?.submit();
+      });
+    });
+  </script>
 </BaseLayout>

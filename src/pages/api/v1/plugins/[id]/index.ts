@@ -7,6 +7,12 @@ import {
   getPluginOwner,
   updatePluginMetadata,
 } from "../../../../../lib/publishing/plugin-queries";
+import {
+  validateUrlFields,
+  validateKeywords,
+  validateStringLengths,
+  isBodyTooLarge,
+} from "../../../../../lib/api/validation";
 
 export const prerender = false;
 
@@ -34,6 +40,7 @@ export const GET: APIRoute = async ({ params }) => {
 export const PATCH: APIRoute = async ({ params, request, locals }) => {
   const pluginId = params.id;
   if (!pluginId) return errorResponse(400, "Plugin ID is required");
+  if (isBodyTooLarge(request)) return errorResponse(413, "Request body too large");
 
   try {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
@@ -65,10 +72,26 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       }
     }
 
+    // Validate URL schemes on any URL fields being updated
+    const urlFields = [
+      "repositoryUrl",
+      "homepageUrl",
+      "supportUrl",
+      "fundingUrl",
+    ];
+    const badUrl = validateUrlFields(updateData, urlFields);
+    if (badUrl) return errorResponse(400, `${badUrl} must be a valid http/https URL`);
+
+    // Validate string lengths
+    const lenErr = validateStringLengths(updateData);
+    if (lenErr) return errorResponse(400, lenErr);
+
     if ("keywords" in body) {
       if (!Array.isArray(body.keywords)) {
         return errorResponse(400, "keywords must be an array of strings");
       }
+      const kwErr = validateKeywords(body.keywords);
+      if (kwErr) return errorResponse(400, kwErr);
       updateData.keywords = body.keywords;
     }
 

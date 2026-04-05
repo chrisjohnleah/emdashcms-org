@@ -31,7 +31,7 @@ export const GET: APIRoute = async ({ params }) => {
       status: 200,
       headers: {
         "Content-Type": "application/gzip",
-        "Content-Disposition": `attachment; filename="${pluginId}-${version}.tgz"`,
+        "Content-Disposition": `attachment; filename="${`${pluginId}-${version}.tgz`.replace(/[^a-zA-Z0-9@._-]/g, "_")}"`,
         "Content-Length": String(r2Object.size),
         ETag: r2Object.httpEtag,
         "Cache-Control": "public, max-age=86400, immutable",

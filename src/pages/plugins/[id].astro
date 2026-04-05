@@ -91,8 +91,7 @@ const formatSize = (bytes: number) => {
               <div class="mt-2 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-3">
                 <code class="flex-1 text-sm font-mono text-zinc-300">emdash plugin install {plugin.id}</code>
                 <button
-                  onclick="navigator.clipboard.writeText('emdash plugin install ' + this.dataset.id).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })"
-                  data-id={plugin.id}
+                  data-copy={`emdash plugin install ${plugin.id}`}
                   class="flex-shrink-0 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
                   aria-label="Copy command"
                 >Copy</button>
@@ -211,5 +210,18 @@ const formatSize = (bytes: number) => {
 
       </div>
     </section>
+
+    <script>
+      document.querySelectorAll('[data-copy]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const text = (btn as HTMLElement).dataset.copy;
+          if (!text) return;
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+          });
+        });
+      });
+    </script>
   </BaseLayout>
 )}

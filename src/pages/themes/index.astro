@@ -50,7 +50,7 @@ const isFiltered = q || keyword;
         <form method="GET" action="/themes" class="flex-shrink-0">
           {q && <input type="hidden" name="q" value={q} />}
           {keyword && <input type="hidden" name="keyword" value={keyword} />}
-          <select name="sort" onchange="this.form.submit()" class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+          <select name="sort" data-auto-submit class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
             {sortOptions.map(opt => (
               <option value={opt.value} selected={sort === opt.value}>{opt.label}</option>
             ))}
@@ -86,4 +86,13 @@ const isFiltered = q || keyword;
 
     </div>
   </section>
+
+  <script>
+    document.querySelectorAll('[data-auto-submit]').forEach(el => {
+      el.addEventListener('change', () => {
+        const select = el as unknown as HTMLSelectElement;
+        select.form?.submit();
+      });
+    });
+  </script>
 </BaseLayout>

@@ -4,6 +4,8 @@ import { errorResponse } from "../../../../lib/api/response";
 
 export const prerender = false;
 
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+
 export const GET: APIRoute = async ({ params }) => {
   const key = params.key;
 
@@ -12,6 +14,16 @@ export const GET: APIRoute = async ({ params }) => {
   }
 
   if (!key.startsWith("themes/")) {
+    return errorResponse(403, "Forbidden");
+  }
+
+  // Prevent path traversal
+  if (key.includes("..") || key.includes("//")) {
+    return errorResponse(400, "Invalid key");
+  }
+
+  // Only serve known image file extensions
+  if (!ALLOWED_EXTENSIONS.some((ext) => key.endsWith(ext))) {
     return errorResponse(403, "Forbidden");
   }
 

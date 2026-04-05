@@ -1,24 +1,21 @@
 /**
- * Global API rate limiting via D1.
+ * Per-IP API rate limiting via D1.
  *
- * Uses per-minute buckets stored in the rate_limits table (D-13).
- * Threshold: 60 requests per UTC minute (D-14).
+ * Uses per-IP-per-minute buckets stored in the rate_limits table.
  * UPSERT pattern avoids race conditions and keeps the logic to a single query.
  */
 
-const RATE_LIMIT_THRESHOLD = 60;
-
 /**
- * Check and increment the global rate limit counter.
- * Returns { allowed: false } if the current minute has exceeded 60 requests.
- *
- * Implementation: UPSERT into rate_limits, then read back the count.
- * Two statements are batched for efficiency.
+ * Check and increment the rate limit counter for the given IP.
+ * Returns { allowed: false } if the current minute has exceeded the threshold.
  */
 export async function checkRateLimit(
   db: D1Database,
+  ip: string,
+  threshold: number,
 ): Promise<{ allowed: boolean }> {
   const minute = new Date().toISOString().slice(0, 16);
+  const key = `${ip}:${minute}`;
 
   const results = await db.batch([
     db
@@ -27,14 +24,14 @@ export async function checkRateLimit(
          VALUES (?, 1)
          ON CONFLICT(minute) DO UPDATE SET request_count = request_count + 1`,
       )
-      .bind(minute),
+      .bind(key),
     db
       .prepare("SELECT request_count FROM rate_limits WHERE minute = ?")
-      .bind(minute),
+      .bind(key),
   ]);
 
   const countRow = results[1].results as { request_count: number }[];
   const count = countRow[0]?.request_count ?? 0;
 
-  return { allowed: count <= RATE_LIMIT_THRESHOLD };
+  return { allowed: count <= threshold };
 }

@@ -84,7 +84,7 @@ if (Astro.request.method === 'POST') {
     return Astro.redirect('/dashboard/themes/' + encodeURIComponent(formValues.id));
   } catch (e) {
     const message = e instanceof Error ? e.message : 'An error occurred';
-    error = message.includes('UNIQUE') ? 'A theme with this ID already exists.' : message;
+    error = message.includes('UNIQUE') ? 'A theme with this ID already exists.' : 'An unexpected error occurred. Please try again.';
   }
 }
 ---

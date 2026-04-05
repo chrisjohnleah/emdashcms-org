@@ -36,8 +36,8 @@ export const POST: APIRoute = async ({ request }) => {
       return errorResponse(502, "Failed to fetch GitHub user profile");
     }
 
-    await upsertAuthor(githubUser);
-    const jwt = await createSessionToken(githubUser.id, githubUser.login);
+    const authorId = await upsertAuthor(githubUser);
+    const jwt = await createSessionToken(authorId, githubUser.id, githubUser.login);
 
     return jsonResponse({
       token: jwt,
