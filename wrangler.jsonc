@@ -54,12 +54,14 @@
   // GitHub OAuth App client ID and App ID (not secrets — safe as vars)
   "vars": {
     "GITHUB_CLIENT_ID": "Ov23liIu0eF3FtxoIcYU",
-    "GITHUB_APP_ID": ""
+    "GITHUB_APP_ID": "",
+    "SUPERADMIN_GITHUB_IDS": "959104"
   },
 
   // Secrets set via: wrangler secret put <NAME>
   // In dev, provide these in .dev.vars (already gitignored)
+  // GITHUB_WEBHOOK_SECRET and GITHUB_APP_PRIVATE_KEY are optional until configured
   "secrets": {
-    "required": ["GITHUB_CLIENT_SECRET", "JWT_SECRET", "GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"]
+    "required": ["GITHUB_CLIENT_SECRET", "JWT_SECRET"]
   }
 }

@@ -74,8 +74,10 @@ export async function searchPlugins(
     }
   }
 
-  const whereClause =
-    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  // Only show active plugins in public listings
+  conditions.push("COALESCE(p.status, 'active') = 'active'");
+
+  const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
   const sql = `
     SELECT
@@ -146,7 +148,7 @@ export async function getPluginDetail(
         `SELECT p.*, a.github_username, a.avatar_url, a.verified
          FROM plugins p
          JOIN authors a ON p.author_id = a.id
-         WHERE p.id = ?`,
+         WHERE p.id = ? AND COALESCE(p.status, 'active') = 'active'`,
       )
       .bind(pluginId),
     db

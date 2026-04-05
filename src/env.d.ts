@@ -8,3 +8,12 @@ declare namespace App {
     };
   }
 }
+
+// Optional secrets — set via `wrangler secret put <NAME>` when ready.
+// Not in wrangler.jsonc required[] so deploys succeed before they're provisioned.
+declare namespace Cloudflare {
+  interface Env {
+    GITHUB_WEBHOOK_SECRET: string;
+    GITHUB_APP_PRIVATE_KEY: string;
+  }
+}
