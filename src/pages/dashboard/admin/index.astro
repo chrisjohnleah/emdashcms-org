@@ -4,7 +4,7 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { isSuperAdmin } from '../../../lib/auth/admin';
-import { getAllPlugins, getAllAuthors } from '../../../lib/db/admin-queries';
+import { getAllPlugins, getAllAuthors, getModerationQueue } from '../../../lib/db/admin-queries';
 
 const author = Astro.locals.author;
 if (!author || !isSuperAdmin(author.githubId)) {
@@ -13,6 +13,8 @@ if (!author || !isSuperAdmin(author.githubId)) {
 
 const plugins = await getAllPlugins(env.DB);
 const authors = await getAllAuthors(env.DB);
+const queue = await getModerationQueue(env.DB);
+const pendingCount = queue.filter(q => q.status === 'pending' || q.status === 'flagged').length;
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', {
@@ -29,7 +31,7 @@ const formatDate = (iso: string) =>
       </div>
 
       <!-- Stats -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
         <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5">
           <p class="text-2xl font-bold text-zinc-100">{authors.length}</p>
           <p class="text-xs text-zinc-500 mt-1">Registered Authors</p>
@@ -46,6 +48,10 @@ const formatDate = (iso: string) =>
           <p class="text-2xl font-bold text-zinc-100">{plugins.filter(p => p.status === 'revoked').length}</p>
           <p class="text-xs text-zinc-500 mt-1">Revoked</p>
         </div>
+        <a href="/dashboard/admin/queue" class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-5 hover:bg-amber-950/30 transition-colors">
+          <p class="text-2xl font-bold text-amber-400">{pendingCount}</p>
+          <p class="text-xs text-amber-500/80 mt-1">Needs Attention &rarr;</p>
+        </a>
       </div>
 
       <!-- Plugins Table -->
@@ -72,11 +78,11 @@ const formatDate = (iso: string) =>
                   <tr class="hover:bg-zinc-900/30 transition-colors" id={`plugin-${plugin.id}`}>
                     <td class="py-3 pl-6 pr-4">
                       <div>
-                        <span class="text-zinc-100 font-medium">{plugin.name}</span>
+                        <a href={`/dashboard/admin/plugins/${encodeURIComponent(plugin.id)}`} class="text-zinc-100 font-medium hover:text-white hover:underline transition-colors">{plugin.name}</a>
                         <p class="text-[11px] text-zinc-500 font-mono">{plugin.id}</p>
                       </div>
                     </td>
-                    <td class="py-3 px-4 text-zinc-400">{plugin.authorUsername}</td>
+                    <td class="py-3 px-4"><a href={`/dashboard/admin/authors/${plugin.authorId}`} class="text-zinc-400 hover:text-zinc-100 transition-colors">{plugin.authorUsername}</a></td>
                     <td class="py-3 px-4">
                       {plugin.status === 'active' ? (
                         <span class="inline-flex items-center rounded-full bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 text-[11px] text-emerald-400 font-medium">Active</span>
@@ -135,7 +141,7 @@ const formatDate = (iso: string) =>
                       ) : (
                         <div class="w-5 h-5 rounded-full bg-zinc-700" />
                       )}
-                      <a href={`https://github.com/${a.githubUsername}`} target="_blank" rel="noopener noreferrer" class="text-zinc-100 hover:text-white font-medium transition-colors">{a.githubUsername}</a>
+                      <a href={`/dashboard/admin/authors/${a.id}`} class="text-zinc-100 hover:text-white font-medium transition-colors">{a.githubUsername}</a>
                     </div>
                   </td>
                   <td class="py-3 px-4 text-zinc-500 font-mono text-xs">{a.githubId}</td>

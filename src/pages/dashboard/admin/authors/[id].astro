@@ -1,0 +1,199 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import { isSuperAdmin } from '../../../../lib/auth/admin';
+import {
+  getAdminAuthorDetail,
+  getAuthorPlugins,
+  getAuthorThemes,
+  getAuthorSubmissionStats,
+} from '../../../../lib/db/admin-queries';
+
+const author = Astro.locals.author;
+if (!author || !isSuperAdmin(author.githubId)) {
+  return Astro.redirect('/dashboard', 302);
+}
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/dashboard/admin', 302);
+
+const detail = await getAdminAuthorDetail(env.DB, id);
+if (!detail) return new Response('Author not found', { status: 404 });
+
+const [plugins, themes, stats] = await Promise.all([
+  getAuthorPlugins(env.DB, id),
+  getAuthorThemes(env.DB, id),
+  getAuthorSubmissionStats(env.DB, id),
+]);
+
+const rejectionRate = stats.total > 0
+  ? ((stats.rejected / stats.total) * 100).toFixed(1)
+  : null;
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+---
+<BaseLayout title={`${detail.githubUsername} - Admin - emdashcms.org`}>
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-6xl">
+
+      <!-- Breadcrumb -->
+      <nav class="flex items-center gap-2 text-sm text-zinc-500 mb-8">
+        <a href="/dashboard/admin" class="hover:text-zinc-300 transition-colors">Admin</a>
+        <span class="text-zinc-700">/</span>
+        <span class="text-zinc-500">Authors</span>
+        <span class="text-zinc-700">/</span>
+        <span class="text-zinc-300">{detail.githubUsername}</span>
+      </nav>
+
+      <!-- Header -->
+      <div class="flex items-center gap-4 mb-10">
+        {detail.avatarUrl ? (
+          <img
+            src={detail.avatarUrl}
+            alt={detail.githubUsername}
+            class="w-10 h-10 rounded-full"
+          />
+        ) : (
+          <div class="w-10 h-10 rounded-full bg-zinc-700" />
+        )}
+        <div>
+          <div class="flex items-center gap-3">
+            <a
+              href={`https://github.com/${detail.githubUsername}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-2xl font-semibold tracking-tight text-zinc-100 hover:text-white transition-colors"
+            >
+              {detail.githubUsername}
+            </a>
+            <span class="text-xs text-zinc-500 font-mono">{detail.githubId}</span>
+          </div>
+          <p class="text-sm text-zinc-500 mt-0.5">Joined {formatDate(detail.createdAt)}</p>
+        </div>
+      </div>
+
+      <!-- Submission Stats -->
+      <div class="mb-10">
+        <h2 class="text-lg font-semibold text-zinc-100 mb-4">Submission Stats</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5">
+            <p class="text-2xl font-bold text-zinc-100">{stats.total}</p>
+            <p class="text-xs text-zinc-500 mt-1">Total Versions</p>
+          </div>
+          <div class="rounded-xl border border-emerald-800/40 bg-emerald-950/20 p-5">
+            <p class="text-2xl font-bold text-emerald-400">{stats.published}</p>
+            <p class="text-xs text-zinc-500 mt-1">Published</p>
+          </div>
+          <div class="rounded-xl border border-red-800/40 bg-red-950/20 p-5">
+            <p class="text-2xl font-bold text-red-400">{stats.rejected}</p>
+            <p class="text-xs text-zinc-500 mt-1">Rejected</p>
+          </div>
+          <div class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-5">
+            <p class="text-2xl font-bold text-amber-400">{stats.flagged}</p>
+            <p class="text-xs text-zinc-500 mt-1">Flagged</p>
+          </div>
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5">
+            <p class="text-2xl font-bold text-zinc-400">{stats.pending}</p>
+            <p class="text-xs text-zinc-500 mt-1">Pending</p>
+          </div>
+        </div>
+        {rejectionRate && (
+          <p class="text-xs text-zinc-500 mt-3">
+            Rejection rate: <span class="text-red-400 font-medium">{rejectionRate}%</span>
+          </p>
+        )}
+      </div>
+
+      <!-- Plugins Table -->
+      <div class="mb-12">
+        <h2 class="text-lg font-semibold text-zinc-100 mb-4">
+          Plugins <span class="text-zinc-500 font-normal text-sm">({plugins.length})</span>
+        </h2>
+        {plugins.length === 0 ? (
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-8 text-center">
+            <p class="text-sm text-zinc-400">No plugins registered by this author.</p>
+          </div>
+        ) : (
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-zinc-800 text-left">
+                  <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Plugin Name</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Versions</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Rejected</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Installs</th>
+                  <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Created</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800/60">
+                {plugins.map(plugin => (
+                  <tr class="hover:bg-zinc-900/30 transition-colors">
+                    <td class="py-3 pl-6 pr-4">
+                      <a
+                        href={`/dashboard/admin/plugins/${encodeURIComponent(plugin.id)}`}
+                        class="text-zinc-100 hover:text-white font-medium transition-colors"
+                      >
+                        {plugin.name}
+                      </a>
+                    </td>
+                    <td class="py-3 px-4">
+                      {plugin.status === 'active' ? (
+                        <span class="inline-flex items-center rounded-full bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 text-[11px] text-emerald-400 font-medium">Active</span>
+                      ) : (
+                        <span class="inline-flex items-center rounded-full bg-red-950/50 border border-red-800/40 px-2 py-0.5 text-[11px] text-red-400 font-medium">Revoked</span>
+                      )}
+                    </td>
+                    <td class="py-3 px-4 text-zinc-500 font-mono">{plugin.versionCount}</td>
+                    <td class="py-3 px-4 text-zinc-500 font-mono">{plugin.rejectedCount}</td>
+                    <td class="py-3 px-4 text-zinc-500">{plugin.installCount.toLocaleString()}</td>
+                    <td class="py-3 pl-4 pr-6 text-zinc-500">{formatDate(plugin.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <!-- Themes Table -->
+      <div>
+        <h2 class="text-lg font-semibold text-zinc-100 mb-4">
+          Themes <span class="text-zinc-500 font-normal text-sm">({themes.length})</span>
+        </h2>
+        {themes.length === 0 ? (
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-8 text-center">
+            <p class="text-sm text-zinc-400">No themes registered by this author.</p>
+          </div>
+        ) : (
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-zinc-800 text-left">
+                  <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Theme Name</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Description</th>
+                  <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Created</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800/60">
+                {themes.map(theme => (
+                  <tr class="hover:bg-zinc-900/30 transition-colors">
+                    <td class="py-3 pl-6 pr-4 text-zinc-100 font-medium">{theme.name}</td>
+                    <td class="py-3 px-4 text-zinc-400 max-w-xs truncate">{theme.description ?? '--'}</td>
+                    <td class="py-3 pl-4 pr-6 text-zinc-500">{formatDate(theme.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+    </div>
+  </section>
+</BaseLayout>
