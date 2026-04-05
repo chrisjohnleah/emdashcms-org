@@ -1,0 +1,187 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import DashboardBanner from '../../../components/DashboardBanner.astro';
+import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
+import { registerTheme, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
+import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
+
+const author = Astro.locals.author!;
+let error = '';
+let formValues = {
+  id: '', name: '', description: '',
+  keywords: '', previewUrl: '', demoUrl: '',
+  repositoryUrl: '', homepageUrl: '', license: '',
+};
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    formValues.id = (data.get('id') as string ?? '').trim();
+    formValues.name = (data.get('name') as string ?? '').trim();
+    formValues.description = (data.get('description') as string ?? '').trim();
+    formValues.keywords = (data.get('keywords') as string ?? '').trim();
+    formValues.previewUrl = (data.get('previewUrl') as string ?? '').trim();
+    formValues.demoUrl = (data.get('demoUrl') as string ?? '').trim();
+    formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
+    formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
+    formValues.license = (data.get('license') as string ?? '').trim();
+
+    if (!formValues.id) throw new Error('Theme ID is required');
+    if (!formValues.name) throw new Error('Name is required');
+    if (!formValues.description) throw new Error('Description is required');
+
+    const authorId = await resolveAuthorId(env.DB, author.githubId);
+    if (!authorId) throw new Error('Author not found. Please log out and log in again.');
+
+    const keywordsArray = formValues.keywords
+      ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+      : [];
+
+    await registerTheme(env.DB, authorId, {
+      id: formValues.id,
+      name: formValues.name,
+      description: formValues.description,
+      keywords: keywordsArray,
+      preview_url: formValues.previewUrl || undefined,
+      demo_url: formValues.demoUrl || undefined,
+      repository_url: formValues.repositoryUrl || undefined,
+      homepage_url: formValues.homepageUrl || undefined,
+      license: formValues.license || undefined,
+    });
+
+    // Handle optional thumbnail upload
+    const thumbnail = data.get('thumbnail') as File | null;
+    if (thumbnail && thumbnail.size > 0) {
+      const validation = validateImageUpload(thumbnail);
+      if (!validation.valid) throw new Error(validation.error);
+      const ext = MIME_TO_EXT[thumbnail.type];
+      const key = 'themes/' + formValues.id + '/thumbnail.' + ext;
+      await storeImageInR2(env.ARTIFACTS, key, thumbnail);
+      await updateThemeThumbnailKey(env.DB, formValues.id, key);
+    }
+
+    // Handle optional screenshot uploads
+    const screenshots = data.getAll('screenshots') as File[];
+    const validScreenshots = screenshots.filter(f => f.size > 0);
+    if (validScreenshots.length > 5) throw new Error('Maximum 5 screenshots allowed.');
+    if (validScreenshots.length > 0) {
+      const screenshotKeys: string[] = [];
+      for (let i = 0; i < validScreenshots.length; i++) {
+        const file = validScreenshots[i];
+        const validation = validateImageUpload(file);
+        if (!validation.valid) throw new Error(validation.error);
+        const ext = MIME_TO_EXT[file.type];
+        const key = 'themes/' + formValues.id + '/screenshots/' + i + '.' + ext;
+        await storeImageInR2(env.ARTIFACTS, key, file);
+        screenshotKeys.push(key);
+      }
+      await updateThemeScreenshotKeys(env.DB, formValues.id, screenshotKeys);
+    }
+
+    return Astro.redirect('/dashboard/themes/' + encodeURIComponent(formValues.id));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'An error occurred';
+    error = message.includes('UNIQUE') ? 'A theme with this ID already exists.' : message;
+  }
+}
+---
+<BaseLayout title="Register Theme - Dashboard - emdashcms.org">
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-2xl">
+
+      <a href="/dashboard/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Themes</a>
+
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">Register Theme</h1>
+
+      {error && (
+        <div class="mt-6" id="form-error">
+          <DashboardBanner type="error" message={'Failed to register theme. ' + error} />
+        </div>
+      )}
+
+      <form method="POST" enctype="multipart/form-data" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4" aria-describedby={error ? 'form-error' : undefined}>
+
+        <div>
+          <label for="id" class="block text-sm font-semibold text-zinc-100">Theme ID *</label>
+          <p class="mt-1 text-xs text-zinc-500">Use kebab-case, e.g. my-theme</p>
+          <input type="text" id="id" name="id" value={formValues.id}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm font-mono focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            aria-required="true" />
+        </div>
+
+        <div>
+          <label for="name" class="block text-sm font-semibold text-zinc-100">Name *</label>
+          <input type="text" id="name" name="name" value={formValues.name}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            aria-required="true" />
+        </div>
+
+        <div>
+          <label for="description" class="block text-sm font-semibold text-zinc-100">Description *</label>
+          <textarea id="description" name="description"
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            aria-required="true">{formValues.description}</textarea>
+        </div>
+
+        <div>
+          <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
+          <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. blog, minimal, dark)</p>
+          <input type="text" id="keywords" name="keywords" value={formValues.keywords}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="previewUrl" class="block text-sm font-semibold text-zinc-100">Preview URL</label>
+          <input type="url" id="previewUrl" name="previewUrl" value={formValues.previewUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="demoUrl" class="block text-sm font-semibold text-zinc-100">Demo URL</label>
+          <input type="url" id="demoUrl" name="demoUrl" value={formValues.demoUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
+          <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
+          <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
+          <p class="mt-1 text-xs text-zinc-500">e.g. MIT, Apache-2.0</p>
+          <input type="text" id="license" name="license" value={formValues.license}
+            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+        </div>
+
+        <div>
+          <label for="thumbnail" class="block text-sm font-semibold text-zinc-100">Thumbnail</label>
+          <input type="file" id="thumbnail" name="thumbnail" accept="image/jpeg,image/png,image/webp"
+            class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700" />
+          <p class="mt-1 text-xs text-zinc-500">Max 5MB. JPEG, PNG, or WebP.</p>
+        </div>
+
+        <div>
+          <label for="screenshots" class="block text-sm font-semibold text-zinc-100">Screenshots</label>
+          <input type="file" id="screenshots" name="screenshots" accept="image/jpeg,image/png,image/webp" multiple
+            class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700" />
+          <p class="mt-1 text-xs text-zinc-500">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
+        </div>
+
+        <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Register Theme</button>
+
+      </form>
+
+    </div>
+  </section>
+</BaseLayout>

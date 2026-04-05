@@ -7,14 +7,17 @@ import StatusBadge from '../../components/StatusBadge.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import { getPluginsByAuthor } from '../../lib/db/queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
+import { getThemesByAuthor } from '../../lib/publishing/theme-queries';
 
 const author = Astro.locals.author!;
 const authorId = await resolveAuthorId(env.DB, author.githubId);
 
 // If author not in DB yet (first login, no plugins), show empty state
 let plugins: Awaited<ReturnType<typeof getPluginsByAuthor>> = [];
+let themes: Awaited<ReturnType<typeof getThemesByAuthor>> = [];
 if (authorId) {
   plugins = await getPluginsByAuthor(env.DB, authorId);
+  themes = await getThemesByAuthor(env.DB, authorId);
 }
 
 const formatDate = (iso: string) =>
@@ -68,6 +71,19 @@ const formatDate = (iso: string) =>
           </table>
         </div>
       )}
+
+      <!-- Your Themes section -->
+      <div class="mt-12">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-zinc-100">Your Themes</h2>
+          <a href="/dashboard/themes/new" class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Register Theme</a>
+        </div>
+        {themes.length === 0 ? (
+          <p class="text-sm text-zinc-400">You haven't listed any themes yet. <a href="/dashboard/themes/new" class="text-zinc-300 hover:text-zinc-100 transition-colors underline">List your first theme</a>.</p>
+        ) : (
+          <a href="/dashboard/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">Manage {themes.length} theme{themes.length !== 1 ? 's' : ''} &rarr;</a>
+        )}
+      </div>
 
     </div>
   </section>
