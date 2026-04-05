@@ -1,0 +1,43 @@
+---
+interface Props {
+  items: string[];
+  active: string | null;
+  paramName: string;
+  baseUrl: string;
+}
+
+const { items, active, paramName, baseUrl } = Astro.props;
+const currentParams = Astro.url.searchParams;
+
+function buildHref(item: string): string {
+  const params = new URLSearchParams(currentParams);
+  if (active === item) {
+    params.delete(paramName);
+  } else {
+    params.set(paramName, item);
+  }
+  params.delete('cursor');
+  const qs = params.toString();
+  return qs ? `${baseUrl}?${qs}` : baseUrl;
+}
+---
+{items.length > 0 && (
+  <div class="flex flex-wrap gap-2">
+    {items.map((item) => {
+      const isActive = active === item;
+      return (
+        <a
+          href={buildHref(item)}
+          class:list={[
+            'rounded-full px-3 py-1.5 text-xs font-medium transition-colors min-h-[44px] inline-flex items-center',
+            isActive
+              ? 'bg-zinc-100 text-zinc-950 hover:bg-white'
+              : 'border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700',
+          ]}
+        >
+          {item}
+        </a>
+      );
+    })}
+  </div>
+)}

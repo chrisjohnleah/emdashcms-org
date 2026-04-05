@@ -1,0 +1,47 @@
+---
+interface Props {
+  verdict: string | null;
+}
+
+const { verdict } = Astro.props;
+
+const variants: Record<string, { bg: string; text: string; border: string; label: string; ariaLabel: string }> = {
+  pass: {
+    bg: 'bg-emerald-950/40',
+    text: 'text-emerald-400',
+    border: 'border-emerald-800/60',
+    label: 'Passed',
+    ariaLabel: 'Audit: passed',
+  },
+  warn: {
+    bg: 'bg-amber-950/40',
+    text: 'text-amber-400',
+    border: 'border-amber-800/60',
+    label: 'Warning',
+    ariaLabel: 'Audit: warning',
+  },
+  fail: {
+    bg: 'bg-red-950/40',
+    text: 'text-red-400',
+    border: 'border-red-800/60',
+    label: 'Failed',
+    ariaLabel: 'Audit: failed',
+  },
+};
+
+const fallback = {
+  bg: 'bg-zinc-800/40',
+  text: 'text-zinc-400',
+  border: 'border-zinc-700/60',
+  label: 'Pending',
+  ariaLabel: 'Audit: pending',
+};
+
+const v = (verdict && variants[verdict]) || fallback;
+---
+<span
+  class:list={['inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border', v.bg, v.text, v.border]}
+  aria-label={v.ariaLabel}
+>
+  {v.label}
+</span>

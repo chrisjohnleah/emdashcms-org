@@ -1,0 +1,23 @@
+---
+interface Props {
+  action: string;
+  placeholder: string;
+  value: string;
+}
+
+const { action, placeholder, value } = Astro.props;
+---
+<form method="GET" action={action} class="relative">
+  <label for="search" class="sr-only">{placeholder}</label>
+  <svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+  </svg>
+  <input
+    id="search"
+    type="search"
+    name="q"
+    value={value}
+    placeholder={placeholder}
+    class="w-full rounded-lg border border-zinc-800 bg-zinc-900 pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 transition-colors"
+  />
+</form>

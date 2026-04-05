@@ -1,0 +1,31 @@
+---
+interface Props {
+  nextCursor: string | null;
+  count: number;
+  label: string;
+  baseUrl: string;
+}
+
+const { nextCursor, count, label, baseUrl } = Astro.props;
+const currentParams = Astro.url.searchParams;
+
+function buildLoadMoreHref(): string {
+  const params = new URLSearchParams(currentParams);
+  if (nextCursor) {
+    params.set('cursor', nextCursor);
+  }
+  const qs = params.toString();
+  return qs ? `${baseUrl}?${qs}` : baseUrl;
+}
+---
+<div class="flex flex-col items-center gap-4 pt-8">
+  <p class="text-sm text-zinc-500">Showing {count} {label}</p>
+  {nextCursor && (
+    <a
+      href={buildLoadMoreHref()}
+      class="inline-flex items-center rounded-lg border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors min-h-[44px]"
+    >
+      Load more {label}
+    </a>
+  )}
+</div>
