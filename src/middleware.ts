@@ -27,7 +27,7 @@ const securityHeaders = defineMiddleware(async (_ctx, next) => {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' https://avatars.githubusercontent.com data:",
