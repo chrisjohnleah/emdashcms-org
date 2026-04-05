@@ -24,7 +24,8 @@
     "@astrojs/cloudflare": "^13.1.6",
     "astro": "^6.1.2",
     "jose": "^6.2.2",
-    "modern-tar": "^0.7.6"
+    "modern-tar": "^0.7.6",
+    "wrangler": "^4.80.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
