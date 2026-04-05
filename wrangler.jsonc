@@ -52,7 +52,11 @@
   },
 
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
   },
 
   // GitHub OAuth App client ID and App ID (not secrets — safe as vars)
