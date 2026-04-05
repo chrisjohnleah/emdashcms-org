@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 10-03-PLAN.md
-last_updated: "2026-04-05T15:38:04.096Z"
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-04-05T19:53:44.807Z"
 progress:
   total_phases: 11
   completed_phases: 10
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 29
+  completed_plans: 27
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** EmDash plugin authors have a working, secure marketplace to publish to and site owners can discover and install community plugins
-**Current focus:** Phase 10 — github-app-integration
+**Current focus:** Phase 11 — team-collaborator-access
 
 ## Current Position
 
-Phase: 10 (github-app-integration) — EXECUTING
-Plan: 3 of 3
+Phase: 11 (team-collaborator-access) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -71,6 +71,8 @@ Plan: 3 of 3
 | Phase 10 P01 | 6min | 2 tasks | 12 files |
 | Phase 10 P02 | 6min | 2 tasks | 4 files |
 | Phase 10 P03 | 7min | 2 tasks | 6 files |
+| Phase 10 P04 | 7min | 2 tasks | 7 files |
+| Phase 11 P01 | 14min | 1 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -135,6 +137,11 @@ Recent decisions affecting current work:
 - [Phase 10]: Webhook exempt from CSRF and rate limiting via pathname prefix early returns in middleware
 - [Phase 10]: Plugin detail page refactored to _action form dispatch pattern for metadata/GitHub actions
 - [Phase 10]: plugin_github_links.plugin_id reused for both plugins and themes (D1 FK not enforced)
+- [Phase 10]: Glob-to-regex conversion for tag pattern matching: escape special chars, replace * with .*, anchor with ^ and $
+- [Phase 10]: Default tag_pattern '*' preserves backward compatibility with all existing links
+- [Phase 11]: checkPluginAccess uses UNION ALL to check both plugins and themes without requiring entity type parameter
+- [Phase 11]: Expired invites lazily marked as 'expired' on new invite creation to satisfy UNIQUE constraint
+- [Phase 11]: Owner role not in plugin_collaborators -- ownership lives in plugins/themes.author_id only
 
 ### Pending Todos
 
@@ -148,6 +155,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T15:38:04.091Z
-Stopped at: Completed 10-03-PLAN.md
+Last session: 2026-04-05T19:53:44.803Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None

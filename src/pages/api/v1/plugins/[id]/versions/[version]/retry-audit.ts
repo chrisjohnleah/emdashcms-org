@@ -2,10 +2,10 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import {
   resolveAuthorId,
-  getPluginOwner,
   getVersionForRetry,
   incrementRetryCount,
 } from "../../../../../../../lib/publishing/plugin-queries";
+import { checkPluginAccess, hasRole } from "../../../../../../../lib/auth/permissions";
 import { enqueueAuditJob } from "../../../../../../../lib/publishing/queue";
 import {
   jsonResponse,
@@ -25,10 +25,10 @@ export const POST: APIRoute = async ({ params, locals }) => {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
 
-    // Ownership check (D-16)
-    const owner = await getPluginOwner(env.DB, pluginId);
-    if (!owner) return errorResponse(404, "Plugin not found");
-    if (owner.authorId !== authorId)
+    // RBAC check — maintainer+ required (D-06)
+    const access = await checkPluginAccess(env.DB, authorId, pluginId);
+    if (!access.found) return errorResponse(404, "Plugin not found");
+    if (!access.role || !hasRole(access.role, "maintainer"))
       return errorResponse(403, "Not authorized");
 
     // Get version record

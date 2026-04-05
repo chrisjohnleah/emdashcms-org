@@ -4,10 +4,10 @@ import { getThemeDetail } from "../../../../lib/db/queries";
 import { jsonResponse, errorResponse } from "../../../../lib/api/response";
 import { resolveAuthorId } from "../../../../lib/publishing/plugin-queries";
 import {
-  getThemeOwner,
   updateThemeMetadata,
 } from "../../../../lib/publishing/theme-queries";
 import type { UpdateThemeMetadataInput } from "../../../../lib/publishing/theme-queries";
+import { checkPluginAccess, hasRole } from "../../../../lib/auth/permissions";
 import {
   validateUrlFields,
   validateKeywords,
@@ -47,9 +47,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
 
-    const owner = await getThemeOwner(env.DB, id);
-    if (!owner) return errorResponse(404, "Theme not found");
-    if (owner.authorId !== authorId) return errorResponse(403, "Forbidden");
+    const access = await checkPluginAccess(env.DB, authorId, id);
+    if (!access.found) return errorResponse(404, "Theme not found");
+    if (!access.role || !hasRole(access.role, "maintainer"))
+      return errorResponse(403, "Not authorized to edit this theme");
 
     const body = (await request.json()) as Record<string, unknown>;
 

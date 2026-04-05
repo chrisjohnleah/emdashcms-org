@@ -192,10 +192,10 @@ Plans:
   2. Collaborators table supports three roles: owner (full control), maintainer (upload versions, edit metadata), contributor (view audit results only)
   3. All write endpoints enforce role-based access — maintainers can upload versions but cannot transfer ownership or delete the plugin
   4. Plugin owner can revoke collaborator access at any time, and ownership can be transferred to another collaborator
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 11-01-PLAN.md — D1 migration (collaborators + invites tables), permissions helper (checkPluginAccess, role hierarchy), collaborator query module (invite CRUD, transfer, delete, dashboard queries), RoleBadge component, unit tests
+- [x] 11-01-PLAN.md — D1 migration (collaborators + invites tables), permissions helper (checkPluginAccess, role hierarchy), collaborator query module (invite CRUD, transfer, delete, dashboard queries), RoleBadge component, unit tests
 - [ ] 11-02-PLAN.md — RBAC retrofit of all write endpoints (4 API routes + 4 dashboard pages) replacing getPluginOwner/getThemeOwner with checkPluginAccess, role-aware dashboard rendering, integration tests
 - [ ] 11-03-PLAN.md — Dashboard UI: pending invitations section, role badges on plugin/theme lists, team management section on detail pages (invite, role change, remove), ownership transfer and deletion with confirmation
 
@@ -218,4 +218,4 @@ Note: Phases 10-11 are post-v1 enhancements — can ship v1 without them.
 | 8. Publisher Dashboard | 0/3 | Not started | - |
 | 9. Theme Listings | 2/2 | Complete   | 2026-04-05 |
 | 10. GitHub App Integration | 4/4 | Complete    | 2026-04-05 |
-| 11. Team & Collaborator Access | 0/3 | Not started | - |
+| 11. Team & Collaborator Access | 1/3 | In Progress|  |

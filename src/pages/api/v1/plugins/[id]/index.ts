@@ -4,9 +4,9 @@ import { getPluginDetail } from "../../../../../lib/db/queries";
 import { jsonResponse, errorResponse } from "../../../../../lib/api/response";
 import {
   resolveAuthorId,
-  getPluginOwner,
   updatePluginMetadata,
 } from "../../../../../lib/publishing/plugin-queries";
+import { checkPluginAccess, hasRole } from "../../../../../lib/auth/permissions";
 import {
   validateUrlFields,
   validateKeywords,
@@ -46,9 +46,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
 
-    const owner = await getPluginOwner(env.DB, pluginId);
-    if (!owner) return errorResponse(404, "Plugin not found");
-    if (owner.authorId !== authorId)
+    const access = await checkPluginAccess(env.DB, authorId, pluginId);
+    if (!access.found) return errorResponse(404, "Plugin not found");
+    if (!access.role || !hasRole(access.role, "maintainer"))
       return errorResponse(403, "Not authorized to edit this plugin");
 
     const body = (await request.json()) as Record<string, unknown>;

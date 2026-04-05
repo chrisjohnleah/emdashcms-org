@@ -82,10 +82,10 @@
 
 ### Team & Collaborator Access
 
-- [ ] **TEAM-01**: Plugin owner can invite collaborators by GitHub username with role assignment (owner, maintainer, contributor)
-- [ ] **TEAM-02**: Role-based access control: owner (full control), maintainer (upload versions, edit metadata), contributor (view only)
+- [x] **TEAM-01**: Plugin owner can invite collaborators by GitHub username with role assignment (owner, maintainer, contributor)
+- [x] **TEAM-02**: Role-based access control: owner (full control), maintainer (upload versions, edit metadata), contributor (view only)
 - [ ] **TEAM-03**: All write endpoints enforce role-based permissions — ownership transfer requires owner role
-- [ ] **TEAM-04**: Plugin owner can revoke collaborator access and transfer ownership to another collaborator
+- [x] **TEAM-04**: Plugin owner can revoke collaborator access and transfer ownership to another collaborator
 
 ## v2 Requirements
 
@@ -176,10 +176,10 @@
 | GHAP-02 | Phase 10 | Complete |
 | GHAP-03 | Phase 10 | Complete |
 | GHAP-04 | Phase 10 | Complete |
-| TEAM-01 | Phase 11 | Pending |
-| TEAM-02 | Phase 11 | Pending |
+| TEAM-01 | Phase 11 | Complete |
+| TEAM-02 | Phase 11 | Complete |
 | TEAM-03 | Phase 11 | Pending |
-| TEAM-04 | Phase 11 | Pending |
+| TEAM-04 | Phase 11 | Complete |
 
 **Coverage:**
 - v1 requirements: 49 total (41 original + 8 new from Phases 10-11)

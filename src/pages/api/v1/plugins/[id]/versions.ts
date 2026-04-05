@@ -4,11 +4,11 @@ import { getPluginVersions } from "../../../../../lib/db/queries";
 import { jsonResponse, errorResponse } from "../../../../../lib/api/response";
 import {
   resolveAuthorId,
-  getPluginOwner,
   checkUploadRateLimit,
   checkVersionExists,
   createVersion,
 } from "../../../../../lib/publishing/plugin-queries";
+import { checkPluginAccess, hasRole } from "../../../../../lib/auth/permissions";
 import { validateBundle } from "../../../../../lib/publishing/bundle-validator";
 import { storeBundleInR2 } from "../../../../../lib/publishing/r2-storage";
 import { enqueueAuditJob } from "../../../../../lib/publishing/queue";
@@ -41,12 +41,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
 
-    // Step 3: Plugin exists?
-    const owner = await getPluginOwner(env.DB, pluginId);
-    if (!owner) return errorResponse(404, "Plugin not found");
-
-    // Step 4: Ownership check (D-16, D-17)
-    if (owner.authorId !== authorId)
+    // Step 3: RBAC check — maintainer+ required (D-06)
+    const access = await checkPluginAccess(env.DB, authorId, pluginId);
+    if (!access.found) return errorResponse(404, "Plugin not found");
+    if (!access.role || !hasRole(access.role, "maintainer"))
       return errorResponse(
         403,
         "Not authorized to upload versions for this plugin",
