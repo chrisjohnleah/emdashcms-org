@@ -9,190 +9,438 @@ import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
 import { verifyTurnstile } from '../../../lib/turnstile/verify';
 import { registerTheme, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
 import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
+import { KNOWN_CATEGORIES } from '../../../lib/api/validation';
 
 const author = Astro.locals.author!;
-let error = '';
+
+const SPDX_LICENSES = ['MIT', 'Apache-2.0', 'GPL-3.0-only', 'GPL-2.0-only', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'MPL-2.0', 'Unlicense'];
+const THEME_ID_REGEX = /^[a-z0-9-]+$/;
+
+type WizardStep = 1 | 2;
+let currentStep: WizardStep = 1;
+let errors: Record<string, string> = {};
+let globalError = '';
+
 let formValues = {
-  id: '', name: '', description: '',
-  keywords: '', previewUrl: '', demoUrl: '',
-  repositoryUrl: '', homepageUrl: '', license: '',
+  id: '',
+  name: '',
+  shortDescription: '',
+  description: '',
+  category: '',
+  keywords: '',
+  license: '',
+  licenseOther: '',
+  previewUrl: '',
+  demoUrl: '',
+  repositoryUrl: '',
+  homepageUrl: '',
 };
 
-if (Astro.request.method === 'POST') {
-  try {
-    const data = await Astro.request.formData();
-    formValues.id = (data.get('id') as string ?? '').trim();
-    formValues.name = (data.get('name') as string ?? '').trim();
-    formValues.description = (data.get('description') as string ?? '').trim();
-    formValues.keywords = (data.get('keywords') as string ?? '').trim();
-    formValues.previewUrl = (data.get('previewUrl') as string ?? '').trim();
-    formValues.demoUrl = (data.get('demoUrl') as string ?? '').trim();
-    formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
-    formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
-    formValues.license = (data.get('license') as string ?? '').trim();
+function readMetadata(data: FormData) {
+  formValues.id = (data.get('id') as string ?? '').trim();
+  formValues.name = (data.get('name') as string ?? '').trim();
+  formValues.shortDescription = (data.get('shortDescription') as string ?? '').trim();
+  formValues.description = (data.get('description') as string ?? '').trim();
+  formValues.category = (data.get('category') as string ?? '').trim();
+  formValues.keywords = (data.get('keywords') as string ?? '').trim();
+  const licenseSelect = (data.get('license') as string ?? '').trim();
+  const licenseOtherVal = (data.get('licenseOther') as string ?? '').trim();
+  formValues.license = licenseSelect === '__other__' ? licenseOtherVal : licenseSelect;
+  formValues.licenseOther = licenseOtherVal;
+  formValues.previewUrl = (data.get('previewUrl') as string ?? '').trim();
+  formValues.demoUrl = (data.get('demoUrl') as string ?? '').trim();
+  formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
+  formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
+}
 
-    // Turnstile bot check
+function validateMetadata(): boolean {
+  errors = {};
+  if (!formValues.id) errors.id = 'Theme ID is required.';
+  else if (!THEME_ID_REGEX.test(formValues.id)) errors.id = 'ID must be lowercase alphanumeric with hyphens (e.g. my-theme).';
+  if (!formValues.name) errors.name = 'Name is required.';
+  if (!formValues.shortDescription) errors.shortDescription = 'Short description is required.';
+  else if (formValues.shortDescription.length > 150) errors.shortDescription = 'Short description must be 150 characters or less.';
+  if (!formValues.description) errors.description = 'Description is required.';
+  else if (formValues.description.length > 5000) errors.description = 'Description must be 5000 characters or less.';
+  return Object.keys(errors).length === 0;
+}
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const step = (data.get('_step') as string ?? '').trim();
+
+  readMetadata(data);
+
+  if (step === '1') {
+    if (validateMetadata()) {
+      const existingTheme = await env.DB.prepare('SELECT id FROM themes WHERE id = ?').bind(formValues.id).first();
+      if (existingTheme) {
+        errors.id = 'A theme with this ID already exists.';
+        currentStep = 1;
+      } else {
+        currentStep = 2;
+      }
+    } else {
+      currentStep = 1;
+    }
+  } else if (step === '2') {
+    currentStep = 2;
+
     const tsToken = data.get('cf-turnstile-response') as string ?? '';
     const tsIp = Astro.request.headers.get('CF-Connecting-IP') ?? undefined;
     const tsResult = await verifyTurnstile(tsToken, env.TURNSTILE_SECRET_KEY, tsIp);
-    if (!tsResult.success) throw new Error('Challenge verification failed. Please try again.');
-
-    if (!formValues.id) throw new Error('Theme ID is required');
-    if (!formValues.name) throw new Error('Name is required');
-    if (!formValues.description) throw new Error('Description is required');
-
-    const authorId = await resolveAuthorId(env.DB, author.githubId);
-    if (!authorId) throw new Error('Author not found. Please log out and log in again.');
-
-    const keywordsArray = formValues.keywords
-      ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
-      : [];
-
-    await registerTheme(env.DB, authorId, {
-      id: formValues.id,
-      name: formValues.name,
-      description: formValues.description,
-      keywords: keywordsArray,
-      preview_url: formValues.previewUrl || undefined,
-      demo_url: formValues.demoUrl || undefined,
-      repository_url: formValues.repositoryUrl || undefined,
-      homepage_url: formValues.homepageUrl || undefined,
-      license: formValues.license || undefined,
-    });
-
-    // Handle optional thumbnail upload
-    const thumbnail = data.get('thumbnail') as File | null;
-    if (thumbnail && thumbnail.size > 0) {
-      const validation = validateImageUpload(thumbnail);
-      if (!validation.valid) throw new Error(validation.error);
-      const ext = MIME_TO_EXT[thumbnail.type];
-      const key = 'themes/' + formValues.id + '/thumbnail.' + ext;
-      await storeImageInR2(env.ARTIFACTS, key, thumbnail);
-      await updateThemeThumbnailKey(env.DB, formValues.id, key);
+    if (!tsResult.success) {
+      globalError = 'Challenge verification failed. Please try again.';
     }
 
-    // Handle optional screenshot uploads
-    const screenshots = data.getAll('screenshots') as File[];
-    const validScreenshots = screenshots.filter(f => f.size > 0);
-    if (validScreenshots.length > 5) throw new Error('Maximum 5 screenshots allowed.');
-    if (validScreenshots.length > 0) {
-      const screenshotKeys: string[] = [];
-      for (let i = 0; i < validScreenshots.length; i++) {
-        const file = validScreenshots[i];
-        const validation = validateImageUpload(file);
-        if (!validation.valid) throw new Error(validation.error);
-        const ext = MIME_TO_EXT[file.type];
-        const key = 'themes/' + formValues.id + '/screenshots/' + i + '.' + ext;
-        await storeImageInR2(env.ARTIFACTS, key, file);
-        screenshotKeys.push(key);
+    const authorId = !globalError ? await resolveAuthorId(env.DB, author.githubId) : null;
+    if (globalError) {
+      // skip
+    } else if (!authorId) {
+      globalError = 'Author not found. Please log out and log in again.';
+    } else {
+      try {
+        const keywordsArray = formValues.keywords
+          ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+          : [];
+
+        await registerTheme(env.DB, authorId, {
+          id: formValues.id,
+          name: formValues.name,
+          short_description: formValues.shortDescription || undefined,
+          description: formValues.description,
+          category: formValues.category || undefined,
+          keywords: keywordsArray,
+          preview_url: formValues.previewUrl || undefined,
+          demo_url: formValues.demoUrl || undefined,
+          repository_url: formValues.repositoryUrl || undefined,
+          homepage_url: formValues.homepageUrl || undefined,
+          license: formValues.license || undefined,
+        });
+
+        // Handle thumbnail
+        const thumbnail = data.get('thumbnail') as File | null;
+        if (thumbnail && thumbnail.size > 0) {
+          const validation = validateImageUpload(thumbnail);
+          if (!validation.valid) throw new Error(validation.error);
+          const ext = MIME_TO_EXT[thumbnail.type];
+          const key = 'themes/' + formValues.id + '/thumbnail.' + ext;
+          await storeImageInR2(env.ARTIFACTS, key, thumbnail);
+          await updateThemeThumbnailKey(env.DB, formValues.id, key);
+        }
+
+        // Handle screenshots
+        const screenshots = data.getAll('screenshots') as File[];
+        const validScreenshots = screenshots.filter(f => f.size > 0);
+        if (validScreenshots.length > 5) throw new Error('Maximum 5 screenshots allowed.');
+        if (validScreenshots.length > 0) {
+          const screenshotKeys: string[] = [];
+          for (let i = 0; i < validScreenshots.length; i++) {
+            const file = validScreenshots[i];
+            const validation = validateImageUpload(file);
+            if (!validation.valid) throw new Error(validation.error);
+            const ext = MIME_TO_EXT[file.type];
+            const key = 'themes/' + formValues.id + '/screenshots/' + i + '.' + ext;
+            await storeImageInR2(env.ARTIFACTS, key, file);
+            screenshotKeys.push(key);
+          }
+          await updateThemeScreenshotKeys(env.DB, formValues.id, screenshotKeys);
+        }
+
+        return Astro.redirect('/dashboard/themes/' + encodeURIComponent(formValues.id));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('UNIQUE')) {
+          errors.id = 'A theme with this ID already exists.';
+          currentStep = 1;
+        } else {
+          try {
+            await env.DB.prepare('DELETE FROM themes WHERE id = ?').bind(formValues.id).run();
+          } catch { /* best-effort cleanup */ }
+          globalError = 'Failed to register theme: ' + msg;
+        }
       }
-      await updateThemeScreenshotKeys(env.DB, formValues.id, screenshotKeys);
     }
-
-    return Astro.redirect('/dashboard/themes/' + encodeURIComponent(formValues.id));
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'An error occurred';
-    error = message.includes('UNIQUE') ? 'A theme with this ID already exists.' : 'An unexpected error occurred. Please try again.';
   }
 }
+
+const inputBase = 'w-full bg-zinc-900 border text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500';
+const inputNormal = `${inputBase} border-zinc-800`;
+const inputError = `${inputBase} border-red-700`;
 ---
 <BaseLayout title="Register Theme - Dashboard - emdashcms.org">
   <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-2xl">
+    <div class="mx-auto max-w-3xl">
 
       <a href="/dashboard/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Themes</a>
 
       <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">Register Theme</h1>
 
-      {error && (
-        <div class="mt-6" id="form-error">
-          <DashboardBanner type="error" message={'Failed to register theme. ' + error} />
+      {/* --- Step Indicator --- */}
+      <div class="mt-8 flex items-center justify-center gap-0">
+        <div class="flex flex-col items-center">
+          <div class:list={[
+            'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
+            currentStep >= 1 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+          ]}>1</div>
+          <span class:list={[
+            'mt-2 text-xs font-medium',
+            currentStep >= 1 ? 'text-zinc-100' : 'text-zinc-500',
+          ]}>Theme Details</span>
+        </div>
+        <div class:list={[
+          'mx-4 h-px w-24 sm:w-32 -mt-5 transition-colors',
+          currentStep >= 2 ? 'bg-white' : 'bg-zinc-800',
+        ]} />
+        <div class="flex flex-col items-center">
+          <div class:list={[
+            'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
+            currentStep >= 2 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+          ]}>2</div>
+          <span class:list={[
+            'mt-2 text-xs font-medium',
+            currentStep >= 2 ? 'text-zinc-100' : 'text-zinc-500',
+          ]}>Visual Assets</span>
+        </div>
+      </div>
+
+      {/* --- Global messages --- */}
+      {globalError && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={globalError} />
         </div>
       )}
 
-      <form method="POST" enctype="multipart/form-data" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4" aria-describedby={error ? 'form-error' : undefined}>
+      {/* =============================== STEP 1 =============================== */}
+      {currentStep === 1 && (
+        <form method="POST" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-5">
+          <input type="hidden" name="_step" value="1" />
 
-        <div>
-          <label for="id" class="block text-sm font-semibold text-zinc-100">Theme ID *</label>
-          <p class="mt-1 text-xs text-zinc-500">Use kebab-case, e.g. my-theme</p>
-          <input type="text" id="id" name="id" value={formValues.id}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm font-mono focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            aria-required="true" />
+          {/* Theme ID */}
+          <div>
+            <label for="id" class="block text-sm font-semibold text-zinc-100">Theme ID <span class="text-red-400">*</span></label>
+            <p class="mt-1 text-xs text-zinc-500">Lowercase alphanumeric with hyphens (e.g. my-theme)</p>
+            <input type="text" id="id" name="id" value={formValues.id}
+              placeholder="my-theme"
+              class:list={['mt-2 font-mono', errors.id ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.id ? 'true' : undefined}
+              aria-describedby={errors.id ? 'id-error' : undefined} />
+            {errors.id && <p id="id-error" class="mt-1 text-xs text-red-400">{errors.id}</p>}
+          </div>
+
+          {/* Name */}
+          <div>
+            <label for="name" class="block text-sm font-semibold text-zinc-100">Name <span class="text-red-400">*</span></label>
+            <input type="text" id="name" name="name" value={formValues.name}
+              class:list={['mt-2', errors.name ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.name ? 'true' : undefined}
+              aria-describedby={errors.name ? 'name-error' : undefined} />
+            {errors.name && <p id="name-error" class="mt-1 text-xs text-red-400">{errors.name}</p>}
+          </div>
+
+          {/* Short Description */}
+          <div>
+            <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description <span class="text-red-400">*</span></label>
+            <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards</p>
+            <input type="text" id="shortDescription" name="shortDescription" value={formValues.shortDescription}
+              maxlength="150"
+              placeholder="e.g. A minimal blog theme with beautiful typography"
+              class:list={['mt-2', errors.shortDescription ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.shortDescription ? 'true' : undefined}
+              aria-describedby={errors.shortDescription ? 'shortDescription-error' : 'shortDescription-counter'} />
+            <div class="mt-1 flex justify-between">
+              {errors.shortDescription ? <p id="shortDescription-error" class="text-xs text-red-400">{errors.shortDescription}</p> : <span />}
+              <p id="shortDescription-counter" class="text-xs text-zinc-600"><span data-counter="shortDescription">{formValues.shortDescription.length}</span>/150</p>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label for="description" class="block text-sm font-semibold text-zinc-100">Description <span class="text-red-400">*</span></label>
+            <p class="mt-1 text-xs text-zinc-500">Detailed description shown on your listing page. Markdown supported.</p>
+            <textarea id="description" name="description"
+              maxlength="5000"
+              class:list={['mt-2 min-h-[120px] resize-y', errors.description ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.description ? 'true' : undefined}
+              aria-describedby={errors.description ? 'description-error' : 'description-counter'}>{formValues.description}</textarea>
+            <div class="mt-1 flex justify-between">
+              {errors.description ? <p id="description-error" class="text-xs text-red-400">{errors.description}</p> : <span />}
+              <p id="description-counter" class="text-xs text-zinc-600"><span data-counter="description">{formValues.description.length}</span>/5000</p>
+            </div>
+          </div>
+
+          {/* Optional fields in a 2-col grid */}
+          <div class="border-t border-zinc-800/60 pt-5">
+            <p class="text-sm font-semibold text-zinc-100 mb-4">Optional Details</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="category" class="block text-sm text-zinc-400">Category</label>
+                <select id="category" name="category" class:list={['mt-1.5', inputNormal]}>
+                  <option value="">None</option>
+                  {KNOWN_CATEGORIES.map(cat => (
+                    <option value={cat} selected={formValues.category === cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label for="keywords" class="block text-sm text-zinc-400">Keywords</label>
+                <p class="mt-0.5 text-xs text-zinc-600">Comma-separated</p>
+                <input type="text" id="keywords" name="keywords" value={formValues.keywords}
+                  placeholder="blog, minimal, dark"
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div>
+                <label for="license" class="block text-sm text-zinc-400">License</label>
+                <select id="license" name="license" class:list={['mt-1.5', inputNormal]}>
+                  <option value="">None</option>
+                  {SPDX_LICENSES.map(lic => (
+                    <option value={lic} selected={formValues.license === lic}>{lic}</option>
+                  ))}
+                  <option value="__other__" selected={formValues.license && !SPDX_LICENSES.includes(formValues.license)}>Other...</option>
+                </select>
+                <input type="text" id="licenseOther" name="licenseOther"
+                  value={formValues.licenseOther || (formValues.license && !SPDX_LICENSES.includes(formValues.license) ? formValues.license : '')}
+                  placeholder="SPDX identifier"
+                  class:list={['mt-1.5', inputNormal, (!formValues.license || SPDX_LICENSES.includes(formValues.license)) && 'hidden']}
+                  data-license-other />
+              </div>
+              <div>
+                <label for="previewUrl" class="block text-sm text-zinc-400">Preview URL</label>
+                <input type="url" id="previewUrl" name="previewUrl" value={formValues.previewUrl}
+                  placeholder="https://..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div>
+                <label for="demoUrl" class="block text-sm text-zinc-400">Demo URL</label>
+                <input type="url" id="demoUrl" name="demoUrl" value={formValues.demoUrl}
+                  placeholder="https://..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div>
+                <label for="repositoryUrl" class="block text-sm text-zinc-400">Repository URL</label>
+                <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
+                  placeholder="https://github.com/..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div class="sm:col-span-2">
+                <label for="homepageUrl" class="block text-sm text-zinc-400">Homepage URL</label>
+                <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
+                  placeholder="https://..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+            Continue to Visual Assets
+          </button>
+        </form>
+      )}
+
+      {/* =============================== STEP 2 =============================== */}
+      {currentStep === 2 && (
+        <div class="mt-8 space-y-6">
+          {/* Summary of selected metadata */}
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Theme</p>
+                <p class="mt-1 text-sm text-zinc-100 font-mono">{formValues.id}</p>
+                <p class="text-xs text-zinc-400 mt-0.5">{formValues.name}</p>
+              </div>
+              <form method="POST">
+                <input type="hidden" name="_step" value="1" />
+                <input type="hidden" name="id" value={formValues.id} />
+                <input type="hidden" name="name" value={formValues.name} />
+                <input type="hidden" name="shortDescription" value={formValues.shortDescription} />
+                <input type="hidden" name="description" value={formValues.description} />
+                <input type="hidden" name="category" value={formValues.category} />
+                <input type="hidden" name="keywords" value={formValues.keywords} />
+                <input type="hidden" name="license" value={formValues.license} />
+                <input type="hidden" name="previewUrl" value={formValues.previewUrl} />
+                <input type="hidden" name="demoUrl" value={formValues.demoUrl} />
+                <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
+                <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
+                <button type="submit" class="text-xs text-zinc-400 hover:text-zinc-100 transition-colors underline underline-offset-2">
+                  Edit details
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Visual assets form */}
+          <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-5">
+            <input type="hidden" name="_step" value="2" />
+            <input type="hidden" name="id" value={formValues.id} />
+            <input type="hidden" name="name" value={formValues.name} />
+            <input type="hidden" name="shortDescription" value={formValues.shortDescription} />
+            <input type="hidden" name="description" value={formValues.description} />
+            <input type="hidden" name="category" value={formValues.category} />
+            <input type="hidden" name="keywords" value={formValues.keywords} />
+            <input type="hidden" name="license" value={formValues.license} />
+            <input type="hidden" name="previewUrl" value={formValues.previewUrl} />
+            <input type="hidden" name="demoUrl" value={formValues.demoUrl} />
+            <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
+            <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
+
+            <div>
+              <label for="thumbnail" class="block text-sm font-semibold text-zinc-100">Thumbnail</label>
+              <p class="mt-1 text-xs text-zinc-500">Strongly recommended. This image appears on the theme card in search results.</p>
+              <input type="file" id="thumbnail" name="thumbnail" accept="image/jpeg,image/png,image/webp"
+                class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700 file:cursor-pointer file:transition-colors cursor-pointer" />
+              <p class="mt-1 text-xs text-zinc-600">Max 5MB. JPEG, PNG, or WebP.</p>
+            </div>
+
+            <div>
+              <label for="screenshots" class="block text-sm font-semibold text-zinc-100">Screenshots</label>
+              <p class="mt-1 text-xs text-zinc-500">Show off your theme's design and features.</p>
+              <input type="file" id="screenshots" name="screenshots" accept="image/jpeg,image/png,image/webp" multiple
+                class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700 file:cursor-pointer file:transition-colors cursor-pointer" />
+              <p class="mt-1 text-xs text-zinc-600">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
+            </div>
+
+            <div>
+              <TurnstileWidget />
+            </div>
+
+            <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+              Register Theme
+            </button>
+          </form>
         </div>
-
-        <div>
-          <label for="name" class="block text-sm font-semibold text-zinc-100">Name *</label>
-          <input type="text" id="name" name="name" value={formValues.name}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            aria-required="true" />
-        </div>
-
-        <div>
-          <label for="description" class="block text-sm font-semibold text-zinc-100">Description *</label>
-          <textarea id="description" name="description"
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            aria-required="true">{formValues.description}</textarea>
-        </div>
-
-        <div>
-          <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
-          <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. blog, minimal, dark)</p>
-          <input type="text" id="keywords" name="keywords" value={formValues.keywords}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="previewUrl" class="block text-sm font-semibold text-zinc-100">Preview URL</label>
-          <input type="url" id="previewUrl" name="previewUrl" value={formValues.previewUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="demoUrl" class="block text-sm font-semibold text-zinc-100">Demo URL</label>
-          <input type="url" id="demoUrl" name="demoUrl" value={formValues.demoUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
-          <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
-          <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
-          <p class="mt-1 text-xs text-zinc-500">e.g. MIT, Apache-2.0</p>
-          <input type="text" id="license" name="license" value={formValues.license}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="thumbnail" class="block text-sm font-semibold text-zinc-100">Thumbnail</label>
-          <input type="file" id="thumbnail" name="thumbnail" accept="image/jpeg,image/png,image/webp"
-            class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700" />
-          <p class="mt-1 text-xs text-zinc-500">Max 5MB. JPEG, PNG, or WebP.</p>
-        </div>
-
-        <div>
-          <label for="screenshots" class="block text-sm font-semibold text-zinc-100">Screenshots</label>
-          <input type="file" id="screenshots" name="screenshots" accept="image/jpeg,image/png,image/webp" multiple
-            class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700" />
-          <p class="mt-1 text-xs text-zinc-500">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
-        </div>
-
-        <div class="mb-4">
-          <TurnstileWidget />
-        </div>
-        <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Register Theme</button>
-
-      </form>
+      )}
 
     </div>
   </section>
+
+  <script is:inline>
+    // Character counters
+    document.querySelectorAll('[data-counter]').forEach(function(span) {
+      var fieldId = span.getAttribute('data-counter');
+      var field = document.getElementById(fieldId);
+      if (field) {
+        field.addEventListener('input', function() {
+          span.textContent = field.value.length;
+        });
+      }
+    });
+
+    // License "Other" toggle
+    var licenseSelect = document.getElementById('license');
+    var licenseOther = document.querySelector('[data-license-other]');
+    if (licenseSelect && licenseOther) {
+      licenseSelect.addEventListener('change', function() {
+        if (licenseSelect.value === '__other__') {
+          licenseOther.classList.remove('hidden');
+          licenseOther.focus();
+        } else {
+          licenseOther.classList.add('hidden');
+        }
+      });
+    }
+  </script>
 </BaseLayout>
