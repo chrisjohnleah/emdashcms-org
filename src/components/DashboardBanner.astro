@@ -1,0 +1,19 @@
+---
+interface Props {
+  type: 'success' | 'error';
+  message: string;
+}
+
+const { type, message } = Astro.props;
+
+const styles = {
+  success: 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400',
+  error: 'bg-red-950/40 border-red-800/60 text-red-400',
+};
+---
+<div
+  role="alert"
+  class:list={['rounded-lg border px-4 py-3 text-sm', styles[type]]}
+>
+  {message}
+</div>

@@ -110,6 +110,59 @@ export async function getPluginOwner(
   return row ? { authorId: row.author_id } : null;
 }
 
+// --- Metadata Update ---
+
+export interface UpdatePluginMetadataInput {
+  description?: string;
+  keywords?: string[];
+  repositoryUrl?: string;
+  homepageUrl?: string;
+  supportUrl?: string;
+  fundingUrl?: string;
+  license?: string;
+}
+
+/**
+ * Update editable metadata fields on a plugin.
+ * Only fields explicitly provided (not undefined) are updated.
+ * Always bumps updated_at to the current UTC timestamp.
+ */
+export async function updatePluginMetadata(
+  db: D1Database,
+  pluginId: string,
+  data: UpdatePluginMetadataInput,
+): Promise<void> {
+  const fields: { col: string; val: unknown }[] = [];
+
+  if (data.description !== undefined)
+    fields.push({ col: "description", val: data.description });
+  if (data.keywords !== undefined)
+    fields.push({ col: "keywords", val: JSON.stringify(data.keywords) });
+  if (data.repositoryUrl !== undefined)
+    fields.push({ col: "repository_url", val: data.repositoryUrl });
+  if (data.homepageUrl !== undefined)
+    fields.push({ col: "homepage_url", val: data.homepageUrl });
+  if (data.supportUrl !== undefined)
+    fields.push({ col: "support_url", val: data.supportUrl });
+  if (data.fundingUrl !== undefined)
+    fields.push({ col: "funding_url", val: data.fundingUrl });
+  if (data.license !== undefined)
+    fields.push({ col: "license", val: data.license });
+
+  if (fields.length === 0) return;
+
+  const setClauses = fields.map((f) => `${f.col} = ?`);
+  setClauses.push("updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')");
+
+  const sql = `UPDATE plugins SET ${setClauses.join(", ")} WHERE id = ?`;
+  const params = [...fields.map((f) => f.val), pluginId];
+
+  await db
+    .prepare(sql)
+    .bind(...params)
+    .run();
+}
+
 // --- Rate Limiting ---
 
 /**

@@ -3,6 +3,7 @@ import type {
   MarketplacePluginSummary,
   MarketplacePluginDetail,
   MarketplaceVersionSummary,
+  MarketplaceAuditFinding,
   MarketplaceThemeSummary,
   MarketplaceThemeDetail,
 } from "../../types/marketplace";
@@ -10,6 +11,8 @@ import {
   mapPluginSummary,
   mapPluginDetail,
   mapVersionSummary,
+  mapDashboardPlugin,
+  mapVersionDetail,
   mapThemeSummary,
   mapThemeDetail,
 } from "./mappers";
@@ -183,6 +186,73 @@ export async function getPluginVersions(
     .all();
 
   return (result.results as Record<string, unknown>[]).map(mapVersionSummary);
+}
+
+// --- Dashboard queries ---
+
+export interface DashboardPlugin {
+  id: string;
+  name: string;
+  latestVersion: string | null;
+  latestStatus: string | null;
+  installCount: number;
+  updatedAt: string;
+}
+
+export async function getPluginsByAuthor(
+  db: D1Database,
+  authorId: string,
+): Promise<DashboardPlugin[]> {
+  const result = await db
+    .prepare(
+      `SELECT
+        p.id, p.name, p.installs_count, p.updated_at,
+        (SELECT pv.version FROM plugin_versions pv
+         WHERE pv.plugin_id = p.id
+         ORDER BY pv.created_at DESC LIMIT 1) AS latest_version,
+        (SELECT pv.status FROM plugin_versions pv
+         WHERE pv.plugin_id = p.id
+         ORDER BY pv.created_at DESC LIMIT 1) AS latest_status
+      FROM plugins p
+      WHERE p.author_id = ?
+      ORDER BY p.updated_at DESC`,
+    )
+    .bind(authorId)
+    .all();
+
+  return (result.results as Record<string, unknown>[]).map(mapDashboardPlugin);
+}
+
+export interface VersionDetail {
+  version: string;
+  status: "pending" | "published" | "flagged" | "rejected";
+  retryCount: number;
+  createdAt: string;
+  verdict: "pass" | "warn" | "fail" | null;
+  riskScore: number | null;
+  findings: MarketplaceAuditFinding[];
+}
+
+export async function getVersionDetail(
+  db: D1Database,
+  pluginId: string,
+  version: string,
+): Promise<VersionDetail | null> {
+  const result = await db
+    .prepare(
+      `SELECT pv.version, pv.status, pv.retry_count, pv.created_at,
+              pa.verdict, pa.risk_score, pa.findings
+       FROM plugin_versions pv
+       LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
+       WHERE pv.plugin_id = ? AND pv.version = ?`,
+    )
+    .bind(pluginId, version)
+    .all();
+
+  const rows = result.results as Record<string, unknown>[];
+  if (rows.length === 0) return null;
+
+  return mapVersionDetail(rows[0]);
 }
 
 // --- Theme queries ---

@@ -2,6 +2,7 @@ import type {
   MarketplaceAuthor,
   MarketplaceAuditSummary,
   MarketplaceAuditDetail,
+  MarketplaceAuditFinding,
   MarketplacePluginSummary,
   MarketplacePluginDetail,
   MarketplaceVersionSummary,
@@ -143,5 +144,45 @@ export function mapThemeDetail(row: Row): MarketplaceThemeDetail {
     license: (row.license as string) ?? null,
     screenshotCount: 0, // No screenshot storage yet
     screenshotUrls: [], // No screenshot storage yet
+  };
+}
+
+// --- Dashboard mappers ---
+
+export function mapDashboardPlugin(row: Row): {
+  id: string;
+  name: string;
+  latestVersion: string | null;
+  latestStatus: string | null;
+  installCount: number;
+  updatedAt: string;
+} {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    latestVersion: (row.latest_version as string) ?? null,
+    latestStatus: (row.latest_status as string) ?? null,
+    installCount: (row.installs_count as number) ?? 0,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export function mapVersionDetail(row: Row): {
+  version: string;
+  status: "pending" | "published" | "flagged" | "rejected";
+  retryCount: number;
+  createdAt: string;
+  verdict: "pass" | "warn" | "fail" | null;
+  riskScore: number | null;
+  findings: MarketplaceAuditFinding[];
+} {
+  return {
+    version: row.version as string,
+    status: row.status as "pending" | "published" | "flagged" | "rejected",
+    retryCount: (row.retry_count as number) ?? 0,
+    createdAt: row.created_at as string,
+    verdict: (row.verdict as "pass" | "warn" | "fail") ?? null,
+    riskScore: (row.risk_score as number) ?? null,
+    findings: JSON.parse((row.findings as string) || "[]"),
   };
 }
