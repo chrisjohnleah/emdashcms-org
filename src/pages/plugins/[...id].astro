@@ -109,7 +109,7 @@ const formatSize = (bytes: number) => {
     </section>
   </BaseLayout>
 ) : (
-  <BaseLayout title={plugin.name + ' - emdashcms.org'} description={plugin.description ?? undefined}>
+  <BaseLayout title={plugin.name + ' - emdashcms.org'} description={plugin.shortDescription ?? plugin.description ?? undefined}>
     <section class="pt-24 pb-16 px-6">
       <div class="mx-auto max-w-5xl">
 
@@ -122,6 +122,9 @@ const formatSize = (bytes: number) => {
             <div class="flex items-start gap-4">
               <div class="flex-1">
                 <h1 class="text-3xl font-semibold tracking-tight leading-[1.15]">{plugin.name}</h1>
+                {plugin.shortDescription && (
+                  <p class="mt-1 text-sm text-zinc-400">{plugin.shortDescription}</p>
+                )}
                 <div class="mt-2 flex items-center gap-3">
                   {plugin.author.avatarUrl ? (
                     <img src={plugin.author.avatarUrl} alt={plugin.author.name} class="w-5 h-5 rounded-full" />

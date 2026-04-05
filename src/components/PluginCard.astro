@@ -10,7 +10,9 @@ const { plugin } = Astro.props;
 ---
 <a href={`/plugins/${plugin.id}`} class="block rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 hover:border-zinc-700/60 hover:bg-zinc-900/60 transition-colors">
   <div class="flex items-center gap-2">
-    {plugin.author.avatarUrl ? (
+    {plugin.iconUrl ? (
+      <img src={plugin.iconUrl} alt="" class="w-4 h-4 rounded" />
+    ) : plugin.author.avatarUrl ? (
       <img src={plugin.author.avatarUrl} alt={plugin.author.name} class="w-4 h-4 rounded-full" />
     ) : (
       <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -22,8 +24,8 @@ const { plugin } = Astro.props;
 
   <h3 class="mt-3 text-sm font-semibold text-zinc-100">{plugin.name}</h3>
 
-  {plugin.description && (
-    <p class="mt-1 text-sm text-zinc-400 leading-relaxed line-clamp-2">{plugin.description}</p>
+  {(plugin.shortDescription || plugin.description) && (
+    <p class="mt-1 text-sm text-zinc-400 leading-relaxed line-clamp-2">{plugin.shortDescription ?? plugin.description}</p>
   )}
 
   <div class="mt-4 flex items-center gap-2 flex-wrap">
