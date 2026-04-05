@@ -57,7 +57,7 @@ const formatDate = (iso: string) =>
               {plugins.map(plugin => (
                 <tr class="hover:bg-zinc-900/30 transition-colors">
                   <th scope="row" class="py-3 pl-6 pr-4">
-                    <a href={'/dashboard/plugins/' + plugin.id} class="text-zinc-100 font-medium hover:text-white hover:underline transition-colors">{plugin.name}</a>
+                    <a href={'/dashboard/plugins/' + encodeURIComponent(plugin.id)} class="text-zinc-100 font-medium hover:text-white hover:underline transition-colors">{plugin.name}</a>
                   </th>
                   <td class="py-3 px-4 font-mono text-zinc-400">{plugin.latestVersion ?? '\u2014'}</td>
                   <td class="py-3 px-4">

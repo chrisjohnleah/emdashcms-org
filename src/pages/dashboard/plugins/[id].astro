@@ -346,7 +346,7 @@ const formatDate = (iso: string) =>
       <div class="mt-12">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold text-zinc-100">Versions</h2>
-          <a href={'/dashboard/plugins/' + pluginId + '/upload'} class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Upload Version</a>
+          <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/upload'} class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Upload Version</a>
         </div>
 
         {versions.length === 0 ? (
@@ -373,7 +373,7 @@ const formatDate = (iso: string) =>
                     <td class="py-3 px-4"><SourceBadge source={(sourceMap.get(v.version) ?? 'upload') as 'github' | 'upload'} /></td>
                     <td class="py-3 px-4 text-zinc-500">{formatDate(v.publishedAt)}</td>
                     <td class="py-3 pl-4 pr-6">
-                      <a href={'/dashboard/plugins/' + pluginId + '/versions/' + v.version} class="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">View Audit</a>
+                      <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/versions/' + v.version} class="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">View Audit</a>
                     </td>
                   </tr>
                 ))}
