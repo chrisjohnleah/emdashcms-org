@@ -7,6 +7,9 @@ import type { MarketplaceVersionSummary } from '../../types/marketplace';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AuditBadge from '../../components/AuditBadge.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import StarRating from '../../components/StarRating.astro';
+import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
+import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 
 const { id } = Astro.params;
 const plugin = await getPluginDetail(env.DB, id!);
@@ -19,6 +22,68 @@ let versions: MarketplaceVersionSummary[] = [];
 if (plugin) {
   versions = await getPluginVersions(env.DB, id!);
 }
+
+// Reviews
+const [reviews, reviewStats] = await Promise.all([
+  getReviews(env.DB, 'plugin', id!),
+  getReviewStats(env.DB, 'plugin', id!),
+]);
+
+// Check if current user can review
+const currentAuthor = Astro.locals.author;
+let authorId: string | null = null;
+let userReview = null;
+let isPluginAuthor = false;
+if (currentAuthor) {
+  authorId = await resolveAuthorId(env.DB, currentAuthor.githubId);
+  if (authorId) {
+    userReview = await getUserReview(env.DB, 'plugin', id!, authorId);
+    isPluginAuthor = plugin?.author?.name === currentAuthor.username;
+  }
+}
+
+let reviewError = '';
+let reviewSuccess = '';
+
+if (plugin && Astro.request.method === 'POST' && authorId) {
+  const formData = await Astro.request.formData();
+  const action = formData.get('_action') as string;
+
+  if (action === 'create-review' && !isPluginAuthor) {
+    const rating = parseInt(formData.get('rating') as string);
+    const comment = (formData.get('comment') as string)?.trim();
+    if (!rating || rating < 1 || rating > 5) reviewError = 'Please select a rating.';
+    else if (!comment || comment.length < 10) reviewError = 'Review must be at least 10 characters.';
+    else {
+      try {
+        await createReview(env.DB, 'plugin', id!, authorId, rating, comment);
+        reviewSuccess = 'Review submitted!';
+        // Redirect to self to avoid re-submission
+        return Astro.redirect(Astro.url.pathname + '?reviewed=true');
+      } catch { reviewError = 'You have already reviewed this plugin.'; }
+    }
+  } else if (action === 'update-review' && userReview) {
+    const rating = parseInt(formData.get('rating') as string);
+    const comment = (formData.get('comment') as string)?.trim();
+    if (!rating || rating < 1 || rating > 5) reviewError = 'Please select a rating.';
+    else if (!comment || comment.length < 10) reviewError = 'Review must be at least 10 characters.';
+    else {
+      await updateReview(env.DB, userReview.id, authorId, rating, comment);
+      return Astro.redirect(Astro.url.pathname + '?updated=true');
+    }
+  } else if (action === 'delete-review' && userReview) {
+    await deleteReview(env.DB, userReview.id);
+    return Astro.redirect(Astro.url.pathname + '?deleted=true');
+  }
+}
+
+// Check for success query params
+const reviewed = Astro.url.searchParams.get('reviewed');
+const updated = Astro.url.searchParams.get('updated');
+const deleted = Astro.url.searchParams.get('deleted');
+if (reviewed) reviewSuccess = 'Review submitted!';
+if (updated) reviewSuccess = 'Review updated!';
+if (deleted) reviewSuccess = 'Review deleted.';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', {
@@ -70,6 +135,12 @@ const formatSize = (bytes: number) => {
 
             <div class="mt-4 flex items-center gap-4 flex-wrap">
               <span class="text-sm text-zinc-500">{plugin.installCount.toLocaleString()} installs</span>
+              {reviewStats.totalCount > 0 && (
+                <div class="flex items-center gap-1.5">
+                  <StarRating rating={reviewStats.averageRating} />
+                  <span class="text-sm text-zinc-500">({reviewStats.totalCount})</span>
+                </div>
+              )}
               {plugin.latestVersion?.audit && (
                 <AuditBadge verdict={plugin.latestVersion.audit.verdict} />
               )}
@@ -253,6 +324,110 @@ const formatSize = (bytes: number) => {
           </div>
         )}
 
+        <!-- Reviews Section -->
+        <div class="mt-12">
+          <h2 class="text-xl font-semibold text-zinc-100 mb-6 flex items-center gap-3">
+            Reviews
+            {reviewStats.totalCount > 0 && (
+              <span class="text-sm font-normal text-zinc-500">
+                {reviewStats.averageRating}/5 from {reviewStats.totalCount} {reviewStats.totalCount === 1 ? 'review' : 'reviews'}
+              </span>
+            )}
+          </h2>
+
+          {/* Success/error banners */}
+          {reviewSuccess && (
+            <div class="mb-4 rounded-lg border border-emerald-800/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-400">{reviewSuccess}</div>
+          )}
+          {reviewError && (
+            <div class="mb-4 rounded-lg border border-red-800/40 bg-red-950/20 px-4 py-3 text-sm text-red-400">{reviewError}</div>
+          )}
+
+          {/* Write/Edit review form */}
+          {currentAuthor && authorId && !isPluginAuthor && (
+            <div class="mb-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+              <h3 class="text-sm font-semibold text-zinc-100 mb-4">
+                {userReview ? 'Edit Your Review' : 'Write a Review'}
+              </h3>
+              <form method="POST">
+                <input type="hidden" name="_action" value={userReview ? 'update-review' : 'create-review'} />
+
+                {/* Star rating input */}
+                <div class="mb-4">
+                  <label class="text-xs text-zinc-500 uppercase tracking-wide font-semibold block mb-2">Rating</label>
+                  <div class="flex gap-1" id="star-input">
+                    {[1,2,3,4,5].map(n => (
+                      <label class="cursor-pointer">
+                        <input type="radio" name="rating" value={String(n)} class="sr-only peer" checked={userReview?.rating === n} />
+                        <svg class="w-6 h-6 text-zinc-700 peer-checked:text-amber-400 hover:text-amber-400 transition-colors" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 0 0 .951-.69l1.07-3.292Z" />
+                        </svg>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div class="mb-4">
+                  <label for="comment" class="text-xs text-zinc-500 uppercase tracking-wide font-semibold block mb-2">Review</label>
+                  <textarea
+                    id="comment"
+                    name="comment"
+                    rows="3"
+                    class="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none"
+                    placeholder="Share your experience with this plugin..."
+                    minlength="10"
+                    required
+                  >{userReview?.comment}</textarea>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+                    {userReview ? 'Update Review' : 'Submit Review'}
+                  </button>
+                  {userReview && (
+                    <button type="submit" name="_action" value="delete-review" class="text-sm text-red-400 hover:text-red-300 transition-colors">
+                      Delete my review
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Login prompt if not authenticated */}
+          {!currentAuthor && (
+            <div class="mb-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 text-center">
+              <p class="text-sm text-zinc-400">
+                <a href="/api/v1/auth/github" class="text-zinc-100 hover:text-white underline transition-colors">Sign in with GitHub</a> to leave a review.
+              </p>
+            </div>
+          )}
+
+          {/* Reviews list */}
+          {reviews.length === 0 ? (
+            <p class="text-sm text-zinc-500">No reviews yet. Be the first!</p>
+          ) : (
+            <div class="space-y-4">
+              {reviews.map(review => (
+                <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5">
+                  <div class="flex items-center gap-3 mb-2">
+                    {review.authorAvatarUrl ? (
+                      <img src={review.authorAvatarUrl} alt={review.authorUsername} class="w-6 h-6 rounded-full" />
+                    ) : (
+                      <div class="w-6 h-6 rounded-full bg-zinc-700" />
+                    )}
+                    <span class="text-sm font-medium text-zinc-200">{review.authorUsername}</span>
+                    <StarRating rating={review.rating} />
+                    <span class="text-xs text-zinc-600 ml-auto">{formatDate(review.createdAt)}</span>
+                  </div>
+                  <p class="text-sm text-zinc-400 leading-relaxed">{review.comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </section>
 
@@ -265,6 +440,35 @@ const formatSize = (bytes: number) => {
             btn.textContent = 'Copied!';
             setTimeout(() => btn.textContent = 'Copy', 2000);
           });
+        });
+      });
+
+      // Star rating hover effect
+      document.querySelectorAll('#star-input label').forEach((label, index, labels) => {
+        label.addEventListener('mouseenter', () => {
+          labels.forEach((l, i) => {
+            const svg = l.querySelector('svg');
+            if (svg) svg.classList.toggle('text-amber-400', i <= index);
+            if (svg) svg.classList.toggle('text-zinc-700', i > index);
+          });
+        });
+        label.addEventListener('click', () => {
+          const input = label.querySelector('input');
+          if (input) (input as HTMLInputElement).checked = true;
+          labels.forEach((l, i) => {
+            const svg = l.querySelector('svg');
+            if (svg) svg.classList.toggle('text-amber-400', i <= index);
+            if (svg) svg.classList.toggle('text-zinc-700', i > index);
+          });
+        });
+      });
+      document.querySelector('#star-input')?.addEventListener('mouseleave', () => {
+        const checked = document.querySelector('#star-input input:checked') as HTMLInputElement | null;
+        const checkedIndex = checked ? parseInt(checked.value) - 1 : -1;
+        document.querySelectorAll('#star-input label').forEach((l, i) => {
+          const svg = l.querySelector('svg');
+          if (svg) svg.classList.toggle('text-amber-400', i <= checkedIndex);
+          if (svg) svg.classList.toggle('text-zinc-700', i > checkedIndex);
         });
       });
     </script>

@@ -4,165 +4,628 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
-import { resolveAuthorId, registerPlugin } from '../../../lib/publishing/plugin-queries';
+import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit } from '../../../lib/publishing/plugin-queries';
+import { validateBundle } from '../../../lib/publishing/bundle-validator';
+import { storeBundleInR2 } from '../../../lib/publishing/r2-storage';
+import { enqueueAuditJob } from '../../../lib/publishing/queue';
+import { getInstallationByAuthor, linkPluginToRepo } from '../../../lib/github/queries';
+import { getInstallationToken, listInstallationRepos, type GitHubRepo } from '../../../lib/github/installation';
 
-const author = Astro.locals.author!;
-let error = '';
-let formValues = {
-  id: '', name: '', description: '',
-  capabilities: [] as string[],
-  repositoryUrl: '', homepageUrl: '', supportUrl: '',
-  keywords: '', license: '',
-};
+// --- Auth gate ---
+const author = Astro.locals.author;
+if (!author) {
+  return Astro.redirect('/api/v1/auth/github');
+}
 
-// The 11 known capabilities from the upstream EmDash CMS manifest schema
-// (source: packages/core/src/plugins/manifest-schema.ts PluginCapability enum)
+// --- Capabilities ---
 const KNOWN_CAPABILITIES = [
   'network:fetch',
-  'network:fetch:any',
-  'read:content',
-  'write:content',
-  'read:media',
-  'write:media',
-  'read:users',
-  'email:send',
-  'email:provide',
-  'email:intercept',
-  'page:inject',
+  'storage:read',
+  'storage:write',
+  'admin:panel',
+  'content:transform',
+  'hook:beforeSave',
+  'hook:afterSave',
+  'hook:beforePublish',
+  'hook:afterPublish',
+  'hook:beforeDelete',
+  'hook:afterDelete',
 ];
 
-if (Astro.request.method === 'POST') {
+// --- GitHub App availability ---
+const githubAppConfigured = Boolean(env.GITHUB_APP_ID);
+
+// --- State ---
+type WizardStep = 1 | 2;
+let currentStep: WizardStep = 1;
+let errors: Record<string, string> = {};
+let globalError = '';
+let globalSuccess = '';
+
+// Metadata fields carried across steps
+let formValues = {
+  id: '',
+  name: '',
+  description: '',
+  capabilities: [] as string[],
+  keywords: '',
+  license: '',
+  repositoryUrl: '',
+  homepageUrl: '',
+  supportUrl: '',
+};
+
+// Step 2 state
+let githubInstalled = false;
+let githubRepos: GitHubRepo[] = [];
+let githubError = '';
+
+const PLUGIN_ID_REGEX = /^(@[a-z0-9-]+\/)?[a-z0-9-]+$/;
+
+// --- Helpers ---
+function readMetadata(data: FormData) {
+  formValues.id = (data.get('id') as string ?? '').trim();
+  formValues.name = (data.get('name') as string ?? '').trim();
+  formValues.description = (data.get('description') as string ?? '').trim();
+  formValues.capabilities = data.getAll('capabilities') as string[];
+  formValues.keywords = (data.get('keywords') as string ?? '').trim();
+  formValues.license = (data.get('license') as string ?? '').trim();
+  formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
+  formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
+  formValues.supportUrl = (data.get('supportUrl') as string ?? '').trim();
+}
+
+function validateMetadata(): boolean {
+  errors = {};
+  if (!formValues.id) errors.id = 'Plugin ID is required.';
+  else if (!PLUGIN_ID_REGEX.test(formValues.id)) errors.id = 'ID must be lowercase alphanumeric with hyphens, optionally scoped (e.g. @scope/name).';
+  if (!formValues.name) errors.name = 'Name is required.';
+  if (!formValues.description) errors.description = 'Description is required.';
+  if (formValues.capabilities.length === 0) errors.capabilities = 'Select at least one capability.';
+  return Object.keys(errors).length === 0;
+}
+
+async function loadGitHubState(authorId: string) {
+  if (!githubAppConfigured) return;
   try {
-    const data = await Astro.request.formData();
-    formValues.id = (data.get('id') as string ?? '').trim();
-    formValues.name = (data.get('name') as string ?? '').trim();
-    formValues.description = (data.get('description') as string ?? '').trim();
-    formValues.capabilities = data.getAll('capabilities') as string[];
-    formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
-    formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
-    formValues.supportUrl = (data.get('supportUrl') as string ?? '').trim();
-    formValues.keywords = (data.get('keywords') as string ?? '').trim();
-    formValues.license = (data.get('license') as string ?? '').trim();
-
-    if (!formValues.id) throw new Error('Plugin ID is required');
-    if (!formValues.name) throw new Error('Name is required');
-    if (!formValues.description) throw new Error('Description is required');
-    if (formValues.capabilities.length === 0) throw new Error('Select at least one capability');
-
-    const authorId = await resolveAuthorId(env.DB, author.githubId);
-    if (!authorId) throw new Error('Author not found. Please log out and log in again.');
-
-    const keywordsArray = formValues.keywords
-      ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
-      : [];
-
-    await registerPlugin(env.DB, authorId, {
-      id: formValues.id,
-      name: formValues.name,
-      description: formValues.description,
-      capabilities: formValues.capabilities,
-      keywords: keywordsArray,
-      license: formValues.license || undefined,
-      repository_url: formValues.repositoryUrl || undefined,
-      homepage_url: formValues.homepageUrl || undefined,
-      support_url: formValues.supportUrl || undefined,
-    });
-
-    return Astro.redirect('/dashboard/plugins/' + encodeURIComponent(formValues.id));
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : '';
-    error = msg.includes('UNIQUE') ? 'A plugin with this ID already exists.' : 'An unexpected error occurred. Please try again.';
+    const installation = await getInstallationByAuthor(env.DB, authorId);
+    if (installation) {
+      githubInstalled = true;
+      const token = await getInstallationToken(
+        installation.id,
+        env.GITHUB_APP_ID,
+        env.GITHUB_APP_PRIVATE_KEY,
+      );
+      githubRepos = await listInstallationRepos(token);
+    }
+  } catch (err) {
+    githubError = err instanceof Error ? err.message : 'Failed to load GitHub repositories.';
   }
 }
+
+// --- POST handling ---
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const step = (data.get('_step') as string ?? '').trim();
+
+  // Always read metadata from form (may be hidden fields on step 2)
+  readMetadata(data);
+
+  if (step === '1') {
+    // --- Step 1: Validate metadata ---
+    if (validateMetadata()) {
+      // Check ID uniqueness in D1
+      const existingPlugin = await env.DB.prepare('SELECT id FROM plugins WHERE id = ?').bind(formValues.id).first();
+      if (existingPlugin) {
+        errors.id = 'A plugin with this ID already exists.';
+        currentStep = 1;
+      } else {
+        // Validation passed: advance to step 2
+        currentStep = 2;
+        const authorId = await resolveAuthorId(env.DB, author.githubId);
+        if (authorId) {
+          await loadGitHubState(authorId);
+        }
+      }
+    } else {
+      currentStep = 1;
+    }
+  } else if (step === '2-upload') {
+    // --- Step 2A: Upload .tgz ---
+    currentStep = 2;
+
+    const authorId = await resolveAuthorId(env.DB, author.githubId);
+    if (!authorId) {
+      globalError = 'Author not found. Please log out and log in again.';
+    } else {
+      const file = data.get('bundle') as File | null;
+      if (!file || file.size === 0) {
+        globalError = 'Please select a .tgz bundle file.';
+        await loadGitHubState(authorId);
+      } else {
+        // Rate limit check
+        const rateCheck = await checkUploadRateLimit(env.DB, authorId);
+        if (!rateCheck.allowed) {
+          globalError = `Daily upload limit reached. Try again after ${rateCheck.retryAfter ?? 'midnight UTC'}.`;
+          await loadGitHubState(authorId);
+        } else {
+          const tarballBytes = await file.arrayBuffer();
+
+          try {
+            // Register the plugin first
+            const keywordsArray = formValues.keywords
+              ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+              : [];
+
+            await registerPlugin(env.DB, authorId, {
+              id: formValues.id,
+              name: formValues.name,
+              description: formValues.description,
+              capabilities: formValues.capabilities,
+              keywords: keywordsArray,
+              license: formValues.license || undefined,
+              repository_url: formValues.repositoryUrl || undefined,
+              homepage_url: formValues.homepageUrl || undefined,
+              support_url: formValues.supportUrl || undefined,
+            });
+
+            // Validate the bundle
+            const result = await validateBundle(tarballBytes, formValues.id);
+            if (!result.valid) {
+              // Rollback: delete the plugin we just created
+              await env.DB.prepare('DELETE FROM plugins WHERE id = ?').bind(formValues.id).run();
+              globalError = 'Bundle validation failed: ' + (result.errors?.join('; ') ?? 'Unknown error');
+              await loadGitHubState(authorId);
+            } else {
+              // Supply chain check: manifest.id must match metadata.id
+              // (already verified inside validateBundle via expectedPluginId)
+
+              // Store in R2
+              const { key: bundleKey } = await storeBundleInR2(
+                env.ARTIFACTS,
+                formValues.id,
+                result.manifest!.version,
+                tarballBytes,
+                result.checksum!,
+              );
+
+              // Create version record
+              await createVersion(env.DB, {
+                pluginId: formValues.id,
+                version: result.manifest!.version,
+                manifest: JSON.stringify(result.manifest),
+                bundleKey,
+                checksum: result.checksum!,
+                fileCount: result.stats!.fileCount,
+                compressedSize: result.stats!.compressedSize,
+                decompressedSize: result.stats!.decompressedSize,
+                source: 'upload',
+              });
+
+              // Enqueue audit job
+              await enqueueAuditJob(env.AUDIT_QUEUE, {
+                pluginId: formValues.id,
+                version: result.manifest!.version,
+                authorId,
+                bundleKey,
+              });
+
+              return Astro.redirect('/dashboard/plugins/' + encodeURIComponent(formValues.id) + '?uploaded=true');
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (msg.includes('UNIQUE')) {
+              // Duplicate ID race condition: go back to step 1
+              errors.id = 'A plugin with this ID already exists.';
+              currentStep = 1;
+            } else {
+              // Attempt rollback in case plugin was created
+              try {
+                await env.DB.prepare('DELETE FROM plugins WHERE id = ?').bind(formValues.id).run();
+              } catch {
+                // Best-effort cleanup
+              }
+              globalError = 'Failed to register plugin: ' + msg;
+              await loadGitHubState(authorId);
+            }
+          }
+        }
+      }
+    }
+  } else if (step === '2-github') {
+    // --- Step 2B: Connect GitHub ---
+    currentStep = 2;
+
+    const authorId = await resolveAuthorId(env.DB, author.githubId);
+    if (!authorId) {
+      globalError = 'Author not found. Please log out and log in again.';
+    } else {
+      const repoFullName = (data.get('repoFullName') as string ?? '').trim();
+      const repoId = parseInt(data.get('repoId') as string ?? '0', 10);
+
+      if (!repoFullName || !repoId) {
+        globalError = 'Please select a repository.';
+        await loadGitHubState(authorId);
+      } else {
+        try {
+          // Verify installation exists
+          const installation = await getInstallationByAuthor(env.DB, authorId);
+          if (!installation) {
+            globalError = 'GitHub App installation not found. Please install the app first.';
+            await loadGitHubState(authorId);
+          } else {
+            const keywordsArray = formValues.keywords
+              ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+              : [];
+
+            // Register plugin
+            await registerPlugin(env.DB, authorId, {
+              id: formValues.id,
+              name: formValues.name,
+              description: formValues.description,
+              capabilities: formValues.capabilities,
+              keywords: keywordsArray,
+              license: formValues.license || undefined,
+              repository_url: formValues.repositoryUrl || undefined,
+              homepage_url: formValues.homepageUrl || undefined,
+              support_url: formValues.supportUrl || undefined,
+            });
+
+            // Link to repo
+            await linkPluginToRepo(env.DB, {
+              pluginId: formValues.id,
+              installationId: installation.id,
+              repoFullName,
+              repoId,
+            });
+
+            return Astro.redirect('/dashboard/plugins/' + encodeURIComponent(formValues.id) + '?linked=true');
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('UNIQUE')) {
+            errors.id = 'A plugin with this ID already exists.';
+            currentStep = 1;
+          } else {
+            try {
+              await env.DB.prepare('DELETE FROM plugins WHERE id = ?').bind(formValues.id).run();
+            } catch {
+              // Best-effort cleanup
+            }
+            globalError = 'Failed to register plugin: ' + msg;
+            await loadGitHubState(authorId);
+          }
+        }
+      }
+    }
+  }
+}
+
+// CSS helper for input styling
+const inputBase = 'w-full bg-zinc-900 border text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500';
+const inputNormal = `${inputBase} border-zinc-800`;
+const inputError = `${inputBase} border-red-700`;
 ---
 <BaseLayout title="Register Plugin - Dashboard - emdashcms.org">
   <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-2xl">
+    <div class="mx-auto max-w-3xl">
 
       <a href="/dashboard" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Dashboard</a>
 
       <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">Register Plugin</h1>
 
-      {error && (
-        <div class="mt-6" id="form-error">
-          <DashboardBanner type="error" message={'Failed to register plugin. ' + error} />
+      {/* --- Step Indicator --- */}
+      <div class="mt-8 flex items-center justify-center gap-0">
+        <div class="flex flex-col items-center">
+          <div class:list={[
+            'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
+            currentStep >= 1 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+          ]}>1</div>
+          <span class:list={[
+            'mt-2 text-xs font-medium',
+            currentStep >= 1 ? 'text-zinc-100' : 'text-zinc-500',
+          ]}>Plugin Details</span>
+        </div>
+        <div class:list={[
+          'mx-4 h-px w-24 sm:w-32 -mt-5 transition-colors',
+          currentStep >= 2 ? 'bg-white' : 'bg-zinc-800',
+        ]} />
+        <div class="flex flex-col items-center">
+          <div class:list={[
+            'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
+            currentStep >= 2 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+          ]}>2</div>
+          <span class:list={[
+            'mt-2 text-xs font-medium',
+            currentStep >= 2 ? 'text-zinc-100' : 'text-zinc-500',
+          ]}>First Version</span>
+        </div>
+      </div>
+
+      {/* --- Global messages --- */}
+      {globalError && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={globalError} />
+        </div>
+      )}
+      {globalSuccess && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message={globalSuccess} />
         </div>
       )}
 
-      <form method="POST" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4" aria-describedby={error ? 'form-error' : undefined}>
+      {/* =============================== STEP 1 =============================== */}
+      {currentStep === 1 && (
+        <form method="POST" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-5">
+          <input type="hidden" name="_step" value="1" />
 
-        <div>
-          <label for="id" class="block text-sm font-semibold text-zinc-100">Plugin ID *</label>
-          <p class="mt-1 text-xs text-zinc-500">Use @scope/name or kebab-case (e.g. my-plugin)</p>
-          <input type="text" id="id" name="id" value={formValues.id}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm font-mono focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            aria-required="true" />
-        </div>
+          {/* Plugin ID */}
+          <div>
+            <label for="id" class="block text-sm font-semibold text-zinc-100">Plugin ID <span class="text-red-400">*</span></label>
+            <p class="mt-1 text-xs text-zinc-500">Lowercase alphanumeric with hyphens, optionally scoped (e.g. @scope/name)</p>
+            <input type="text" id="id" name="id" value={formValues.id}
+              placeholder="@scope/name or my-plugin"
+              class:list={['mt-2', errors.id ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.id ? 'true' : undefined}
+              aria-describedby={errors.id ? 'id-error' : undefined} />
+            {errors.id && <p id="id-error" class="mt-1 text-xs text-red-400">{errors.id}</p>}
+          </div>
 
-        <div>
-          <label for="name" class="block text-sm font-semibold text-zinc-100">Name *</label>
-          <input type="text" id="name" name="name" value={formValues.name}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            aria-required="true" />
-        </div>
+          {/* Name */}
+          <div>
+            <label for="name" class="block text-sm font-semibold text-zinc-100">Name <span class="text-red-400">*</span></label>
+            <input type="text" id="name" name="name" value={formValues.name}
+              class:list={['mt-2', errors.name ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.name ? 'true' : undefined}
+              aria-describedby={errors.name ? 'name-error' : undefined} />
+            {errors.name && <p id="name-error" class="mt-1 text-xs text-red-400">{errors.name}</p>}
+          </div>
 
-        <div>
-          <label for="description" class="block text-sm font-semibold text-zinc-100">Description *</label>
-          <textarea id="description" name="description"
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            aria-required="true">{formValues.description}</textarea>
-        </div>
+          {/* Description */}
+          <div>
+            <label for="description" class="block text-sm font-semibold text-zinc-100">Description <span class="text-red-400">*</span></label>
+            <textarea id="description" name="description"
+              class:list={['mt-2 min-h-[80px] resize-y', errors.description ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.description ? 'true' : undefined}
+              aria-describedby={errors.description ? 'description-error' : undefined}>{formValues.description}</textarea>
+            {errors.description && <p id="description-error" class="mt-1 text-xs text-red-400">{errors.description}</p>}
+          </div>
 
-        <div>
-          <span class="block text-sm font-semibold text-zinc-100">Capabilities *</span>
-          <p class="mt-1 text-xs text-zinc-500">Select at least one capability</p>
-          <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {KNOWN_CAPABILITIES.map(cap => (
-              <label class="flex items-center gap-2 text-sm text-zinc-300">
-                <input type="checkbox" name="capabilities" value={cap}
-                  class="w-4 h-4 rounded border-zinc-700 bg-zinc-900 accent-zinc-100"
-                  checked={formValues.capabilities.includes(cap)} />
-                <code class="font-mono text-xs">{cap}</code>
-              </label>
-            ))}
+          {/* Capabilities */}
+          <div>
+            <span class="block text-sm font-semibold text-zinc-100">Capabilities <span class="text-red-400">*</span></span>
+            <p class="mt-1 text-xs text-zinc-500">Select at least one capability your plugin requires</p>
+            {errors.capabilities && <p class="mt-1 text-xs text-red-400">{errors.capabilities}</p>}
+            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {KNOWN_CAPABILITIES.map(cap => (
+                <label class="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                  <input type="checkbox" name="capabilities" value={cap}
+                    class="h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-zinc-100"
+                    checked={formValues.capabilities.includes(cap)} />
+                  <code class="font-mono text-xs">{cap}</code>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Optional fields in a 2-col grid */}
+          <div class="border-t border-zinc-800/60 pt-5">
+            <p class="text-sm font-semibold text-zinc-100 mb-4">Optional Details</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="keywords" class="block text-sm text-zinc-400">Keywords</label>
+                <p class="mt-0.5 text-xs text-zinc-600">Comma-separated</p>
+                <input type="text" id="keywords" name="keywords" value={formValues.keywords}
+                  placeholder="markdown, editor, syntax"
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div>
+                <label for="license" class="block text-sm text-zinc-400">License</label>
+                <p class="mt-0.5 text-xs text-zinc-600">e.g. MIT, Apache-2.0</p>
+                <input type="text" id="license" name="license" value={formValues.license}
+                  placeholder="MIT"
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div>
+                <label for="repositoryUrl" class="block text-sm text-zinc-400">Repository URL</label>
+                <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
+                  placeholder="https://github.com/..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div>
+                <label for="homepageUrl" class="block text-sm text-zinc-400">Homepage URL</label>
+                <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
+                  placeholder="https://..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+              <div class="sm:col-span-2">
+                <label for="supportUrl" class="block text-sm text-zinc-400">Support URL</label>
+                <input type="url" id="supportUrl" name="supportUrl" value={formValues.supportUrl}
+                  placeholder="https://..."
+                  class:list={['mt-1.5', inputNormal]} />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+            Continue to Version Setup
+          </button>
+        </form>
+      )}
+
+      {/* =============================== STEP 2 =============================== */}
+      {currentStep === 2 && (
+        <div class="mt-8 space-y-6">
+          {/* Summary of selected metadata */}
+          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Plugin</p>
+                <p class="mt-1 text-sm text-zinc-100 font-mono">{formValues.id}</p>
+                <p class="text-xs text-zinc-400 mt-0.5">{formValues.name}</p>
+              </div>
+              <form method="POST">
+                <input type="hidden" name="_step" value="1" />
+                <input type="hidden" name="id" value={formValues.id} />
+                <input type="hidden" name="name" value={formValues.name} />
+                <input type="hidden" name="description" value={formValues.description} />
+                {formValues.capabilities.map(cap => (
+                  <input type="hidden" name="capabilities" value={cap} />
+                ))}
+                <input type="hidden" name="keywords" value={formValues.keywords} />
+                <input type="hidden" name="license" value={formValues.license} />
+                <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
+                <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
+                <input type="hidden" name="supportUrl" value={formValues.supportUrl} />
+                <button type="submit" class="text-xs text-zinc-400 hover:text-zinc-100 transition-colors underline underline-offset-2">
+                  Edit details
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Delivery options: side-by-side cards */}
+          <div class:list={[
+            'grid gap-6',
+            githubAppConfigured ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-lg mx-auto',
+          ]}>
+
+            {/* --- Option A: Upload Bundle --- */}
+            <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 flex flex-col">
+              <input type="hidden" name="_step" value="2-upload" />
+              {/* Carry metadata in hidden fields */}
+              <input type="hidden" name="id" value={formValues.id} />
+              <input type="hidden" name="name" value={formValues.name} />
+              <input type="hidden" name="description" value={formValues.description} />
+              {formValues.capabilities.map(cap => (
+                <input type="hidden" name="capabilities" value={cap} />
+              ))}
+              <input type="hidden" name="keywords" value={formValues.keywords} />
+              <input type="hidden" name="license" value={formValues.license} />
+              <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
+              <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
+              <input type="hidden" name="supportUrl" value={formValues.supportUrl} />
+
+              <div class="flex items-center gap-3 mb-4">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-sm font-semibold text-zinc-100">Upload Bundle</h3>
+                  <p class="text-xs text-zinc-500">Upload a .tgz plugin bundle directly</p>
+                </div>
+              </div>
+
+              <div class="flex-1">
+                <label for="bundle" class="block text-sm text-zinc-400 mb-2">Plugin bundle (.tgz)</label>
+                <input type="file" id="bundle" name="bundle" accept=".tgz,.tar.gz,application/gzip"
+                  class="w-full text-sm text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-100 file:cursor-pointer hover:file:bg-zinc-700 file:transition-colors cursor-pointer" />
+                <p class="mt-2 text-xs text-zinc-600">Max 10 MB. Must contain a valid manifest.json.</p>
+              </div>
+
+              <button type="submit" class="mt-6 w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+                Upload &amp; Register
+              </button>
+            </form>
+
+            {/* --- Option B: Connect GitHub --- */}
+            {githubAppConfigured && (
+              <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 flex flex-col">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold text-zinc-100">Connect GitHub</h3>
+                    <p class="text-xs text-zinc-500">Auto-publish from GitHub releases</p>
+                  </div>
+                </div>
+
+                {githubError && (
+                  <div class="mb-4">
+                    <DashboardBanner type="error" message={githubError} />
+                  </div>
+                )}
+
+                {githubInstalled ? (
+                  <form method="POST" class="flex-1 flex flex-col">
+                    <input type="hidden" name="_step" value="2-github" />
+                    {/* Carry metadata in hidden fields */}
+                    <input type="hidden" name="id" value={formValues.id} />
+                    <input type="hidden" name="name" value={formValues.name} />
+                    <input type="hidden" name="description" value={formValues.description} />
+                    {formValues.capabilities.map(cap => (
+                      <input type="hidden" name="capabilities" value={cap} />
+                    ))}
+                    <input type="hidden" name="keywords" value={formValues.keywords} />
+                    <input type="hidden" name="license" value={formValues.license} />
+                    <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
+                    <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
+                    <input type="hidden" name="supportUrl" value={formValues.supportUrl} />
+
+                    <div class="flex-1">
+                      <label for="repoFullName" class="block text-sm text-zinc-400 mb-2">Repository</label>
+                      {githubRepos.length > 0 ? (
+                        <select id="repoFullName" name="repoFullName"
+                          class="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                          onchange="this.form.querySelector('[name=repoId]').value = this.options[this.selectedIndex].dataset.repoId || ''">
+                          <option value="">Select a repository...</option>
+                          {githubRepos.map(repo => (
+                            <option value={repo.full_name} data-repo-id={repo.id}>
+                              {repo.full_name}{repo.private ? ' (private)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p class="text-sm text-zinc-500">No repositories found. Grant access to repositories in the GitHub App settings.</p>
+                      )}
+                      <input type="hidden" name="repoId" value="" />
+                    </div>
+
+                    <button type="submit" disabled={githubRepos.length === 0}
+                      class:list={[
+                        'mt-6 w-full rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors',
+                        githubRepos.length > 0
+                          ? 'bg-zinc-100 text-zinc-950 hover:bg-white'
+                          : 'bg-zinc-800 text-zinc-500 cursor-not-allowed',
+                      ]}>
+                      Link Repository
+                    </button>
+                  </form>
+                ) : (
+                  <div class="flex-1 flex flex-col justify-center">
+                    <div class="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4 text-center">
+                      <p class="text-sm text-zinc-400 mb-3">Install the emdashcms.org GitHub App to connect a repository.</p>
+                      <a href={`https://github.com/apps/emdashcms-org/installations/new`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 transition-colors">
+                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" />
+                        </svg>
+                        Install GitHub App
+                      </a>
+                    </div>
+                    <p class="mt-3 text-center">
+                      <a href={Astro.url.pathname} class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2">
+                        I've installed it, refresh
+                      </a>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
-
-        <div>
-          <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
-          <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
-          <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="supportUrl" class="block text-sm font-semibold text-zinc-100">Support URL</label>
-          <input type="url" id="supportUrl" name="supportUrl" value={formValues.supportUrl}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
-          <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. markdown, editor, syntax)</p>
-          <input type="text" id="keywords" name="keywords" value={formValues.keywords}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <div>
-          <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
-          <p class="mt-1 text-xs text-zinc-500">e.g. MIT, Apache-2.0</p>
-          <input type="text" id="license" name="license" value={formValues.license}
-            class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
-        </div>
-
-        <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Register Plugin</button>
-
-      </form>
+      )}
 
     </div>
   </section>
