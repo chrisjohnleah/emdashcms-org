@@ -4,7 +4,17 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
+import RoleBadge from '../../../components/RoleBadge.astro';
 import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
+import {
+  getCollaborators,
+  createInvite,
+  removeCollaborator,
+  updateCollaboratorRole,
+  transferOwnership,
+  deleteTheme,
+  getPendingInvitesForPlugin,
+} from '../../../lib/auth/collaborator-queries';
 import { updateThemeMetadata, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
 import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permissions';
 import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
@@ -181,11 +191,84 @@ if (Astro.request.method === 'POST') {
       githubError = e instanceof Error ? e.message : 'An error occurred';
     }
   }
+
+  if (action === 'invite') {
+    try {
+      if (!isOwner) throw new Error('Only the owner can invite collaborators');
+      const username = (data.get('github_username') as string ?? '').trim();
+      const role = data.get('role') as string;
+      if (!username) throw new Error('GitHub username is required');
+      if (role !== 'maintainer' && role !== 'contributor') throw new Error('Invalid role');
+      await createInvite(env.DB, {
+        pluginId: themeId!,
+        invitedGithubUsername: username,
+        role: role as 'maintainer' | 'contributor',
+        invitedBy: authorId,
+        inviterGithubUsername: author.username,
+      });
+      saveSuccess = true;
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'change-role') {
+    try {
+      if (!isOwner) throw new Error('Only the owner can change roles');
+      const collabAuthorId = data.get('collaborator_author_id') as string;
+      const newRole = data.get('new_role') as string;
+      if (newRole !== 'maintainer' && newRole !== 'contributor') throw new Error('Invalid role');
+      await updateCollaboratorRole(env.DB, themeId!, collabAuthorId, newRole as 'maintainer' | 'contributor');
+      saveSuccess = true;
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'remove-collaborator') {
+    try {
+      if (!isOwner) throw new Error('Only the owner can remove collaborators');
+      const collabAuthorId = data.get('collaborator_author_id') as string;
+      await removeCollaborator(env.DB, themeId!, collabAuthorId);
+      saveSuccess = true;
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'transfer-ownership') {
+    try {
+      if (!isOwner) throw new Error('Only the owner can transfer ownership');
+      const confirmId = (data.get('confirm_theme_id') as string ?? '').trim();
+      const newOwnerAuthorId = data.get('new_owner_author_id') as string;
+      if (confirmId !== themeId) throw new Error('Theme ID does not match. Transfer cancelled.');
+      await transferOwnership(env.DB, themeId!, authorId, newOwnerAuthorId, 'theme');
+      return Astro.redirect('/dashboard');
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'delete-theme') {
+    try {
+      if (!isOwner) throw new Error('Only the owner can delete this theme');
+      const confirmId = (data.get('confirm_theme_id') as string ?? '').trim();
+      if (confirmId !== themeId) throw new Error('Theme ID does not match. Deletion cancelled.');
+      await deleteTheme(env.DB, env.ARTIFACTS, themeId!);
+      return Astro.redirect('/dashboard');
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
 }
 
 // Load theme data (re-fetch after potential update)
 const theme = await getThemeDetail(env.DB, themeId!);
 if (!theme) return Astro.redirect('/dashboard/themes');
+
+// Team data
+const collaborators = await getCollaborators(env.DB, themeId!);
+const pendingThemeInvites = await getPendingInvitesForPlugin(env.DB, themeId!);
 
 // Fetch raw values for editable form fields
 const rawTheme = await env.DB.prepare(
@@ -538,6 +621,129 @@ if (ghInstall && !githubLink) {
           </div>
         )}
       </div>
+
+      <!-- Section: Team -->
+      <div class="mt-12">
+        <h2 class="text-xl font-semibold text-zinc-100">Team</h2>
+        <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+
+          <div class="space-y-3">
+            {collaborators.map(collab => (
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm text-zinc-100">{collab.githubUsername}</span>
+                  <RoleBadge role={collab.role} />
+                </div>
+                {isOwner && collab.role !== 'owner' && (
+                  <div class="flex items-center gap-2">
+                    <form method="POST" class="flex items-center gap-2">
+                      <input type="hidden" name="_action" value="change-role" />
+                      <input type="hidden" name="collaborator_author_id" value={collab.authorId} />
+                      <select name="new_role"
+                        class="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-2 py-1 text-sm focus:border-zinc-500 focus:outline-none">
+                        <option value="maintainer" selected={collab.role === 'maintainer'}>Maintainer</option>
+                        <option value="contributor" selected={collab.role === 'contributor'}>Contributor</option>
+                      </select>
+                      <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">Update</button>
+                    </form>
+                    <form method="POST">
+                      <input type="hidden" name="_action" value="remove-collaborator" />
+                      <input type="hidden" name="collaborator_author_id" value={collab.authorId} />
+                      <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-3 py-1 text-sm text-red-400 hover:bg-red-950/60 transition-colors">Remove</button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {pendingThemeInvites.length > 0 && (
+            <div class="mt-4 pt-4 border-t border-zinc-800/60">
+              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">Pending Invitations</h3>
+              {pendingThemeInvites.map(invite => (
+                <div class="flex items-center justify-between py-2">
+                  <div class="flex items-center gap-3">
+                    <span class="text-sm text-zinc-300">{invite.invitedGithubUsername}</span>
+                    <RoleBadge role={invite.role as 'owner' | 'maintainer' | 'contributor'} />
+                    <span class="text-xs text-zinc-500">Pending</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isOwner && (
+            <div class="mt-4 pt-4 border-t border-zinc-800/60">
+              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">Invite Collaborator</h3>
+              <form method="POST" class="flex items-end gap-3">
+                <input type="hidden" name="_action" value="invite" />
+                <div class="flex-1">
+                  <label for="theme_github_username" class="block text-sm text-zinc-300">GitHub Username</label>
+                  <input type="text" id="theme_github_username" name="github_username" required
+                    class="mt-1 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                    placeholder="username" />
+                </div>
+                <div>
+                  <label for="theme_invite_role" class="block text-sm text-zinc-300">Role</label>
+                  <select id="theme_invite_role" name="role"
+                    class="mt-1 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none">
+                    <option value="maintainer">Maintainer</option>
+                    <option value="contributor">Contributor</option>
+                  </select>
+                </div>
+                <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Invite</button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isOwner && collaborators.filter(c => c.role !== 'owner').length > 0 && (
+        <div class="mt-12">
+          <h2 class="text-xl font-semibold text-zinc-100">Transfer Ownership</h2>
+          <div class="mt-4 rounded-xl border border-red-900/30 bg-zinc-900/40 p-6">
+            <p class="text-sm text-zinc-400 mb-4">Transfer ownership to a collaborator. You will be downgraded to Maintainer.</p>
+            <form method="POST" class="space-y-4">
+              <input type="hidden" name="_action" value="transfer-ownership" />
+              <div>
+                <label for="theme_new_owner" class="block text-sm text-zinc-300">New Owner</label>
+                <select id="theme_new_owner" name="new_owner_author_id"
+                  class="mt-1 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none">
+                  {collaborators.filter(c => c.role !== 'owner').map(c => (
+                    <option value={c.authorId}>{c.githubUsername} ({c.role})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label for="theme_confirm_transfer_id" class="block text-sm text-zinc-300">Type <code class="font-mono text-zinc-100">{themeId}</code> to confirm</label>
+                <input type="text" id="theme_confirm_transfer_id" name="confirm_theme_id" required
+                  class="mt-1 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                  placeholder="theme-id" />
+              </div>
+              <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-5 py-2.5 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">Transfer Ownership</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isOwner && (
+        <div class="mt-12">
+          <h2 class="text-xl font-semibold text-zinc-100">Danger Zone</h2>
+          <div class="mt-4 rounded-xl border border-red-900/30 bg-zinc-900/40 p-6">
+            <p class="text-sm text-zinc-400 mb-4">Permanently delete this theme and all its collaborator access. This action cannot be undone.</p>
+            <form method="POST" class="space-y-4">
+              <input type="hidden" name="_action" value="delete-theme" />
+              <div>
+                <label for="theme_confirm_delete_id" class="block text-sm text-zinc-300">Type <code class="font-mono text-zinc-100">{themeId}</code> to confirm deletion</label>
+                <input type="text" id="theme_confirm_delete_id" name="confirm_theme_id" required
+                  class="mt-1 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                  placeholder="theme-id" />
+              </div>
+              <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-5 py-2.5 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">Delete Theme</button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   </section>
