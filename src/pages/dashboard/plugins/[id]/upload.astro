@@ -14,6 +14,9 @@ import { checkPluginAccess, hasRole } from '../../../../lib/auth/permissions';
 import { validateBundle } from '../../../../lib/publishing/bundle-validator';
 import { storeBundleInR2 } from '../../../../lib/publishing/r2-storage';
 import { enqueueAuditJob } from '../../../../lib/publishing/queue';
+import { checkAuthorAuditBudget, recordAuthorAuditUsage } from '../../../../lib/audit/author-budget';
+import TurnstileWidget from '../../../../components/TurnstileWidget.astro';
+import { verifyTurnstile } from '../../../../lib/turnstile/verify';
 
 const { id: pluginId } = Astro.params;
 const author = Astro.locals.author!;
@@ -38,6 +41,13 @@ if (Astro.request.method === 'POST') {
   try {
     // Parse multipart form (D-12: server-side handling)
     const data = await Astro.request.formData();
+
+    // Turnstile bot check
+    const tsToken = data.get('cf-turnstile-response') as string ?? '';
+    const tsIp = Astro.request.headers.get('CF-Connecting-IP') ?? undefined;
+    const tsResult = await verifyTurnstile(tsToken, env.TURNSTILE_SECRET_KEY, tsIp);
+    if (!tsResult.success) throw new Error('Challenge verification failed. Please try again.');
+
     const file = data.get('tarball');
     if (!(file instanceof File)) {
       throw new Error('Please select a .tgz file to upload.');
@@ -86,13 +96,17 @@ if (Astro.request.method === 'POST') {
       minEmDashVersion: (validation.manifest as any).minEmDashVersion ?? undefined,
     });
 
-    // Enqueue audit job (PUBL-05)
+    // Audit budget check (COST-03)
+    const budget = await checkAuthorAuditBudget(env.DB, authorId);
+    if (!budget.allowed) throw new Error('Daily audit limit reached (10/day). Try again tomorrow.');
+
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId: pluginId!,
       version: versionStr,
       authorId,
       bundleKey,
     });
+    await recordAuthorAuditUsage(env.DB, authorId);
 
     // Redirect to plugin detail with success banner (D-11)
     return Astro.redirect(`/dashboard/plugins/${encodeURIComponent(pluginId!)}?uploaded=true`);
@@ -137,6 +151,9 @@ if (Astro.request.method === 'POST') {
           />
         </div>
 
+        <div class="mb-4">
+          <TurnstileWidget />
+        </div>
         <button
           type="submit"
           class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"

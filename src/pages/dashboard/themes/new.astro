@@ -4,7 +4,9 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
+import TurnstileWidget from '../../../components/TurnstileWidget.astro';
 import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
+import { verifyTurnstile } from '../../../lib/turnstile/verify';
 import { registerTheme, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
 import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
 
@@ -28,6 +30,12 @@ if (Astro.request.method === 'POST') {
     formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
     formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
     formValues.license = (data.get('license') as string ?? '').trim();
+
+    // Turnstile bot check
+    const tsToken = data.get('cf-turnstile-response') as string ?? '';
+    const tsIp = Astro.request.headers.get('CF-Connecting-IP') ?? undefined;
+    const tsResult = await verifyTurnstile(tsToken, env.TURNSTILE_SECRET_KEY, tsIp);
+    if (!tsResult.success) throw new Error('Challenge verification failed. Please try again.');
 
     if (!formValues.id) throw new Error('Theme ID is required');
     if (!formValues.name) throw new Error('Name is required');
@@ -178,6 +186,9 @@ if (Astro.request.method === 'POST') {
           <p class="mt-1 text-xs text-zinc-500">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
         </div>
 
+        <div class="mb-4">
+          <TurnstileWidget />
+        </div>
         <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Register Theme</button>
 
       </form>

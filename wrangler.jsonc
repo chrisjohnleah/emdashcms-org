@@ -51,17 +51,23 @@
     "binding": "AI"
   },
 
+  "observability": {
+    "enabled": true
+  },
+
   // GitHub OAuth App client ID and App ID (not secrets — safe as vars)
+  // TURNSTILE_SITE_KEY: create widget at dash.cloudflare.com → Turnstile (Smart placement)
   "vars": {
     "GITHUB_CLIENT_ID": "Ov23liIu0eF3FtxoIcYU",
     "GITHUB_APP_ID": "",
-    "SUPERADMIN_GITHUB_IDS": "959104"
+    "SUPERADMIN_GITHUB_IDS": "959104",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAC1FBCZjp5kjJ99c"
   },
 
   // Secrets set via: wrangler secret put <NAME>
   // In dev, provide these in .dev.vars (already gitignored)
   // GITHUB_WEBHOOK_SECRET and GITHUB_APP_PRIVATE_KEY are optional until configured
   "secrets": {
-    "required": ["GITHUB_CLIENT_SECRET", "JWT_SECRET"]
+    "required": ["GITHUB_CLIENT_SECRET", "JWT_SECRET", "TURNSTILE_SECRET_KEY"]
   }
 }

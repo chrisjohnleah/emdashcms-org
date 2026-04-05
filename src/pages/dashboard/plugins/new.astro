@@ -4,12 +4,15 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
+import TurnstileWidget from '../../../components/TurnstileWidget.astro';
 import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit } from '../../../lib/publishing/plugin-queries';
 import { validateBundle } from '../../../lib/publishing/bundle-validator';
 import { storeBundleInR2 } from '../../../lib/publishing/r2-storage';
 import { enqueueAuditJob } from '../../../lib/publishing/queue';
+import { checkAuthorAuditBudget, recordAuthorAuditUsage } from '../../../lib/audit/author-budget';
 import { getInstallationByAuthor, linkPluginToRepo } from '../../../lib/github/queries';
 import { getInstallationToken, listInstallationRepos, type GitHubRepo } from '../../../lib/github/installation';
+import { verifyTurnstile } from '../../../lib/turnstile/verify';
 
 // --- Auth gate ---
 const author = Astro.locals.author;
@@ -134,8 +137,18 @@ if (Astro.request.method === 'POST') {
     // --- Step 2A: Upload .tgz ---
     currentStep = 2;
 
-    const authorId = await resolveAuthorId(env.DB, author.githubId);
-    if (!authorId) {
+    // Turnstile bot check
+    const tsToken = data.get('cf-turnstile-response') as string ?? '';
+    const tsIp = Astro.request.headers.get('CF-Connecting-IP') ?? undefined;
+    const tsResult = await verifyTurnstile(tsToken, env.TURNSTILE_SECRET_KEY, tsIp);
+    if (!tsResult.success) {
+      globalError = 'Challenge verification failed. Please try again.';
+    }
+
+    const authorId = !globalError ? await resolveAuthorId(env.DB, author.githubId) : null;
+    if (globalError) {
+      // Turnstile failed — skip everything
+    } else if (!authorId) {
       globalError = 'Author not found. Please log out and log in again.';
     } else {
       const file = data.get('bundle') as File | null;
@@ -202,13 +215,17 @@ if (Astro.request.method === 'POST') {
                 source: 'upload',
               });
 
-              // Enqueue audit job
+              // Audit budget check
+              const budget = await checkAuthorAuditBudget(env.DB, authorId);
+              if (!budget.allowed) throw new Error('Daily audit limit reached (10/day). Try again tomorrow.');
+
               await enqueueAuditJob(env.AUDIT_QUEUE, {
                 pluginId: formValues.id,
                 version: result.manifest!.version,
                 authorId,
                 bundleKey,
               });
+              await recordAuthorAuditUsage(env.DB, authorId);
 
               return Astro.redirect('/dashboard/plugins/' + encodeURIComponent(formValues.id) + '?uploaded=true');
             }
@@ -528,7 +545,10 @@ const inputError = `${inputBase} border-red-700`;
                 <p class="mt-2 text-xs text-zinc-600">Max 10 MB. Must contain a valid manifest.json.</p>
               </div>
 
-              <button type="submit" class="mt-6 w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+              <div class="mt-4">
+                <TurnstileWidget />
+              </div>
+              <button type="submit" class="mt-4 w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
                 Upload &amp; Register
               </button>
             </form>
