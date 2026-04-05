@@ -15,6 +15,7 @@ import {
   linkPluginToRepo,
   toggleAutoSubmit,
   unlinkPlugin,
+  setTagPattern,
 } from '../../../lib/github/queries';
 import {
   getInstallationToken,
@@ -77,6 +78,11 @@ if (Astro.request.method === 'POST') {
         await toggleAutoSubmit(env.DB, pluginId!, !link.autoSubmit);
         githubSuccess = 'Auto-submit setting updated.';
       }
+    } else if (action === 'update-tag-pattern') {
+      const pattern = (data.get('tag_pattern') as string ?? '').trim();
+      if (!pattern) throw new Error('Tag pattern cannot be empty');
+      await setTagPattern(env.DB, pluginId!, pattern);
+      githubSuccess = 'Tag pattern updated.';
     } else if (action === 'disconnect') {
       await unlinkPlugin(env.DB, pluginId!);
       githubSuccess = 'GitHub repository disconnected.';
@@ -271,6 +277,19 @@ const formatDate = (iso: string) =>
                   {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
                 </span>
               </div>
+              <form method="POST" class="flex items-end gap-3">
+                <input type="hidden" name="_action" value="update-tag-pattern" />
+                <div class="flex-1">
+                  <label for="tag_pattern" class="block text-sm font-semibold text-zinc-100">Tag pattern</label>
+                  <p class="mt-1 text-xs text-zinc-500">Glob pattern for release tags (e.g. v*, release-*, *). Only matching tags trigger auto-submit.</p>
+                  <input type="text" id="tag_pattern" name="tag_pattern" value={githubLink.tagPattern}
+                    class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                    placeholder="*" />
+                </div>
+                <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+                  Save pattern
+                </button>
+              </form>
               <div class="flex justify-end">
                 <form method="POST">
                   <input type="hidden" name="_action" value="disconnect" />

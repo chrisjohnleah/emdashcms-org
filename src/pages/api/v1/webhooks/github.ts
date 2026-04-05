@@ -16,6 +16,7 @@ import { enqueueAuditJob } from "../../../../lib/publishing/queue";
 import {
   extractVersion,
   hasPrereleaseSuffix,
+  matchesTagPattern,
 } from "../../../../lib/github/release-utils";
 
 export const prerender = false;
@@ -130,6 +131,17 @@ export const POST: APIRoute = async ({ request }) => {
   if (!link.autoSubmit) {
     return new Response(
       JSON.stringify({ message: "Auto-submit disabled" }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  // Step 6b: Check tag matches publisher-configured pattern (GHAP-04)
+  if (!matchesTagPattern(payload.release.tag_name, link.tagPattern)) {
+    return new Response(
+      JSON.stringify({ message: "Tag does not match pattern" }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
