@@ -81,15 +81,15 @@ const severityStyle = (severity: string) => {
         </div>
         <div class="flex items-center gap-2">
           {plugin.status === 'active' ? (
-            <form method="POST" data-admin-action="revoke" data-plugin-id={plugin.id}>
+            <form method="POST" data-admin-action="revoke" data-plugin-id={encodeURIComponent(plugin.id)}>
               <button type="submit" class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-4 py-2 text-sm font-medium text-amber-400 hover:bg-amber-950/60 transition-colors">Revoke</button>
             </form>
           ) : (
-            <form method="POST" data-admin-action="restore" data-plugin-id={plugin.id}>
+            <form method="POST" data-admin-action="restore" data-plugin-id={encodeURIComponent(plugin.id)}>
               <button type="submit" class="rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950/60 transition-colors">Restore</button>
             </form>
           )}
-          <form method="POST" data-admin-action="delete" data-plugin-id={plugin.id}>
+          <form method="POST" data-admin-action="delete" data-plugin-id={encodeURIComponent(plugin.id)}>
             <button type="submit" class="rounded-lg border border-red-800/60 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-950/60 transition-colors">Delete</button>
           </form>
         </div>
@@ -250,9 +250,9 @@ const severityStyle = (severity: string) => {
                             <button
                               type="button"
                               data-retry-audit
-                              data-plugin-id={plugin.id}
+                              data-plugin-id={encodeURIComponent(plugin.id)}
                               data-version={v.version}
-                              class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-950/60 transition-colors"
+                              class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-950/60 transition-colors cursor-pointer"
                             >
                               Re-audit
                             </button>
@@ -321,59 +321,57 @@ const severityStyle = (severity: string) => {
     </div>
   </section>
 
-  <script>
-    document.querySelectorAll('[data-retry-audit]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const el = btn as HTMLButtonElement;
-        const pluginId = el.dataset.pluginId;
-        const version = el.dataset.version;
+  <script is:inline>
+    document.querySelectorAll('[data-retry-audit]').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var pluginId = btn.dataset.pluginId;
+        var version = btn.dataset.version;
         if (!pluginId || !version) return;
 
-        if (!confirm(`Re-audit ${pluginId}@${version}? This will re-queue the AI audit.`)) return;
+        if (!confirm('Re-audit ' + pluginId + '@' + version + '? This will re-queue the AI audit.')) return;
 
-        el.disabled = true;
-        el.textContent = 'Queuing...';
+        btn.disabled = true;
+        btn.textContent = 'Queuing...';
 
-        const res = await fetch(`/api/v1/admin/plugins/${pluginId}/retry-audit`, {
+        var res = await fetch('/api/v1/admin/plugins/' + pluginId + '/retry-audit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ version }),
+          body: JSON.stringify({ version: version }),
         });
 
         if (res.ok) {
           window.location.reload();
         } else {
-          const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
-          alert(`Failed: ${body.error}`);
-          el.disabled = false;
-          el.textContent = 'Re-audit';
+          var body = await res.json().catch(function() { return { error: 'Unknown error' }; });
+          alert('Failed: ' + body.error);
+          btn.disabled = false;
+          btn.textContent = 'Re-audit';
         }
       });
     });
 
-    document.querySelectorAll('[data-admin-action]').forEach(form => {
-      form.addEventListener('submit', async (e) => {
+    document.querySelectorAll('[data-admin-action]').forEach(function(form) {
+      form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        const el = e.currentTarget as HTMLFormElement;
-        const action = el.dataset.adminAction;
-        const pluginId = el.dataset.pluginId;
+        var action = form.dataset.adminAction;
+        var pluginId = form.dataset.pluginId;
         if (!pluginId) return;
 
-        if (action === 'delete' && !confirm(`Permanently delete "${pluginId}"? This cannot be undone.`)) return;
-        if (action === 'revoke' && !confirm(`Revoke "${pluginId}"? It will be hidden from public listings.`)) return;
+        if (action === 'delete' && !confirm('Permanently delete "' + pluginId + '"? This cannot be undone.')) return;
+        if (action === 'revoke' && !confirm('Revoke "' + pluginId + '"? It will be hidden from public listings.')) return;
 
-        const url = action === 'delete'
-          ? `/api/v1/admin/plugins/${pluginId}`
-          : `/api/v1/admin/plugins/${pluginId}/${action}`;
+        var url = action === 'delete'
+          ? '/api/v1/admin/plugins/' + pluginId
+          : '/api/v1/admin/plugins/' + pluginId + '/' + action;
 
-        const method = action === 'delete' ? 'DELETE' : 'POST';
+        var method = action === 'delete' ? 'DELETE' : 'POST';
 
-        const res = await fetch(url, { method });
+        var res = await fetch(url, { method: method });
         if (res.ok) {
           window.location.reload();
         } else {
-          const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
-          alert(`Failed: ${body.error}`);
+          var body = await res.json().catch(function() { return { error: 'Unknown error' }; });
+          alert('Failed: ' + body.error);
         }
       });
     });
