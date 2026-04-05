@@ -62,12 +62,29 @@ if (!theme) {
             </div>
           )}
 
-          <div class="mt-8">
-            <h2 class="text-sm font-semibold text-zinc-100">Screenshots</h2>
-            <div class="mt-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-8 text-center">
-              <p class="text-sm text-zinc-500">Screenshots coming soon</p>
+          {theme.screenshotUrls.length > 0 && (
+            <div class="mt-8">
+              <h2 class="text-sm font-semibold text-zinc-100">Screenshots</h2>
+              <div class="mt-2 flex gap-3 overflow-x-auto pb-2" role="list" style="scroll-snap-type: x mandatory;">
+                {theme.screenshotUrls.map((url, index) => (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex-none w-60"
+                    role="listitem"
+                  >
+                    <img
+                      src={url}
+                      alt={`Screenshot ${index + 1} of ${theme.name}`}
+                      class="aspect-video rounded-lg object-cover w-full hover:opacity-90 transition-opacity"
+                      style="scroll-snap-align: start;"
+                    />
+                  </a>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
             {theme.keywords.length > 0 && (

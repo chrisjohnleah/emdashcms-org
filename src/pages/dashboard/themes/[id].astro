@@ -1,0 +1,282 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import DashboardBanner from '../../../components/DashboardBanner.astro';
+import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
+import { getThemeOwner, updateThemeMetadata, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
+import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
+import { getThemeDetail } from '../../../lib/db/queries';
+
+const { id: themeId } = Astro.params;
+const author = Astro.locals.author!;
+
+// Ownership check (D-06)
+const authorId = await resolveAuthorId(env.DB, author.githubId);
+if (!authorId) return Astro.redirect('/dashboard/themes');
+
+const owner = await getThemeOwner(env.DB, themeId!);
+if (!owner || owner.authorId !== authorId) {
+  return Astro.redirect('/dashboard/themes');
+}
+
+let saveSuccess = false;
+let saveError = '';
+let imageSuccess = false;
+let imageError = '';
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const action = data.get('_action') as string;
+
+  if (action === 'metadata') {
+    try {
+      const description = (data.get('description') as string ?? '').trim();
+      const keywordsRaw = (data.get('keywords') as string ?? '').trim();
+      const previewUrl = (data.get('previewUrl') as string ?? '').trim();
+      const demoUrl = (data.get('demoUrl') as string ?? '').trim();
+      const repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
+      const homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
+      const license = (data.get('license') as string ?? '').trim();
+
+      const keywordsArray = keywordsRaw
+        ? keywordsRaw.split(',').map((k: string) => k.trim()).filter(Boolean)
+        : [];
+
+      await updateThemeMetadata(env.DB, themeId!, {
+        description,
+        keywords: keywordsArray,
+        previewUrl: previewUrl || undefined,
+        demoUrl: demoUrl || undefined,
+        repositoryUrl: repositoryUrl || undefined,
+        homepageUrl: homepageUrl || undefined,
+        license: license || undefined,
+      });
+      saveSuccess = true;
+    } catch (e) {
+      saveError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'images') {
+    try {
+      const thumbnail = data.get('thumbnail') as File | null;
+      if (thumbnail && thumbnail.size > 0) {
+        const validation = validateImageUpload(thumbnail);
+        if (!validation.valid) throw new Error(validation.error);
+        const ext = MIME_TO_EXT[thumbnail.type];
+        const key = 'themes/' + themeId + '/thumbnail.' + ext;
+        await storeImageInR2(env.ARTIFACTS, key, thumbnail);
+        await updateThemeThumbnailKey(env.DB, themeId!, key);
+      }
+
+      const screenshots = data.getAll('screenshots') as File[];
+      const validScreenshots = screenshots.filter(f => f.size > 0);
+      if (validScreenshots.length > 5) throw new Error('Maximum 5 screenshots allowed.');
+
+      if (validScreenshots.length > 0) {
+        const newKeys: string[] = [];
+        for (let i = 0; i < validScreenshots.length; i++) {
+          const file = validScreenshots[i];
+          const validation = validateImageUpload(file);
+          if (!validation.valid) throw new Error(validation.error);
+          const ext = MIME_TO_EXT[file.type];
+          const key = 'themes/' + themeId + '/screenshots/' + i + '.' + ext;
+          await storeImageInR2(env.ARTIFACTS, key, file);
+          newKeys.push(key);
+        }
+
+        // Clean up stale screenshots beyond new count
+        const existingRow = await env.DB.prepare(
+          'SELECT screenshot_keys FROM themes WHERE id = ?'
+        ).bind(themeId).first<{ screenshot_keys: string | null }>();
+        const oldKeys: string[] = existingRow?.screenshot_keys
+          ? JSON.parse(existingRow.screenshot_keys)
+          : [];
+        for (let i = newKeys.length; i < oldKeys.length; i++) {
+          await env.ARTIFACTS.delete(oldKeys[i]);
+        }
+
+        await updateThemeScreenshotKeys(env.DB, themeId!, newKeys);
+      }
+
+      imageSuccess = true;
+    } catch (e) {
+      imageError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+}
+
+// Load theme data (re-fetch after potential update)
+const theme = await getThemeDetail(env.DB, themeId!);
+if (!theme) return Astro.redirect('/dashboard/themes');
+
+// Fetch raw values for editable form fields
+const rawTheme = await env.DB.prepare(
+  'SELECT description, keywords, preview_url, demo_url, repository_url, homepage_url, license, thumbnail_key, screenshot_keys FROM themes WHERE id = ?'
+).bind(themeId).first<{
+  description: string | null;
+  keywords: string | null;
+  preview_url: string | null;
+  demo_url: string | null;
+  repository_url: string | null;
+  homepage_url: string | null;
+  license: string | null;
+  thumbnail_key: string | null;
+  screenshot_keys: string | null;
+}>();
+
+const parsedKeywords = (() => {
+  try {
+    return JSON.parse(rawTheme?.keywords || '[]').join(', ');
+  } catch {
+    return '';
+  }
+})();
+
+const currentScreenshotKeys: string[] = (() => {
+  try {
+    return JSON.parse(rawTheme?.screenshot_keys || '[]');
+  } catch {
+    return [];
+  }
+})();
+---
+<BaseLayout title={theme.name + ' - Dashboard - emdashcms.org'}>
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-5xl">
+
+      <a href="/dashboard/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Themes</a>
+
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">{theme.name}</h1>
+
+      {saveSuccess && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message="Theme details updated." />
+        </div>
+      )}
+      {saveError && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={'Failed to update theme details. ' + saveError} />
+        </div>
+      )}
+      {imageSuccess && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message="Images uploaded successfully." />
+        </div>
+      )}
+      {imageError && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={'Failed to upload images. ' + imageError} />
+        </div>
+      )}
+
+      <!-- Section 1: Theme Details -->
+      <div class="mt-8">
+        <h2 class="text-xl font-semibold text-zinc-100">Theme Details</h2>
+        <form method="POST" class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+          <input type="hidden" name="_action" value="metadata" />
+
+          <div>
+            <dt class="text-sm font-semibold text-zinc-100">Theme ID</dt>
+            <dd class="mt-1 text-sm text-zinc-400 font-mono">{theme.id}</dd>
+          </div>
+
+          <div>
+            <dt class="text-sm font-semibold text-zinc-100">Name</dt>
+            <dd class="mt-1 text-sm text-zinc-400">{theme.name}</dd>
+          </div>
+
+          <div>
+            <label for="description" class="block text-sm font-semibold text-zinc-100">Description</label>
+            <textarea id="description" name="description"
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            >{rawTheme?.description ?? ''}</textarea>
+          </div>
+
+          <div>
+            <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
+            <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. blog, minimal, dark)</p>
+            <input type="text" id="keywords" name="keywords" value={parsedKeywords}
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+          </div>
+
+          <div>
+            <label for="previewUrl" class="block text-sm font-semibold text-zinc-100">Preview URL</label>
+            <input type="url" id="previewUrl" name="previewUrl" value={rawTheme?.preview_url ?? ''}
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+          </div>
+
+          <div>
+            <label for="demoUrl" class="block text-sm font-semibold text-zinc-100">Demo URL</label>
+            <input type="url" id="demoUrl" name="demoUrl" value={rawTheme?.demo_url ?? ''}
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+          </div>
+
+          <div>
+            <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
+            <input type="url" id="repositoryUrl" name="repositoryUrl" value={rawTheme?.repository_url ?? ''}
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+          </div>
+
+          <div>
+            <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
+            <input type="url" id="homepageUrl" name="homepageUrl" value={rawTheme?.homepage_url ?? ''}
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+          </div>
+
+          <div>
+            <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
+            <input type="text" id="license" name="license" value={rawTheme?.license ?? ''}
+              class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+          </div>
+
+          <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Save Theme Details</button>
+
+        </form>
+      </div>
+
+      <!-- Section 2: Images -->
+      <div class="mt-12">
+        <h2 class="text-xl font-semibold text-zinc-100">Images</h2>
+        <form method="POST" enctype="multipart/form-data" class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+          <input type="hidden" name="_action" value="images" />
+
+          <div>
+            <label for="thumbnail" class="block text-sm font-semibold text-zinc-100">Thumbnail</label>
+            {rawTheme?.thumbnail_key ? (
+              <div class="mt-2">
+                <img src={'/api/v1/images/' + rawTheme.thumbnail_key} alt="Current thumbnail" class="w-[120px] aspect-video rounded-lg object-cover" />
+              </div>
+            ) : (
+              <p class="mt-2 text-sm text-zinc-500">No thumbnail uploaded</p>
+            )}
+            <input type="file" id="thumbnail" name="thumbnail" accept="image/jpeg,image/png,image/webp"
+              class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700" />
+            <p class="mt-1 text-xs text-zinc-500">Max 5MB. JPEG, PNG, or WebP.</p>
+          </div>
+
+          <div>
+            <label for="screenshots" class="block text-sm font-semibold text-zinc-100">Screenshots</label>
+            {currentScreenshotKeys.length > 0 && (
+              <div class="mt-2 flex gap-3 overflow-x-auto pb-2">
+                {currentScreenshotKeys.map((key, index) => (
+                  <img src={'/api/v1/images/' + key} alt={`Screenshot ${index + 1}`} class="w-[160px] aspect-video rounded-lg object-cover flex-none" />
+                ))}
+              </div>
+            )}
+            <input type="file" id="screenshots" name="screenshots" accept="image/jpeg,image/png,image/webp" multiple
+              class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700" />
+            <p class="mt-1 text-xs text-zinc-500">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
+            <p class="mt-1 text-xs text-zinc-500">Uploading new screenshots replaces all existing screenshots.</p>
+          </div>
+
+          <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Upload Images</button>
+
+        </form>
+      </div>
+
+    </div>
+  </section>
+</BaseLayout>
