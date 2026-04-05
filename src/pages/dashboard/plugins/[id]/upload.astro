@@ -1,0 +1,150 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import DashboardBanner from '../../../../components/DashboardBanner.astro';
+import {
+  resolveAuthorId,
+  getPluginOwner,
+  checkUploadRateLimit,
+  checkVersionExists,
+  createVersion,
+} from '../../../../lib/publishing/plugin-queries';
+import { validateBundle } from '../../../../lib/publishing/bundle-validator';
+import { storeBundleInR2 } from '../../../../lib/publishing/r2-storage';
+import { enqueueAuditJob } from '../../../../lib/publishing/queue';
+
+const { id: pluginId } = Astro.params;
+const author = Astro.locals.author!;
+
+// Ownership check (D-09) — use githubId, not id
+const authorId = await resolveAuthorId(env.DB, author.githubId);
+if (!authorId) return Astro.redirect('/dashboard');
+
+const owner = await getPluginOwner(env.DB, pluginId!);
+if (!owner || owner.authorId !== authorId) {
+  return Astro.redirect('/dashboard');
+}
+
+// Get plugin name for breadcrumb
+const pluginRow = await env.DB.prepare('SELECT name FROM plugins WHERE id = ?')
+  .bind(pluginId).first<{ name: string }>();
+const pluginName = pluginRow?.name ?? pluginId;
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    // Parse multipart form (D-12: server-side handling)
+    const data = await Astro.request.formData();
+    const file = data.get('tarball');
+    if (!(file instanceof File)) {
+      throw new Error('Please select a .tgz file to upload.');
+    }
+
+    // Rate limit check (COST-01)
+    const rateLimit = await checkUploadRateLimit(env.DB, authorId);
+    if (!rateLimit.allowed) {
+      throw new Error('Rate limit exceeded: 5 versions per day. Try again tomorrow.');
+    }
+
+    // Validate bundle (PUBL-03)
+    const tarballBytes = await file.arrayBuffer();
+    const validation = await validateBundle(tarballBytes, pluginId!);
+    if (!validation.valid) {
+      throw new Error(`Bundle validation failed: ${validation.errors!.join('; ')}`);
+    }
+
+    // Check version not already uploaded
+    const versionStr = validation.manifest!.version;
+    const exists = await checkVersionExists(env.DB, pluginId!, versionStr);
+    if (exists) {
+      throw new Error(`Version ${versionStr} already exists for this plugin.`);
+    }
+
+    // Store in R2 (PUBL-04)
+    const { key: bundleKey } = await storeBundleInR2(
+      env.ARTIFACTS,
+      pluginId!,
+      versionStr,
+      tarballBytes,
+      validation.checksum!,
+    );
+
+    // Create D1 version record
+    await createVersion(env.DB, {
+      pluginId: pluginId!,
+      version: versionStr,
+      manifest: JSON.stringify(validation.manifest),
+      bundleKey,
+      checksum: validation.checksum!,
+      fileCount: validation.stats!.fileCount,
+      compressedSize: validation.stats!.compressedSize,
+      decompressedSize: validation.stats!.decompressedSize,
+      changelog: (validation.manifest as any).changelog ?? undefined,
+      minEmDashVersion: (validation.manifest as any).minEmDashVersion ?? undefined,
+    });
+
+    // Enqueue audit job (PUBL-05)
+    await enqueueAuditJob(env.AUDIT_QUEUE, {
+      pluginId: pluginId!,
+      version: versionStr,
+      authorId,
+      bundleKey,
+    });
+
+    // Redirect to plugin detail with success banner (D-11)
+    return Astro.redirect(`/dashboard/plugins/${encodeURIComponent(pluginId!)}?uploaded=true`);
+  } catch (e) {
+    error = e instanceof Error ? e.message : 'An error occurred during upload.';
+  }
+}
+---
+<BaseLayout title={'Upload Version - ' + pluginName + ' - Dashboard - emdashcms.org'}>
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-2xl">
+
+      <a href={'/dashboard/plugins/' + pluginId} class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+        Back to {pluginName}
+      </a>
+
+      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+        Upload Version
+      </h1>
+
+      {error && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={error} />
+        </div>
+      )}
+
+      <form method="POST" enctype="multipart/form-data" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+        <div>
+          <label for="tarball" class="block text-sm font-semibold text-zinc-100">
+            Plugin bundle (.tgz) *
+          </label>
+          <p class="mt-1 text-xs text-zinc-500">
+            Upload a .tgz tarball built with emdash plugin build
+          </p>
+          <input
+            type="file"
+            id="tarball"
+            name="tarball"
+            accept=".tgz,application/gzip"
+            aria-required="true"
+            class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700 focus:outline-2 focus:outline-offset-2 focus:outline-zinc-500"
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
+        >
+          Upload Version
+        </button>
+      </form>
+
+    </div>
+  </section>
+</BaseLayout>
