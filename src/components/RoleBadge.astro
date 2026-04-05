@@ -1,0 +1,24 @@
+---
+interface Props {
+  role: 'owner' | 'maintainer' | 'contributor';
+}
+
+const { role } = Astro.props;
+
+const styles: Record<string, string> = {
+  owner: 'bg-amber-950/40 text-amber-400 border-amber-800/60',
+  maintainer: 'bg-blue-950/40 text-blue-400 border-blue-800/60',
+  contributor: 'bg-zinc-800/40 text-zinc-400 border-zinc-700/60',
+};
+
+const labels: Record<string, string> = {
+  owner: 'Owner',
+  maintainer: 'Maintainer',
+  contributor: 'Contributor',
+};
+---
+<span
+  class:list={['inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border', styles[role]]}
+>
+  {labels[role]}
+</span>
