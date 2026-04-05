@@ -8,6 +8,18 @@ import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
 import { getThemeOwner, updateThemeMetadata, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
 import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
 import { getThemeDetail } from '../../../lib/db/queries';
+import {
+  getPluginGitHubLink,
+  getInstallationByAuthor,
+  linkPluginToRepo,
+  toggleAutoSubmit,
+  unlinkPlugin,
+} from '../../../lib/github/queries';
+import {
+  getInstallationToken,
+  listInstallationRepos,
+  type GitHubRepo,
+} from '../../../lib/github/installation';
 
 const { id: themeId } = Astro.params;
 const author = Astro.locals.author!;
@@ -25,6 +37,8 @@ let saveSuccess = false;
 let saveError = '';
 let imageSuccess = false;
 let imageError = '';
+let githubSuccess = '';
+let githubError = '';
 
 if (Astro.request.method === 'POST') {
   const data = await Astro.request.formData();
@@ -106,6 +120,47 @@ if (Astro.request.method === 'POST') {
       imageError = e instanceof Error ? e.message : 'An error occurred';
     }
   }
+
+  // plugin_github_links.plugin_id used for both plugins and themes (D1 FK not enforced)
+  if (action === 'connect-repo') {
+    try {
+      const repoFullName = data.get('repo_full_name') as string;
+      const repoId = Number(data.get('repo_id'));
+      if (!repoFullName || !repoId) throw new Error('Select a repository');
+      const ghInstallation = await getInstallationByAuthor(env.DB, authorId);
+      if (!ghInstallation) throw new Error('No GitHub App installation found');
+      await linkPluginToRepo(env.DB, {
+        pluginId: themeId!,
+        installationId: ghInstallation.id,
+        repoFullName,
+        repoId,
+      });
+      githubSuccess = 'GitHub repository connected.';
+    } catch (e) {
+      githubError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'toggle-auto-submit') {
+    try {
+      const link = await getPluginGitHubLink(env.DB, themeId!);
+      if (link) {
+        await toggleAutoSubmit(env.DB, themeId!, !link.autoSubmit);
+        githubSuccess = 'Auto-submit setting updated.';
+      }
+    } catch (e) {
+      githubError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
+
+  if (action === 'disconnect') {
+    try {
+      await unlinkPlugin(env.DB, themeId!);
+      githubSuccess = 'GitHub repository disconnected.';
+    } catch (e) {
+      githubError = e instanceof Error ? e.message : 'An error occurred';
+    }
+  }
 }
 
 // Load theme data (re-fetch after potential update)
@@ -142,6 +197,24 @@ const currentScreenshotKeys: string[] = (() => {
     return [];
   }
 })();
+
+// GitHub integration state
+const githubLink = await getPluginGitHubLink(env.DB, themeId!);
+const ghInstall = await getInstallationByAuthor(env.DB, authorId);
+
+let availableRepos: GitHubRepo[] = [];
+if (ghInstall && !githubLink) {
+  try {
+    const token = await getInstallationToken(
+      ghInstall.id,
+      env.GITHUB_CLIENT_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+    );
+    availableRepos = await listInstallationRepos(token);
+  } catch (err) {
+    console.error('[dashboard] Failed to list repos:', err);
+  }
+}
 ---
 <BaseLayout title={theme.name + ' - Dashboard - emdashcms.org'}>
   <section class="pt-24 pb-16 px-6">
@@ -235,6 +308,89 @@ const currentScreenshotKeys: string[] = (() => {
           <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Save Theme Details</button>
 
         </form>
+      </div>
+
+      {githubSuccess && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message={githubSuccess} />
+        </div>
+      )}
+      {githubError && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={githubError} />
+        </div>
+      )}
+
+      <div class="mt-12">
+        <h2 class="text-xl font-semibold text-zinc-100">GitHub</h2>
+        <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+          {githubLink ? (
+            <div class="space-y-4">
+              <div>
+                <span class="text-sm text-zinc-100 font-mono">{githubLink.repoFullName}</span>
+                <span class="ml-3 text-sm text-emerald-400">Connected</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <form method="POST">
+                  <input type="hidden" name="_action" value="toggle-auto-submit" />
+                  <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+                    {githubLink.autoSubmit ? 'Pause auto-submit' : 'Enable auto-submit'}
+                  </button>
+                </form>
+                <span class:list={['text-sm', githubLink.autoSubmit ? 'text-emerald-400' : 'text-amber-400']}>
+                  {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
+                </span>
+              </div>
+              <div class="flex justify-end">
+                <form method="POST">
+                  <input type="hidden" name="_action" value="disconnect" />
+                  <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-4 py-2 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">
+                    Disconnect {githubLink.repoFullName}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : ghInstall ? (
+            <form method="POST" class="space-y-4">
+              <input type="hidden" name="_action" value="connect-repo" />
+              <input type="hidden" name="repo_id" id="theme_repo_id" value="" />
+              <div>
+                <label for="theme_repo_select" class="block text-sm font-semibold text-zinc-100">Select repository</label>
+                {availableRepos.length === 0 ? (
+                  <p class="mt-2 text-sm text-zinc-500">No accessible repositories found. Install the GitHub App on your repos first.</p>
+                ) : (
+                  <div class="mt-2 flex items-end gap-3">
+                    <select id="theme_repo_select" name="repo_full_name"
+                      class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                      <option value="">Choose a repository...</option>
+                      {availableRepos.map(repo => (
+                        <option value={repo.full_name} data-repo-id={repo.id}>{repo.full_name}</option>
+                      ))}
+                    </select>
+                    <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Connect</button>
+                  </div>
+                )}
+              </div>
+              <script is:inline>
+                document.getElementById('theme_repo_select')?.addEventListener('change', function() {
+                  const selected = this.options[this.selectedIndex];
+                  document.getElementById('theme_repo_id').value = selected.getAttribute('data-repo-id') || '';
+                });
+              </script>
+            </form>
+          ) : (
+            <div>
+              <p class="text-sm text-zinc-400">No GitHub repository connected.</p>
+              <p class="mt-1 text-sm text-zinc-500">Connect a repo to automatically submit new versions when you publish a release.</p>
+              <div class="mt-4">
+                <a href={`https://github.com/apps/emdashcms/installations/new?state=${themeId}`}
+                  class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+                  Connect GitHub Repo
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <!-- Section 2: Images -->
