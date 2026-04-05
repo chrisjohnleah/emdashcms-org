@@ -1,0 +1,99 @@
+---
+export const prerender = false;
+
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+const currentPath = Astro.url.pathname;
+const siteUrl = 'https://emdashcms.org';
+
+const navLinks = [
+  { label: 'Plugins', href: '/plugins' },
+  { label: 'Themes', href: '/themes' },
+  { label: 'Dashboard', href: '/dashboard' },
+];
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={siteUrl + currentPath} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={siteUrl + currentPath} />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-zinc-950 text-zinc-100 antialiased font-sans">
+
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:rounded-lg focus:bg-zinc-100 focus:px-4 focus:py-2 focus:text-zinc-950 focus:text-sm focus:font-semibold">Skip to content</a>
+
+    <header class="fixed top-0 inset-x-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md">
+      <div class="mx-auto max-w-5xl flex items-center justify-between px-6 h-14">
+        <a href="/" class="flex items-center gap-2 text-zinc-100 font-semibold text-sm tracking-tight">
+          <span class="text-zinc-500 font-mono text-lg leading-none" aria-hidden="true">&mdash;</span>
+          emdashcms.org
+        </a>
+        <nav class="flex items-center gap-4">
+          {navLinks.map((link) => (
+            <a
+              href={link.href}
+              class:list={[
+                'text-sm transition-colors',
+                currentPath.startsWith(link.href)
+                  ? 'text-zinc-100'
+                  : 'text-zinc-400 hover:text-zinc-100',
+              ]}
+            >
+              {link.label}
+            </a>
+          ))}
+          <span class="hidden sm:inline-flex items-center rounded-full border border-amber-800/60 bg-amber-950/40 px-2.5 py-0.5 text-[11px] text-amber-400 font-medium tracking-wide uppercase">
+            Under construction
+          </span>
+          <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+            GitHub
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer class="border-t border-zinc-800/60 px-6 py-10">
+      <div class="mx-auto max-w-5xl">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-zinc-600">
+          <span>emdashcms.org&ensp;&mdash;&ensp;Community Marketplace for EmDash&nbsp;CMS</span>
+          <span class="text-center">Not affiliated with Cloudflare or the EmDash project</span>
+          <div class="flex items-center gap-4">
+            <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-400 transition-colors">GitHub</a>
+            <a href="https://x.com/chrisleah" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-400 transition-colors">@chrisleah</a>
+            <a href="https://github.com/chrisjohnleah/emdashcms-org/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="hover:text-zinc-400 transition-colors">MIT License</a>
+          </div>
+        </div>
+        <p class="mt-6 text-center text-[11px] text-zinc-700">
+          Built on Cloudflare Workers&ensp;&middot;&ensp;Open Source&ensp;&middot;&ensp;MIT License
+        </p>
+      </div>
+    </footer>
+
+  </body>
+</html>
