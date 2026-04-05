@@ -106,6 +106,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     await registerPlugin(env.DB, authorId, {
       id,
       name,
+      short_description: body.short_description as string | undefined,
       description,
       capabilities: capabilities as string[],
       keywords: body.keywords as string[] | undefined,

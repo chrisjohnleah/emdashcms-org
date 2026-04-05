@@ -88,8 +88,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     await registerTheme(env.DB, authorId, {
       id: body.id,
       name: body.name,
+      short_description: body.short_description as string | undefined,
       description: body.description,
       keywords: body.keywords as string[] | undefined,
+      category: body.category as string | undefined,
       preview_url: body.previewUrl as string | undefined,
       demo_url: body.demoUrl as string | undefined,
       repository_url: body.repositoryUrl as string | undefined,

@@ -56,7 +56,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     const updateInput: UpdateThemeMetadataInput = {};
     const allowedStringFields = [
+      "shortDescription",
       "description",
+      "category",
       "previewUrl",
       "demoUrl",
       "repositoryUrl",

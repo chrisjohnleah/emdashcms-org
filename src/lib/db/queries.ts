@@ -160,6 +160,7 @@ export async function getPluginDetail(
         `SELECT pv.*, pa.verdict, pa.risk_score, pa.findings
          FROM plugin_versions pv
          LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
+           AND pa.created_at = (SELECT MAX(pa2.created_at) FROM plugin_audits pa2 WHERE pa2.plugin_version_id = pv.id)
          WHERE pv.plugin_id = ? AND pv.status IN ('published', 'flagged')
          ORDER BY pv.created_at DESC
          LIMIT 1`,
@@ -185,6 +186,7 @@ export async function getPluginVersions(
       `SELECT pv.*, pa.verdict, pa.risk_score
        FROM plugin_versions pv
        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
+         AND pa.created_at = (SELECT MAX(pa2.created_at) FROM plugin_audits pa2 WHERE pa2.plugin_version_id = pv.id)
        WHERE pv.plugin_id = ?
        ORDER BY pv.created_at DESC`,
     )
@@ -250,6 +252,7 @@ export async function getVersionDetail(
               pa.verdict, pa.risk_score, pa.findings
        FROM plugin_versions pv
        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
+         AND pa.created_at = (SELECT MAX(pa2.created_at) FROM plugin_audits pa2 WHERE pa2.plugin_version_id = pv.id)
        WHERE pv.plugin_id = ? AND pv.version = ?`,
     )
     .bind(pluginId, version)

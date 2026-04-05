@@ -55,7 +55,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     const updateData: Record<string, unknown> = {};
     const allowedStringFields = [
+      "shortDescription",
       "description",
+      "category",
       "repositoryUrl",
       "homepageUrl",
       "supportUrl",
