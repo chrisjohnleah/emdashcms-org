@@ -14,6 +14,7 @@ interface ProtectedPattern {
 export const PROTECTED_PATTERNS: ProtectedPattern[] = [
   { path: "/api/v1/plugins", methods: ["POST", "PUT", "PATCH", "DELETE"] },
   { path: "/api/v1/themes", methods: ["POST", "PUT", "PATCH", "DELETE"] },
+  { path: "/api/v1/github", methods: ["GET", "POST"] },
   { path: "/dashboard", methods: ["GET", "POST"] },
 ];
 

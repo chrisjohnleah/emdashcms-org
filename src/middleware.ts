@@ -47,6 +47,9 @@ const securityHeaders = defineMiddleware(async (_ctx, next) => {
 const csrfProtection = defineMiddleware(async ({ request, url }, next) => {
   if (request.method === "GET" || request.method === "HEAD") return next();
 
+  // Webhook endpoints have their own HMAC authentication
+  if (url.pathname.startsWith("/api/v1/webhooks/")) return next();
+
   const isMutationTarget =
     url.pathname.startsWith("/dashboard") ||
     url.pathname.startsWith("/api/v1/plugins") ||
@@ -80,6 +83,9 @@ const rateLimit = defineMiddleware(async ({ request, url }, next) => {
   if (isProtectedRoute(url.pathname, request.method)) {
     return next();
   }
+
+  // Webhook endpoints are HMAC-authenticated, exempt from IP rate limiting
+  if (url.pathname.startsWith("/api/v1/webhooks/")) return next();
 
   if (!url.pathname.startsWith("/api/")) {
     return next();
