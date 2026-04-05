@@ -419,12 +419,7 @@ const formatDate = (iso: string) =>
                   </div>
                 )}
               </div>
-              <script is:inline>
-                document.getElementById('repo_select')?.addEventListener('change', function() {
-                  const selected = this.options[this.selectedIndex];
-                  document.getElementById('repo_id').value = selected.getAttribute('data-repo-id') || '';
-                });
-              </script>
+              <script src="../../../../scripts/repo-select.ts"></script>
             </form>
           ) : isMaintainer ? (
             <div>
