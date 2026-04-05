@@ -5,7 +5,9 @@ import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import TurnstileWidget from '../../../components/TurnstileWidget.astro';
-import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit } from '../../../lib/publishing/plugin-queries';
+import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit, updatePluginIconKey } from '../../../lib/publishing/plugin-queries';
+import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
+import { KNOWN_CATEGORIES } from '../../../lib/api/validation';
 import { validateBundle } from '../../../lib/publishing/bundle-validator';
 import { storeBundleInR2 } from '../../../lib/publishing/r2-storage';
 import { enqueueAuditJob } from '../../../lib/publishing/queue';
@@ -46,13 +48,18 @@ let globalError = '';
 let globalSuccess = '';
 
 // Metadata fields carried across steps
+const SPDX_LICENSES = ['MIT', 'Apache-2.0', 'GPL-3.0-only', 'GPL-2.0-only', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'MPL-2.0', 'Unlicense'];
+
 let formValues = {
   id: '',
   name: '',
+  shortDescription: '',
   description: '',
+  category: '',
   capabilities: [] as string[],
   keywords: '',
   license: '',
+  licenseOther: '',
   repositoryUrl: '',
   homepageUrl: '',
   supportUrl: '',
@@ -69,10 +76,15 @@ const PLUGIN_ID_REGEX = /^(@[a-z0-9-]+\/)?[a-z0-9-]+$/;
 function readMetadata(data: FormData) {
   formValues.id = (data.get('id') as string ?? '').trim();
   formValues.name = (data.get('name') as string ?? '').trim();
+  formValues.shortDescription = (data.get('shortDescription') as string ?? '').trim();
   formValues.description = (data.get('description') as string ?? '').trim();
+  formValues.category = (data.get('category') as string ?? '').trim();
   formValues.capabilities = data.getAll('capabilities') as string[];
   formValues.keywords = (data.get('keywords') as string ?? '').trim();
-  formValues.license = (data.get('license') as string ?? '').trim();
+  const licenseSelect = (data.get('license') as string ?? '').trim();
+  const licenseOtherVal = (data.get('licenseOther') as string ?? '').trim();
+  formValues.license = licenseSelect === '__other__' ? licenseOtherVal : licenseSelect;
+  formValues.licenseOther = licenseOtherVal;
   formValues.repositoryUrl = (data.get('repositoryUrl') as string ?? '').trim();
   formValues.homepageUrl = (data.get('homepageUrl') as string ?? '').trim();
   formValues.supportUrl = (data.get('supportUrl') as string ?? '').trim();
@@ -83,7 +95,11 @@ function validateMetadata(): boolean {
   if (!formValues.id) errors.id = 'Plugin ID is required.';
   else if (!PLUGIN_ID_REGEX.test(formValues.id)) errors.id = 'ID must be lowercase alphanumeric with hyphens, optionally scoped (e.g. @scope/name).';
   if (!formValues.name) errors.name = 'Name is required.';
+  if (!formValues.shortDescription) errors.shortDescription = 'Short description is required.';
+  else if (formValues.shortDescription.length > 150) errors.shortDescription = 'Short description must be 150 characters or less.';
   if (!formValues.description) errors.description = 'Description is required.';
+  else if (formValues.description.length > 5000) errors.description = 'Description must be 5000 characters or less.';
+  if (!formValues.category) errors.category = 'Category is required.';
   if (formValues.capabilities.length === 0) errors.capabilities = 'Select at least one capability.';
   return Object.keys(errors).length === 0;
 }
@@ -173,10 +189,12 @@ if (Astro.request.method === 'POST') {
             await registerPlugin(env.DB, authorId, {
               id: formValues.id,
               name: formValues.name,
+              short_description: formValues.shortDescription || undefined,
               description: formValues.description,
               capabilities: formValues.capabilities,
               keywords: keywordsArray,
               license: formValues.license || undefined,
+              category: formValues.category || undefined,
               repository_url: formValues.repositoryUrl || undefined,
               homepage_url: formValues.homepageUrl || undefined,
               support_url: formValues.supportUrl || undefined,
@@ -279,10 +297,12 @@ if (Astro.request.method === 'POST') {
             await registerPlugin(env.DB, authorId, {
               id: formValues.id,
               name: formValues.name,
+              short_description: formValues.shortDescription || undefined,
               description: formValues.description,
               capabilities: formValues.capabilities,
               keywords: keywordsArray,
               license: formValues.license || undefined,
+              category: formValues.category || undefined,
               repository_url: formValues.repositoryUrl || undefined,
               homepage_url: formValues.homepageUrl || undefined,
               support_url: formValues.supportUrl || undefined,
@@ -400,15 +420,53 @@ const inputError = `${inputBase} border-red-700`;
             {errors.name && <p id="name-error" class="mt-1 text-xs text-red-400">{errors.name}</p>}
           </div>
 
+          {/* Short Description */}
+          <div>
+            <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description <span class="text-red-400">*</span></label>
+            <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards</p>
+            <input type="text" id="shortDescription" name="shortDescription" value={formValues.shortDescription}
+              maxlength="150"
+              placeholder="e.g. Adds real-time collaboration editing to your CMS"
+              class:list={['mt-2', errors.shortDescription ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.shortDescription ? 'true' : undefined}
+              aria-describedby={errors.shortDescription ? 'shortDescription-error' : 'shortDescription-counter'} />
+            <div class="mt-1 flex justify-between">
+              {errors.shortDescription ? <p id="shortDescription-error" class="text-xs text-red-400">{errors.shortDescription}</p> : <span />}
+              <p id="shortDescription-counter" class="text-xs text-zinc-600"><span data-counter="shortDescription">{formValues.shortDescription.length}</span>/150</p>
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <label for="description" class="block text-sm font-semibold text-zinc-100">Description <span class="text-red-400">*</span></label>
+            <p class="mt-1 text-xs text-zinc-500">Detailed description shown on your listing page. Markdown supported.</p>
             <textarea id="description" name="description"
-              class:list={['mt-2 min-h-[80px] resize-y', errors.description ? inputError : inputNormal]}
+              maxlength="5000"
+              class:list={['mt-2 min-h-[120px] resize-y', errors.description ? inputError : inputNormal]}
               aria-required="true"
               aria-invalid={errors.description ? 'true' : undefined}
-              aria-describedby={errors.description ? 'description-error' : undefined}>{formValues.description}</textarea>
-            {errors.description && <p id="description-error" class="mt-1 text-xs text-red-400">{errors.description}</p>}
+              aria-describedby={errors.description ? 'description-error' : 'description-counter'}>{formValues.description}</textarea>
+            <div class="mt-1 flex justify-between">
+              {errors.description ? <p id="description-error" class="text-xs text-red-400">{errors.description}</p> : <span />}
+              <p id="description-counter" class="text-xs text-zinc-600"><span data-counter="description">{formValues.description.length}</span>/5000</p>
+            </div>
+          </div>
+
+          {/* Category */}
+          <div>
+            <label for="category" class="block text-sm font-semibold text-zinc-100">Category <span class="text-red-400">*</span></label>
+            <select id="category" name="category"
+              class:list={['mt-2', errors.category ? inputError : inputNormal]}
+              aria-required="true"
+              aria-invalid={errors.category ? 'true' : undefined}
+              aria-describedby={errors.category ? 'category-error' : undefined}>
+              <option value="" disabled selected={!formValues.category}>Select a category...</option>
+              {KNOWN_CATEGORIES.map(cat => (
+                <option value={cat} selected={formValues.category === cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}</option>
+              ))}
+            </select>
+            {errors.category && <p id="category-error" class="mt-1 text-xs text-red-400">{errors.category}</p>}
           </div>
 
           {/* Capabilities */}
@@ -441,10 +499,18 @@ const inputError = `${inputBase} border-red-700`;
               </div>
               <div>
                 <label for="license" class="block text-sm text-zinc-400">License</label>
-                <p class="mt-0.5 text-xs text-zinc-600">e.g. MIT, Apache-2.0</p>
-                <input type="text" id="license" name="license" value={formValues.license}
-                  placeholder="MIT"
-                  class:list={['mt-1.5', inputNormal]} />
+                <select id="license" name="license" class:list={['mt-1.5', inputNormal]}>
+                  <option value="">None</option>
+                  {SPDX_LICENSES.map(lic => (
+                    <option value={lic} selected={formValues.license === lic}>{lic}</option>
+                  ))}
+                  <option value="__other__" selected={formValues.license && !SPDX_LICENSES.includes(formValues.license)}>Other...</option>
+                </select>
+                <input type="text" id="licenseOther" name="licenseOther"
+                  value={formValues.licenseOther || (formValues.license && !SPDX_LICENSES.includes(formValues.license) ? formValues.license : '')}
+                  placeholder="SPDX identifier"
+                  class:list={['mt-1.5', inputNormal, (!formValues.license || SPDX_LICENSES.includes(formValues.license)) && 'hidden']}
+                  data-license-other />
               </div>
               <div>
                 <label for="repositoryUrl" class="block text-sm text-zinc-400">Repository URL</label>
@@ -488,7 +554,9 @@ const inputError = `${inputBase} border-red-700`;
                 <input type="hidden" name="_step" value="1" />
                 <input type="hidden" name="id" value={formValues.id} />
                 <input type="hidden" name="name" value={formValues.name} />
+                <input type="hidden" name="shortDescription" value={formValues.shortDescription} />
                 <input type="hidden" name="description" value={formValues.description} />
+                <input type="hidden" name="category" value={formValues.category} />
                 {formValues.capabilities.map(cap => (
                   <input type="hidden" name="capabilities" value={cap} />
                 ))}
@@ -649,4 +717,31 @@ const inputError = `${inputBase} border-red-700`;
 
     </div>
   </section>
+
+  <script is:inline>
+    // Character counters
+    document.querySelectorAll('[data-counter]').forEach(function(span) {
+      var fieldId = span.getAttribute('data-counter');
+      var field = document.getElementById(fieldId);
+      if (field) {
+        field.addEventListener('input', function() {
+          span.textContent = field.value.length;
+        });
+      }
+    });
+
+    // License "Other" toggle
+    var licenseSelect = document.getElementById('license');
+    var licenseOther = document.querySelector('[data-license-other]');
+    if (licenseSelect && licenseOther) {
+      licenseSelect.addEventListener('change', function() {
+        if (licenseSelect.value === '__other__') {
+          licenseOther.classList.remove('hidden');
+          licenseOther.focus();
+        } else {
+          licenseOther.classList.add('hidden');
+        }
+      });
+    }
+  </script>
 </BaseLayout>
