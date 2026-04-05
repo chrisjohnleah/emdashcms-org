@@ -8,6 +8,10 @@ import {
 import { checkPluginAccess, hasRole } from "../../../../../../../lib/auth/permissions";
 import { enqueueAuditJob } from "../../../../../../../lib/publishing/queue";
 import {
+  checkAuthorAuditBudget,
+  recordAuthorAuditUsage,
+} from "../../../../../../../lib/audit/author-budget";
+import {
   jsonResponse,
   errorResponse,
 } from "../../../../../../../lib/api/response";
@@ -51,6 +55,12 @@ export const POST: APIRoute = async ({ params, locals }) => {
       );
     }
 
+    // Audit budget check
+    const budget = await checkAuthorAuditBudget(env.DB, authorId);
+    if (!budget.allowed) {
+      return errorResponse(429, "Daily audit limit reached (10/day). Try again tomorrow.");
+    }
+
     // Increment retry count and reset status to pending
     await incrementRetryCount(env.DB, ver.id);
 
@@ -61,6 +71,7 @@ export const POST: APIRoute = async ({ params, locals }) => {
       authorId,
       bundleKey: ver.bundleKey,
     });
+    await recordAuthorAuditUsage(env.DB, authorId);
 
     return jsonResponse(
       {

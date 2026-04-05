@@ -14,6 +14,10 @@ import {
 } from "../../../../lib/publishing/plugin-queries";
 import { enqueueAuditJob } from "../../../../lib/publishing/queue";
 import {
+  checkAuthorAuditBudget,
+  recordAuthorAuditUsage,
+} from "../../../../lib/audit/author-budget";
+import {
   extractVersion,
   hasPrereleaseSuffix,
   matchesTagPattern,
@@ -247,13 +251,23 @@ export const POST: APIRoute = async ({ request }) => {
       source: "github",
     });
 
-    // Step 15: Enqueue audit job
+    // Audit budget check (COST-03)
+    const budget = await checkAuthorAuditBudget(env.DB, link.authorId);
+    if (!budget.allowed) {
+      console.log(`[webhook] Author ${link.authorId} audit budget exceeded, skipping`);
+      return new Response(
+        JSON.stringify({ message: "Author audit budget exceeded" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId: link.pluginId,
       version,
       authorId: link.authorId,
       bundleKey,
     });
+    await recordAuthorAuditUsage(env.DB, link.authorId);
 
     console.log(
       `[webhook] Queued audit for ${link.pluginId}@${version} (id=${versionId})`,

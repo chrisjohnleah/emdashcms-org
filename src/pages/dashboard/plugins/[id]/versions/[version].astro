@@ -14,6 +14,7 @@ import {
 } from '../../../../../lib/publishing/plugin-queries';
 import { checkPluginAccess, hasRole } from '../../../../../lib/auth/permissions';
 import { enqueueAuditJob } from '../../../../../lib/publishing/queue';
+import { checkAuthorAuditBudget, recordAuthorAuditUsage } from '../../../../../lib/audit/author-budget';
 
 const { id: pluginId, version: versionStr } = Astro.params;
 const author = Astro.locals.author!;
@@ -47,6 +48,10 @@ if (Astro.request.method === 'POST') {
       throw new Error('Maximum retry attempts (3) exceeded. Please upload a new version.');
     }
 
+    // Audit budget check
+    const budget = await checkAuthorAuditBudget(env.DB, authorId);
+    if (!budget.allowed) throw new Error('Daily audit limit reached (10/day). Try again tomorrow.');
+
     await incrementRetryCount(env.DB, ver.id);
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId: pluginId!,
@@ -54,6 +59,7 @@ if (Astro.request.method === 'POST') {
       authorId,
       bundleKey: ver.bundleKey,
     });
+    await recordAuthorAuditUsage(env.DB, authorId);
 
     retrySuccess = true;
   } catch (e) {

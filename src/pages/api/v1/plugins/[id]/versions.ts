@@ -12,6 +12,10 @@ import { checkPluginAccess, hasRole } from "../../../../../lib/auth/permissions"
 import { validateBundle } from "../../../../../lib/publishing/bundle-validator";
 import { storeBundleInR2 } from "../../../../../lib/publishing/r2-storage";
 import { enqueueAuditJob } from "../../../../../lib/publishing/queue";
+import {
+  checkAuthorAuditBudget,
+  recordAuthorAuditUsage,
+} from "../../../../../lib/audit/author-budget";
 
 export const prerender = false;
 
@@ -119,13 +123,19 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       minEmDashVersion: validation.manifest!.minEmDashVersion ?? undefined,
     });
 
-    // Step 15: Enqueue audit job (PUBL-05)
+    // Audit budget check (COST-03)
+    const budget = await checkAuthorAuditBudget(env.DB, authorId);
+    if (!budget.allowed) {
+      return errorResponse(429, "Daily audit limit reached (10/day). Try again tomorrow.");
+    }
+
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId,
       version: versionStr,
       authorId,
       bundleKey,
     });
+    await recordAuthorAuditUsage(env.DB, authorId);
 
     // Step 16: Return 202 Accepted
     return jsonResponse(
