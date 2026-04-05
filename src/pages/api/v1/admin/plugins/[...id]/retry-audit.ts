@@ -36,13 +36,7 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
     const ver = await getVersionForRetry(env.DB, pluginId, version);
     if (!ver) return errorResponse(404, "Version not found");
 
-    if (ver.status !== "rejected") {
-      return errorResponse(
-        400,
-        `Cannot retry audit for version with status '${ver.status}'.`,
-      );
-    }
-
+    // Admin can re-audit any status (no retry limit, no status restriction)
     await incrementRetryCount(env.DB, ver.id);
 
     await enqueueAuditJob(env.AUDIT_QUEUE, {
