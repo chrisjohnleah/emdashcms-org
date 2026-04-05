@@ -1,0 +1,89 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import { searchThemes } from '../../lib/db/queries';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ThemeCard from '../../components/ThemeCard.astro';
+import SearchBar from '../../components/SearchBar.astro';
+import FilterChips from '../../components/FilterChips.astro';
+import Pagination from '../../components/Pagination.astro';
+import EmptyState from '../../components/EmptyState.astro';
+
+const url = Astro.url;
+const q = url.searchParams.get('q') ?? '';
+const keyword = url.searchParams.get('keyword') ?? null;
+const sort = url.searchParams.get('sort') ?? 'created';
+const cursor = url.searchParams.get('cursor') ?? null;
+
+const { items: themes, nextCursor } = await searchThemes(env.DB, {
+  query: q,
+  keyword,
+  sort,
+  cursor,
+  limit: 12,
+});
+
+const knownKeywords = ['blog', 'portfolio', 'ecommerce', 'documentation', 'landing', 'minimal', 'dark'];
+
+const sortOptions = [
+  { value: 'created', label: 'Recently added' },
+  { value: 'updated', label: 'Recently updated' },
+  { value: 'name', label: 'Name A-Z' },
+];
+
+const isFiltered = q || keyword;
+---
+<BaseLayout title="Themes - emdashcms.org">
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-5xl">
+
+      <h1 class="text-3xl font-semibold tracking-tight leading-[1.15]">Themes</h1>
+
+      <div class="mt-8">
+        <SearchBar action="/themes" placeholder="Search themes..." value={q} />
+      </div>
+
+      <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <FilterChips items={knownKeywords} active={keyword} paramName="keyword" baseUrl="/themes" />
+
+        <form method="GET" action="/themes" class="flex-shrink-0">
+          {q && <input type="hidden" name="q" value={q} />}
+          {keyword && <input type="hidden" name="keyword" value={keyword} />}
+          <select name="sort" onchange="this.form.submit()" class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+            {sortOptions.map(opt => (
+              <option value={opt.value} selected={sort === opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </form>
+      </div>
+
+      {themes.length > 0 ? (
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {themes.map(theme => <ThemeCard theme={theme} />)}
+        </div>
+      ) : isFiltered ? (
+        <div class="mt-8">
+          <EmptyState
+            heading="No themes found"
+            body="Try adjusting your search or keyword filter."
+          />
+        </div>
+      ) : (
+        <div class="mt-8">
+          <EmptyState
+            heading="No themes listed yet"
+            body="Theme listings are coming soon. Check back later."
+          />
+        </div>
+      )}
+
+      {themes.length > 0 && (
+        <div class="mt-8">
+          <Pagination nextCursor={nextCursor} count={themes.length} label="themes" baseUrl="/themes" />
+        </div>
+      )}
+
+    </div>
+  </section>
+</BaseLayout>
