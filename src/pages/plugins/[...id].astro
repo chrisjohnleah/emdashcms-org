@@ -87,15 +87,16 @@ const formatSize = (bytes: number) => {
             )}
 
             <div class="mt-8">
-              <h2 class="text-sm font-semibold text-zinc-100">Install with EmDash CLI</h2>
+              <h2 class="text-sm font-semibold text-zinc-100">Plugin ID</h2>
               <div class="mt-2 flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-                <code class="flex-1 text-sm font-mono text-zinc-300">emdash plugin install {plugin.id}</code>
+                <code class="flex-1 text-sm font-mono text-zinc-300">{plugin.id}</code>
                 <button
-                  data-copy={`emdash plugin install ${plugin.id}`}
+                  data-copy={plugin.id}
                   class="flex-shrink-0 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
-                  aria-label="Copy command"
+                  aria-label="Copy plugin ID"
                 >Copy</button>
               </div>
+              <p class="mt-2 text-xs text-zinc-500">Installation requires EmDash CMS to be configured with this marketplace as its registry.</p>
             </div>
 
             {plugin.description && (
