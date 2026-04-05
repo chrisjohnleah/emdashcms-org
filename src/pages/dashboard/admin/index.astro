@@ -158,5 +158,28 @@ const formatDate = (iso: string) =>
     </div>
   </section>
 
-  <script src="../../../scripts/admin-plugin-actions.ts"></script>
+  <script>
+document.querySelectorAll('[data-admin-action]').forEach((form) => {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const el = e.currentTarget as HTMLFormElement;
+    const action = el.dataset.adminAction;
+    const pluginId = el.dataset.pluginId;
+    if (!pluginId) return;
+    if (action === 'delete' && !confirm(`Permanently delete "${pluginId}"? This cannot be undone.`)) return;
+    if (action === 'revoke' && !confirm(`Revoke "${pluginId}"? It will be hidden from public listings.`)) return;
+    const url = action === 'delete'
+      ? `/api/v1/admin/plugins/${pluginId}`
+      : `/api/v1/admin/plugins/${pluginId}/${action}`;
+    const method = action === 'delete' ? 'DELETE' : 'POST';
+    const res = await fetch(url, { method });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
+      alert(`Failed: ${body.error}`);
+    }
+  });
+});
+</script>
 </BaseLayout>
