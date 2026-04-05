@@ -183,8 +183,14 @@ export async function processAuditJob(
 
   // 7. Parse and validate response
   let parsed: { verdict: "pass" | "warn" | "fail"; riskScore: number; findings: unknown[] };
+  const responseText = result.response ?? "";
+
+  // Empty or whitespace-only response is transient — retry, don't reject
+  if (!responseText.trim()) {
+    throw new TransientError("AI returned empty response");
+  }
+
   try {
-    const responseText = result.response ?? "";
     const raw = JSON.parse(responseText);
     if (!validateAuditResponse(raw)) {
       throw new Error("Response does not match expected schema");
@@ -192,6 +198,10 @@ export async function processAuditJob(
     parsed = raw;
   } catch (err) {
     const msg = `Malformed AI response: ${err instanceof Error ? err.message : String(err)}`;
+    // Truncated JSON (starts with { but didn't complete) is likely transient
+    if (err instanceof SyntaxError && /^\s*[\[{]/.test(responseText)) {
+      throw new TransientError(msg);
+    }
     await rejectVersion(bindings.db, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
