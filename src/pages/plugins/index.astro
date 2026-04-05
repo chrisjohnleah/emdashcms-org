@@ -1,0 +1,107 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import { searchPlugins } from '../../lib/db/queries';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PluginCard from '../../components/PluginCard.astro';
+import SearchBar from '../../components/SearchBar.astro';
+import FilterChips from '../../components/FilterChips.astro';
+import Pagination from '../../components/Pagination.astro';
+import EmptyState from '../../components/EmptyState.astro';
+
+const url = Astro.url;
+const q = url.searchParams.get('q') ?? '';
+const capability = url.searchParams.get('capability') ?? null;
+const category = url.searchParams.get('category') ?? null;
+const sort = url.searchParams.get('sort') ?? 'installs';
+const cursor = url.searchParams.get('cursor') ?? null;
+
+const { items: plugins, nextCursor } = await searchPlugins(env.DB, {
+  query: q,
+  category,
+  capability,
+  sort,
+  cursor,
+  limit: 12,
+});
+
+const knownCapabilities = [
+  'network:fetch',
+  'storage:read',
+  'storage:write',
+  'admin:panel',
+  'content:transform',
+  'hook:beforeSave',
+  'hook:afterSave',
+];
+
+const sortOptions = [
+  { value: 'installs', label: 'Most installed' },
+  { value: 'updated', label: 'Recently updated' },
+  { value: 'created', label: 'Recently added' },
+  { value: 'name', label: 'Name A-Z' },
+];
+
+const isFiltered = q || capability || category;
+---
+<BaseLayout title="Plugins - emdashcms.org" description="Browse community plugins for EmDash CMS. Search, filter by capability, and discover extensions for your site.">
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-5xl">
+
+      <h1 class="text-3xl font-semibold tracking-tight leading-[1.15]">Plugins</h1>
+
+      <div class="mt-8">
+        <SearchBar action="/plugins" placeholder="Search plugins..." value={q} />
+      </div>
+
+      <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <FilterChips items={knownCapabilities} active={capability} paramName="capability" baseUrl="/plugins" />
+
+        <form method="GET" action="/plugins" class="flex-shrink-0">
+          {q && <input type="hidden" name="q" value={q} />}
+          {capability && <input type="hidden" name="capability" value={capability} />}
+          {category && <input type="hidden" name="category" value={category} />}
+          <select
+            name="sort"
+            onchange="this.form.submit()"
+            class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+          >
+            {sortOptions.map(opt => (
+              <option value={opt.value} selected={sort === opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </form>
+      </div>
+
+      {plugins.length > 0 ? (
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {plugins.map(plugin => <PluginCard plugin={plugin} />)}
+        </div>
+      ) : isFiltered ? (
+        <div class="mt-8">
+          <EmptyState
+            heading="No plugins found"
+            body="Try adjusting your search or filters to find what you're looking for."
+          />
+        </div>
+      ) : (
+        <div class="mt-8">
+          <EmptyState
+            heading="No plugins published yet"
+            body="Be the first to publish a plugin. Sign in with GitHub to get started."
+            linkHref="/dashboard"
+            linkText="Go to Dashboard"
+          />
+        </div>
+      )}
+
+      {plugins.length > 0 && (
+        <div class="mt-8">
+          <Pagination nextCursor={nextCursor} count={plugins.length} label="plugins" baseUrl="/plugins" />
+        </div>
+      )}
+
+    </div>
+  </section>
+</BaseLayout>
