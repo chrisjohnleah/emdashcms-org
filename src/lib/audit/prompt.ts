@@ -6,14 +6,47 @@
  */
 import { unpackTar, createGzipDecoder } from "modern-tar";
 
-/** Workers AI model used for code audits */
-export const MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
+/**
+ * Workers AI model used for code audits.
+ *
+ * llama-3.2-3b-instruct is small (3B params) but capable enough for the
+ * lightweight static-leaning audit we run. It is roughly an order of
+ * magnitude cheaper per token than the previous 26B gemma. Coupled with
+ * the smaller MAX_CODE_CHARS / max_tokens caps below this gets the free
+ * tier from ~14 audits/day to ~200+/day.
+ */
+export const MODEL_ID = "@cf/meta/llama-3.2-3b-instruct";
 
 /** File extensions to extract from bundles for AI analysis */
 export const CODE_EXTENSIONS = new Set([".js", ".ts", ".mjs", ".cjs", ".json"]);
 
-/** Maximum total characters of code content to send to the model (~50K tokens) */
-export const MAX_CODE_CHARS = 200_000;
+/**
+ * File patterns we never want to ship to the model. Vendored builds,
+ * source maps, lock files and similar are noise that bloats the prompt
+ * and adds nothing for security review.
+ */
+const SKIP_PATTERNS = [
+  /(^|\/)node_modules\//,
+  /(^|\/)dist\//,
+  /(^|\/)build\//,
+  /(^|\/)\.git\//,
+  /\.min\.(js|cjs|mjs)$/,
+  /\.map$/,
+  /(^|\/)package-lock\.json$/,
+  /(^|\/)pnpm-lock\.yaml$/,
+  /(^|\/)yarn\.lock$/,
+];
+
+export function shouldSkipForAudit(path: string): boolean {
+  return SKIP_PATTERNS.some((re) => re.test(path));
+}
+
+/**
+ * Maximum total characters of code content to send to the model.
+ * 50K chars ≈ 12K tokens — 4× cheaper than the prior 200K cap and
+ * still enough to cover a typical small plugin's source surface area.
+ */
+export const MAX_CODE_CHARS = 50_000;
 
 /**
  * System prompt instructing the model to act as a CMS plugin security auditor.
@@ -107,6 +140,9 @@ export async function extractCodeFiles(
     const lastDot = name.lastIndexOf(".");
     const ext = lastDot >= 0 ? name.slice(lastDot) : "";
     if (!CODE_EXTENSIONS.has(ext)) continue;
+
+    // Skip vendored / generated / lockfile noise
+    if (shouldSkipForAudit(name)) continue;
 
     const data = entry.data ?? new Uint8Array(0);
     codeFiles.set(name, decoder.decode(data));

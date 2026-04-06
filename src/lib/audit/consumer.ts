@@ -176,8 +176,7 @@ export async function processAuditJob(
   // 6. Call Workers AI
   let result: { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
   try {
-    // Cast model ID: gemma-4-26b-a4b-it is not in wrangler types yet (released 2026-04-04)
-    result = await (bindings.ai as Ai).run(MODEL_ID as keyof AiModels, {
+    result = await (bindings.ai as Ai).run(MODEL_ID, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: promptContent },
@@ -186,7 +185,7 @@ export async function processAuditJob(
         type: "json_schema" as const,
         json_schema: AUDIT_JSON_SCHEMA,
       },
-      max_tokens: 4096,
+      max_tokens: 1024,
       temperature: 0.1,
     }) as unknown as { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
   } catch (err) {
