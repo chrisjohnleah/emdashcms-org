@@ -75,6 +75,26 @@ export async function listInstallationRepos(
 }
 
 /**
+ * Hosts allowed for tarball downloads. Defends against SSRF if a webhook
+ * payload is ever crafted (or replayed) with a tarball_url pointing at an
+ * internal service or attacker-controlled host.
+ */
+const ALLOWED_TARBALL_HOSTS = new Set([
+  "api.github.com",
+  "codeload.github.com",
+]);
+
+function isAllowedTarballUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_TARBALL_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Download a release tarball from GitHub using an installation token.
  * Per D-07: uses the auto-generated source tarball URL.
  * Per D-22: works for both public and private repos.
@@ -86,6 +106,10 @@ export async function downloadReleaseTarball(
   tarballUrl: string,
   installationToken: string,
 ): Promise<ArrayBuffer> {
+  if (!isAllowedTarballUrl(tarballUrl)) {
+    throw new Error(`Refusing to download tarball from disallowed host: ${tarballUrl}`);
+  }
+
   const headers = {
     Authorization: `Bearer ${installationToken}`,
     Accept: "application/vnd.github+json",
@@ -103,6 +127,9 @@ export async function downloadReleaseTarball(
   if (res.status === 302) {
     const location = res.headers.get("Location");
     if (!location) throw new Error("GitHub returned 302 without Location header");
+    if (!isAllowedTarballUrl(location)) {
+      throw new Error(`Refusing to follow redirect to disallowed host: ${location}`);
+    }
     res = await fetch(location, {
       headers: { "User-Agent": USER_AGENT },
     });
