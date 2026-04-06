@@ -176,22 +176,83 @@ export function mapDashboardPlugin(row: Row): {
   };
 }
 
-export function mapVersionDetail(row: Row): {
+type VersionStatus = "pending" | "published" | "flagged" | "rejected";
+type TrustTier =
+  | "unreviewed"
+  | "scanned"
+  | "scanned-caution"
+  | "ai-reviewed"
+  | "ai-reviewed-caution"
+  | "rejected";
+
+/**
+ * Derive the visible trust tier from `status` + the most recent audit's
+ * `model` field. No D1 column — this is computed at read time to keep
+ * the schema simple. Rules:
+ *
+ *   - `status='pending'`                             → 'unreviewed'
+ *   - `status='rejected'`                            → 'rejected'
+ *   - `status='published'` + AI model                → 'ai-reviewed'
+ *   - `status='flagged'`   + AI model                → 'ai-reviewed-caution'
+ *   - `status='published'` + static-only model       → 'scanned'
+ *   - `status='flagged'`   + static-only model       → 'scanned-caution'
+ *   - Everything else (admin-action, unknown model)  → derived from status
+ *     alone to avoid showing a stale AI tier.
+ */
+export function deriveTrustTier(
+  status: VersionStatus,
+  model: string | null,
+): TrustTier {
+  if (status === "pending") return "unreviewed";
+  if (status === "rejected") return "rejected";
+
+  const isAiModel = typeof model === "string" && model.startsWith("@cf/");
+  const isStatic = model === "static-only";
+
+  if (status === "published") {
+    if (isAiModel) return "ai-reviewed";
+    if (isStatic) return "scanned";
+    // admin-action published (manual approve) — treat as scanned so the
+    // plugin still gets a positive tier rather than the neutral Unreviewed.
+    return "scanned";
+  }
+
+  if (status === "flagged") {
+    if (isAiModel) return "ai-reviewed-caution";
+    if (isStatic) return "scanned-caution";
+    return "scanned-caution";
+  }
+
+  return "unreviewed";
+}
+
+export function mapVersionDetail(
+  row: Row,
+  adminRejectionReason: string | null = null,
+): {
   version: string;
-  status: "pending" | "published" | "flagged" | "rejected";
+  status: VersionStatus;
   retryCount: number;
   createdAt: string;
   verdict: "pass" | "warn" | "fail" | null;
   riskScore: number | null;
   findings: MarketplaceAuditFinding[];
+  latestAuditModel: string | null;
+  trustTier: TrustTier;
+  adminRejectionReason: string | null;
 } {
+  const status = row.status as VersionStatus;
+  const latestAuditModel = (row.latest_audit_model as string) ?? null;
   return {
     version: row.version as string,
-    status: row.status as "pending" | "published" | "flagged" | "rejected",
+    status,
     retryCount: (row.retry_count as number) ?? 0,
     createdAt: row.created_at as string,
     verdict: (row.verdict as "pass" | "warn" | "fail") ?? null,
     riskScore: (row.risk_score as number) ?? null,
     findings: JSON.parse((row.findings as string) || "[]"),
+    latestAuditModel,
+    trustTier: deriveTrustTier(status, latestAuditModel),
+    adminRejectionReason,
   };
 }

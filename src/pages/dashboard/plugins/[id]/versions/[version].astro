@@ -144,7 +144,11 @@ const severityClasses = (severity: string) => {
                 <p class="text-sm text-zinc-400">
                   {versionDetail.retryCount} of 3 retry attempts used
                 </p>
-                {isMaintainer && versionDetail.retryCount < 3 ? (
+                {versionDetail.latestAuditModel === 'static-only' ? (
+                  <p class="text-sm text-zinc-500">
+                    Static-scanner rejection — upload a corrected bundle.
+                  </p>
+                ) : isMaintainer && versionDetail.retryCount < 3 ? (
                   <form method="POST" class="inline">
                     <button
                       type="submit"
@@ -159,6 +163,32 @@ const severityClasses = (severity: string) => {
               </div>
             )}
           </div>
+
+          {versionDetail.status === 'rejected' && versionDetail.adminRejectionReason && (
+            <div class="mt-8 rounded-xl border border-amber-800/40 bg-amber-950/20 p-5">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+                <div>
+                  <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wide">
+                    Moderator note
+                  </h3>
+                  <p class="mt-2 text-sm text-amber-100/80 whitespace-pre-wrap leading-relaxed">
+                    {versionDetail.adminRejectionReason}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {versionDetail.latestAuditModel === 'static-only' && versionDetail.status === 'rejected' && (
+            <div class="mt-4 text-xs text-zinc-500">
+              Static-scanner rejections are deterministic — retrying the same bundle will produce the same result.
+              Review the findings below, fix the issue in your source, and upload a new version.
+              See <a href="/docs/security" class="text-zinc-300 hover:text-zinc-100 underline decoration-zinc-700">the review policy</a> for the full ruleset.
+            </div>
+          )}
 
           <h2 class="mt-12 text-xl font-semibold text-zinc-100">Findings</h2>
 

@@ -134,6 +134,57 @@ describe("Dashboard queries", () => {
       expect(detail!.riskScore).toBeNull();
       expect(detail!.findings).toEqual([]);
     });
+
+    it("derives trustTier='unreviewed' for a pending version with no audits", async () => {
+      const detail = await getVersionDetail(
+        env.DB,
+        TEST_PLUGIN_ID,
+        "0.9.0",
+      );
+      expect(detail!.trustTier).toBe("unreviewed");
+      expect(detail!.latestAuditModel).toBeNull();
+      expect(detail!.adminRejectionReason).toBeNull();
+    });
+
+    it("surfaces latestAuditModel from the most recent audit record", async () => {
+      const detail = await getVersionDetail(
+        env.DB,
+        TEST_PLUGIN_ID,
+        "1.0.0",
+      );
+      // The seeded audit uses model 'gemma-4-26b'.
+      expect(detail!.latestAuditModel).toBe("gemma-4-26b");
+    });
+
+    it("surfaces the admin rejection reason when an admin-action audit exists", async () => {
+      // Seed a rejected version with an admin-action audit reason.
+      const rejectedVersionId = "vvvvvvvv-0000-0000-0000-000000000003";
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO plugin_versions (id, plugin_id, version, status, bundle_key, manifest,
+           file_count, compressed_size, decompressed_size, checksum, retry_count, created_at, updated_at)
+           VALUES (?, ?, '0.8.0', 'rejected', 'bundles/test/0.8.0.tgz', '{}',
+           5, 1024, 4096, 'ghi789', 0, '2024-11-01T00:00:00Z', '2024-11-01T00:00:00Z')`,
+        ).bind(rejectedVersionId, TEST_PLUGIN_ID),
+        env.DB.prepare(
+          `INSERT INTO plugin_audits (id, plugin_version_id, status, model, neurons_used, verdict, risk_score, findings, raw_response, created_at)
+           VALUES ('auditid02-0000-0000-0000-000000000002', ?, 'complete', 'admin-action', 0, NULL, 0,
+           '[]', 'Insufficient test coverage for the capability declarations.',
+           '2024-11-02T00:00:00Z')`,
+        ).bind(rejectedVersionId),
+      ]);
+
+      const detail = await getVersionDetail(
+        env.DB,
+        TEST_PLUGIN_ID,
+        "0.8.0",
+      );
+      expect(detail!.status).toBe("rejected");
+      expect(detail!.trustTier).toBe("rejected");
+      expect(detail!.adminRejectionReason).toBe(
+        "Insufficient test coverage for the capability declarations.",
+      );
+    });
   });
 
   describe("updatePluginMetadata", () => {

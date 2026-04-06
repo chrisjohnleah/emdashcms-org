@@ -231,6 +231,20 @@ export async function getPluginsByAuthor(
   return (result.results as Record<string, unknown>[]).map(mapDashboardPlugin);
 }
 
+/**
+ * Trust tier shown to contributors and marketplace users. Derived at read
+ * time from `plugin_versions.status` + the latest audit record's `model`
+ * field — no D1 column, no migration. Keep this union in sync with
+ * `TrustTierBadge.astro`.
+ */
+export type TrustTier =
+  | "unreviewed"
+  | "scanned"
+  | "scanned-caution"
+  | "ai-reviewed"
+  | "ai-reviewed-caution"
+  | "rejected";
+
 export interface VersionDetail {
   version: string;
   status: "pending" | "published" | "flagged" | "rejected";
@@ -239,6 +253,22 @@ export interface VersionDetail {
   verdict: "pass" | "warn" | "fail" | null;
   riskScore: number | null;
   findings: MarketplaceAuditFinding[];
+  /**
+   * The `model` column from the most recent audit record for this version.
+   * Values in use: `'static-only'`, `'none'` (error path), AI model IDs
+   * like `'@cf/meta/llama-3.2-3b-instruct'`, and `'admin-action'` for
+   * manual approve/reject entries.
+   */
+  latestAuditModel: string | null;
+  /** Derived trust tier for display — see `TrustTier` union above. */
+  trustTier: TrustTier;
+  /**
+   * If the most recent admin-action audit carries a reason (`raw_response`
+   * column), it surfaces here so the contributor can see why their version
+   * was rejected. Null when the version has no admin-action history or
+   * when the reason text is empty.
+   */
+  adminRejectionReason: string | null;
 }
 
 export async function getVersionDetail(
@@ -246,10 +276,11 @@ export async function getVersionDetail(
   pluginId: string,
   version: string,
 ): Promise<VersionDetail | null> {
-  const result = await db
+  // Primary query: latest audit (by created_at) joined to the version row.
+  const primary = await db
     .prepare(
       `SELECT pv.version, pv.status, pv.retry_count, pv.created_at,
-              pa.verdict, pa.risk_score, pa.findings
+              pa.verdict, pa.risk_score, pa.findings, pa.model AS latest_audit_model
        FROM plugin_versions pv
        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
          AND pa.created_at = (SELECT MAX(pa2.created_at) FROM plugin_audits pa2 WHERE pa2.plugin_version_id = pv.id)
@@ -258,10 +289,31 @@ export async function getVersionDetail(
     .bind(pluginId, version)
     .all();
 
-  const rows = result.results as Record<string, unknown>[];
+  const rows = primary.results as Record<string, unknown>[];
   if (rows.length === 0) return null;
 
-  return mapVersionDetail(rows[0]);
+  // Secondary query: the most recent admin-action audit (if any) for this
+  // version. Kept separate from the primary join because correlating the
+  // latest-overall audit with the latest-of-type audit inside one SQLite
+  // subquery gets ugly fast.
+  const adminAction = await db
+    .prepare(
+      `SELECT pa.raw_response
+       FROM plugin_audits pa
+       INNER JOIN plugin_versions pv ON pv.id = pa.plugin_version_id
+       WHERE pv.plugin_id = ? AND pv.version = ? AND pa.model = 'admin-action'
+       ORDER BY pa.created_at DESC
+       LIMIT 1`,
+    )
+    .bind(pluginId, version)
+    .first<{ raw_response: string }>();
+
+  const adminRejectionReason =
+    adminAction?.raw_response && adminAction.raw_response.trim().length > 0
+      ? adminAction.raw_response
+      : null;
+
+  return mapVersionDetail(rows[0], adminRejectionReason);
 }
 
 // --- Theme queries ---
