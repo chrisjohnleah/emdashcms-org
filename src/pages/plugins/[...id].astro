@@ -8,6 +8,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import AuditBadge from '../../components/AuditBadge.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import StarRating from '../../components/StarRating.astro';
+import TrustSignals from '../../components/TrustSignals.astro';
 import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 
@@ -229,7 +230,13 @@ const formatSize = (bytes: number) => {
             )}
           </div>
 
-          <aside class="mt-8 lg:mt-0">
+          <aside class="mt-8 lg:mt-0 space-y-6">
+            <TrustSignals
+              plugin={plugin}
+              publisherVerified={plugin.author.verified}
+              repositoryUrl={plugin.repositoryUrl}
+              bundleDownloadUrl={plugin.latestVersion ? `/api/v1/plugins/${encodeURIComponent(plugin.id)}/versions/${plugin.latestVersion.version}/bundle` : null}
+            />
             <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
               {!plugin.latestVersion && versions.length > 0 && (
                 <div>
