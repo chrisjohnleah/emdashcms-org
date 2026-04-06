@@ -8,11 +8,25 @@ import {
   TransientError,
 } from "./lib/audit/consumer";
 import { rejectVersion } from "./lib/audit/audit-queries";
+import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
 import type { AuditJob } from "./types/marketplace";
 
 export default {
   async fetch(request, env, ctx) {
     return handle(request, env, ctx);
+  },
+
+  async scheduled(_event, env, _ctx) {
+    // Purge rate_limits rows older than 1 hour to prevent unbounded growth.
+    // Keys are `{ip}:{YYYY-MM-DDTHH:MM}` so the trailing 16 chars are the bucket.
+    const cutoff = new Date(Date.now() - 60 * 60_000)
+      .toISOString()
+      .slice(0, 16);
+    try {
+      await cleanupOldRateLimits(env.DB, cutoff);
+    } catch (err) {
+      console.error("[scheduled] rate_limits cleanup failed:", err);
+    }
   },
 
   async queue(batch, env, _ctx) {

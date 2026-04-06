@@ -51,6 +51,11 @@
     "binding": "AI"
   },
 
+  // Hourly cleanup of expired rate_limits rows (prevents unbounded D1 growth)
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+
   "placement": {
     "mode": "smart"
   },
