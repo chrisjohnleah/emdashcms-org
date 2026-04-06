@@ -452,6 +452,40 @@ describe("processAuditJob - fail-closed (AUDT-04)", () => {
     expect(version!.status).toBe("rejected");
   });
 
+  it("recovers JSON wrapped in markdown fences", async () => {
+    // Realistic shape returned by llama-3.2-3b-instruct and similar models
+    // that don't honour 'JSON only' prompts strictly.
+    const wrapped = "```json\n" + JSON.stringify({
+      verdict: "pass",
+      riskScore: 12,
+      findings: [],
+    }) + "\n```";
+    const mockAi = createMockAi({
+      response: wrapped,
+      usage: { prompt_tokens: 5000, completion_tokens: 500, total_tokens: 5500 },
+    });
+
+    const result = await processAuditJob(makeJob(), makeBindings(mockAi));
+    expect(result.status).toBe("complete");
+    expect(result.verdict).toBe("pass");
+  });
+
+  it("recovers JSON after a prose preamble", async () => {
+    const text = "Here is the audit:\n" + JSON.stringify({
+      verdict: "warn",
+      riskScore: 35,
+      findings: [],
+    });
+    const mockAi = createMockAi({
+      response: text,
+      usage: { prompt_tokens: 5000, completion_tokens: 500, total_tokens: 5500 },
+    });
+
+    const result = await processAuditJob(makeJob(), makeBindings(mockAi));
+    expect(result.status).toBe("complete");
+    expect(result.verdict).toBe("warn");
+  });
+
   it("rejects version when R2 bundle is missing", async () => {
     const mockAi = createMockAi(makePassResponse());
     const jobWithMissingBundle = makeJob({

@@ -50,70 +50,57 @@ export const MAX_CODE_CHARS = 50_000;
 
 /**
  * System prompt instructing the model to act as a CMS plugin security auditor.
- * Returns structured JSON with verdict, risk score, and findings.
+ *
+ * We do NOT use response_format here — many Workers AI models (including
+ * llama-3.2-3b-instruct) reject json_schema with "5025: This model doesn't
+ * support JSON Schema". Instead we mandate JSON output via the prompt and
+ * extract+parse it ourselves. This works with every text-generation model
+ * on Workers AI, so model swaps don't break the audit pipeline.
  */
 export const SYSTEM_PROMPT = `You are a security auditor for EmDash CMS plugins. Your job is to analyze plugin source code and identify security risks, privacy violations, and code quality issues.
 
-Analyze the provided code files and return a JSON assessment with:
-- A verdict: "pass" (safe to publish), "warn" (publishable with warnings), or "fail" (should be rejected)
-- A risk score from 0 (no risk) to 100 (maximum risk)
-- An array of findings, each with severity, title, description, category, and optional location
+CRITICAL OUTPUT FORMAT:
+- Respond with ONE valid JSON object and NOTHING ELSE.
+- Do NOT wrap the JSON in markdown code fences (no \`\`\`json).
+- Do NOT include any prose, explanation, or commentary before or after.
+- Do NOT include trailing commas or comments inside the JSON.
+- Your entire response must parse with JSON.parse() on the first attempt.
 
-Focus on these categories:
-- security: Dangerous eval/Function usage, prototype pollution, injection vulnerabilities, unsafe dynamic code execution
-- privacy: Accessing user data beyond declared scope, storing sensitive information, tracking users without consent
-- network: Data exfiltration attempts, requests to unexpected external hosts, phone-home behavior, hidden telemetry
-- permissions: Requesting excessive capabilities, accessing APIs beyond declared manifest scope, privilege escalation
-- code-quality: Obfuscated code suggesting malicious intent, known malware patterns, suspicious minification
-- compatibility: Patterns that would break in the EmDash sandbox environment, unsupported APIs
+The JSON object MUST have exactly these three top-level fields:
+{
+  "verdict": "pass" | "warn" | "fail",
+  "riskScore": <integer 0-100>,
+  "findings": [
+    {
+      "severity": "critical" | "high" | "medium" | "low" | "info",
+      "title": "<short>",
+      "description": "<one to three sentences>",
+      "category": "security" | "privacy" | "network" | "permissions" | "code-quality" | "compatibility",
+      "location": "<file path or null>"
+    }
+  ]
+}
 
-Scoring guidelines:
-- 0-20: Clean code with no significant issues
-- 21-50: Minor concerns that publishers should address
-- 51-75: Significant issues requiring attention before use
-- 76-100: Critical security problems, likely malicious
+Verdict definitions:
+- "pass": safe to publish, no significant issues
+- "warn": publishable with warnings, minor concerns
+- "fail": should be rejected, critical or likely-malicious issues
 
-Return ONLY valid JSON matching the required schema. Do not include any text outside the JSON object.`;
+Categories to consider:
+- security: eval/Function usage, prototype pollution, injection, unsafe dynamic code
+- privacy: accessing user data beyond declared scope, sensitive storage, tracking without consent
+- network: exfiltration, requests to undeclared hosts, phone-home, hidden telemetry
+- permissions: excessive capabilities, accessing APIs beyond manifest scope, privilege escalation
+- code-quality: obfuscation, known malware patterns, suspicious minification
+- compatibility: patterns that would break in the EmDash sandbox, unsupported APIs
 
-/**
- * JSON schema for Workers AI response_format, constraining the model's output
- * to match the MarketplaceAuditDetail structure.
- */
-export const AUDIT_JSON_SCHEMA = {
-  type: "object",
-  properties: {
-    verdict: { type: "string", enum: ["pass", "warn", "fail"] },
-    riskScore: { type: "integer", minimum: 0, maximum: 100 },
-    findings: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          severity: {
-            type: "string",
-            enum: ["critical", "high", "medium", "low", "info"],
-          },
-          title: { type: "string" },
-          description: { type: "string" },
-          category: {
-            type: "string",
-            enum: [
-              "security",
-              "privacy",
-              "network",
-              "permissions",
-              "code-quality",
-              "compatibility",
-            ],
-          },
-          location: { type: "string" },
-        },
-        required: ["severity", "title", "description", "category"],
-      },
-    },
-  },
-  required: ["verdict", "riskScore", "findings"],
-};
+Risk score guidelines:
+- 0-20: clean code, no significant issues
+- 21-50: minor concerns publishers should address
+- 51-75: significant issues requiring attention
+- 76-100: critical security problems, likely malicious
+
+If the bundle is clean, return {"verdict":"pass","riskScore":0,"findings":[]}.`;
 
 /**
  * Extract code files from a plugin bundle tarball (.tgz).
@@ -196,4 +183,79 @@ export function buildPromptContent(codeFiles: Map<string, string>): string {
   }
 
   return parts.join("");
+}
+
+/**
+ * Extract a JSON object from a free-form model response.
+ *
+ * Models often disobey "JSON only" instructions and return one of:
+ *   1. Pure JSON: {...}
+ *   2. JSON wrapped in markdown fences: ```json\n{...}\n```
+ *   3. Prose preamble then JSON: "Here's the audit:\n{...}"
+ *   4. JSON then trailing prose
+ *
+ * We try in this order:
+ *   a) JSON.parse the whole response (the happy path)
+ *   b) Strip markdown code fences and try again
+ *   c) Find the first balanced { ... } block by scanning braces and try that
+ *
+ * Returns the parsed object on success, or null on failure.
+ */
+export function extractJsonFromResponse(text: string): unknown | null {
+  if (!text || typeof text !== "string") return null;
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  // 1. Direct parse
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    /* fall through */
+  }
+
+  // 2. Strip ```json ... ``` or ``` ... ``` fences
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (fenceMatch) {
+    try {
+      return JSON.parse(fenceMatch[1]);
+    } catch {
+      /* fall through */
+    }
+  }
+
+  // 3. Scan for the first balanced { ... } block
+  const start = trimmed.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        const candidate = trimmed.slice(start, i + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
 }

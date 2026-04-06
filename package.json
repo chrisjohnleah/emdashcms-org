@@ -11,6 +11,7 @@
     "build": "wrangler types && astro check && astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
+    "audit:local": "tsx scripts/audit-local.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:create-migration": "wrangler d1 migrations create emdashcms-org",
@@ -33,6 +34,7 @@
     "@tailwindcss/postcss": "^4.2.2",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.2"
   }

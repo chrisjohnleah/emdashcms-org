@@ -7,7 +7,7 @@
  */
 import type { AuditJob, MarketplaceAuditFinding } from "../../types/marketplace";
 import { checkNeuronBudget, recordNeuronUsage, tokensToNeurons } from "./budget";
-import { MODEL_ID, SYSTEM_PROMPT, AUDIT_JSON_SCHEMA, extractCodeFiles, buildPromptContent } from "./prompt";
+import { MODEL_ID, SYSTEM_PROMPT, extractCodeFiles, buildPromptContent, extractJsonFromResponse } from "./prompt";
 import { createAuditRecord, rejectVersion } from "./audit-queries";
 import { runStaticScan, type StaticFinding } from "./static-scanner";
 import { manifestSchema } from "../publishing/manifest-schema";
@@ -258,15 +258,15 @@ export async function processAuditJob(
   // 6. Call Workers AI
   let result: { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
   try {
+    // No response_format — many Workers AI models reject json_schema with
+    // "5025: This model doesn't support JSON Schema". The prompt mandates
+    // JSON-only output and extractJsonFromResponse() recovers it even if
+    // the model wraps it in code fences or adds prose.
     result = await (bindings.ai as Ai).run(MODEL_ID, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: promptContent },
       ],
-      response_format: {
-        type: "json_schema" as const,
-        json_schema: AUDIT_JSON_SCHEMA,
-      },
       max_tokens: 1024,
       temperature: 0.1,
     }) as unknown as { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
@@ -282,31 +282,37 @@ export async function processAuditJob(
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
-  // 7. Parse and validate response
+  // 7. Parse and validate response. The model may add prose, markdown
+  // fences, or trailing chatter — extractJsonFromResponse handles all of
+  // those and returns null only if no parseable JSON object exists.
   let parsed: { verdict: "pass" | "warn" | "fail"; riskScore: number; findings: unknown[] };
   const responseText = result.response ?? "";
 
-  // Empty or whitespace-only response is transient — retry, don't reject
   if (!responseText.trim()) {
     throw new TransientError("AI returned empty response");
   }
 
-  try {
-    const raw = JSON.parse(responseText);
-    if (!validateAuditResponse(raw)) {
-      throw new Error("Response does not match expected schema");
+  const extracted = extractJsonFromResponse(responseText);
+  if (extracted === null) {
+    // Truncated output mid-stream is transient — retry, don't reject
+    if (/^\s*[\[{]/.test(responseText)) {
+      throw new TransientError(
+        "Malformed AI response: could not extract valid JSON (likely truncated)",
+      );
     }
-    parsed = raw;
-  } catch (err) {
-    const msg = `Malformed AI response: ${err instanceof Error ? err.message : String(err)}`;
-    // Truncated JSON (starts with { but didn't complete) is likely transient
-    if (err instanceof SyntaxError && /^\s*[\[{]/.test(responseText)) {
-      throw new TransientError(msg);
-    }
+    const msg = "Malformed AI response: no JSON object found in output";
     await rejectVersion(bindings.db, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
+
+  if (!validateAuditResponse(extracted)) {
+    const msg = "Malformed AI response: JSON did not match required schema (verdict/riskScore/findings)";
+    await rejectVersion(bindings.db, versionId, msg);
+    console.error(`[audit] ${msg}`);
+    return { verdict: null, status: "error", neuronsUsed: 0 };
+  }
+  parsed = extracted;
 
   // 8. Calculate neurons
   const promptTokens = result.usage?.prompt_tokens ?? 0;
