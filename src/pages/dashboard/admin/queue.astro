@@ -102,8 +102,8 @@ const tabs: Tab[] = [
                 <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Risk Score</th>
                 <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Author</th>
                 <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Source</th>
-                <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Retries</th>
-                <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Submitted</th>
+                <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Submitted</th>
+                <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide text-right">Action</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-zinc-800/60">
@@ -140,8 +140,33 @@ const tabs: Tab[] = [
                   <td class="py-3 px-4">
                     {item.source ? <SourceBadge source={item.source as 'github' | 'upload'} /> : <span class="text-zinc-500">{'\u2014'}</span>}
                   </td>
-                  <td class="py-3 px-4 text-zinc-500 font-mono text-xs tabular-nums">{item.retryCount}</td>
-                  <td class="py-3 pl-4 pr-6 text-zinc-500">{formatDate(item.createdAt)}</td>
+                  <td class="py-3 px-4 text-zinc-500">{formatDate(item.createdAt)}</td>
+                  <td class="py-3 pl-4 pr-6">
+                    {(item.status === 'pending' || item.status === 'flagged') ? (
+                      <div class="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          data-approve-version
+                          data-plugin-id={encodeURIComponent(item.pluginId)}
+                          data-version={item.version}
+                          class="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-950/60 transition-colors cursor-pointer"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          data-reject-version
+                          data-plugin-id={encodeURIComponent(item.pluginId)}
+                          data-version={item.version}
+                          class="rounded-md border border-red-800/60 bg-red-950/40 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-950/60 transition-colors cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <span class="block text-right text-zinc-600 text-[11px]">{'\u2014'}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -151,4 +176,69 @@ const tabs: Tab[] = [
 
     </div>
   </section>
+
+  <script>
+    async function callAdminAction(
+      url: string,
+      body: Record<string, unknown>,
+      btn: HTMLButtonElement,
+      busyLabel: string,
+    ) {
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = busyLabel;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          window.location.reload();
+        } else {
+          const data = (await res.json().catch(() => ({ error: 'Unknown error' }))) as { error: string };
+          alert(`Failed: ${data.error}`);
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      } catch (err) {
+        alert(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    }
+
+    document.querySelectorAll('[data-approve-version]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const el = btn as HTMLButtonElement;
+        const pluginId = el.dataset.pluginId;
+        const version = el.dataset.version;
+        if (!pluginId || !version) return;
+        if (!confirm(`Approve ${decodeURIComponent(pluginId)}@${version} and publish?`)) return;
+        await callAdminAction(
+          `/api/v1/admin/plugins/${pluginId}/approve-version`,
+          { version },
+          el,
+          'Approving...',
+        );
+      });
+    });
+
+    document.querySelectorAll('[data-reject-version]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const el = btn as HTMLButtonElement;
+        const pluginId = el.dataset.pluginId;
+        const version = el.dataset.version;
+        if (!pluginId || !version) return;
+        const reason = prompt(`Reject ${decodeURIComponent(pluginId)}@${version}?\n\nOptional reason (visible to publisher):`);
+        if (reason === null) return; // user cancelled
+        await callAdminAction(
+          `/api/v1/admin/plugins/${pluginId}/reject-version`,
+          { version, reason: reason || undefined },
+          el,
+          'Rejecting...',
+        );
+      });
+    });
+  </script>
 </BaseLayout>
