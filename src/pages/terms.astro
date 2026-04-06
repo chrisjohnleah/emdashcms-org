@@ -1,0 +1,129 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const title = 'Terms of Use - emdashcms.org';
+const description = 'Terms of use for the emdashcms.org community marketplace.';
+const lastUpdated = '2026-04-06';
+---
+<BaseLayout title={title} description={description}>
+  <section class="pt-32 pb-16 px-6">
+    <div class="mx-auto max-w-3xl">
+
+      <div class="mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+          Terms of Use
+        </h1>
+        <p class="text-sm text-zinc-500">Last updated: {lastUpdated}</p>
+      </div>
+
+      <div class="prose-body text-zinc-300 leading-relaxed space-y-6">
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">1. About emdashcms.org</h2>
+          <p>
+            emdashcms.org is an independent, community-operated marketplace for plugins and themes that target
+            <a href="https://emdashcms.com" target="_blank" rel="noopener noreferrer" class="text-white underline hover:opacity-80">EmDash CMS</a>.
+            It is not affiliated with, endorsed by, or operated by the EmDash CMS project or Cloudflare. The
+            marketplace is open-source and runs on Cloudflare's free tier. The source code is available at
+            <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-white underline hover:opacity-80">github.com/chrisjohnleah/emdashcms-org</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">2. Acceptance of terms</h2>
+          <p>
+            By using this site — browsing, installing plugins, uploading a bundle, reporting a problem — you agree
+            to these terms and to our
+            <a href="/code-of-conduct" class="text-white underline hover:opacity-80">Code of Conduct</a>.
+            If you don't agree, please don't use the marketplace.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">3. Ownership of your content</h2>
+          <p>
+            You retain full ownership of any plugin, theme, bundle, review, or other content you upload. By
+            publishing a plugin or theme here, you grant emdashcms.org a non-exclusive, worldwide, royalty-free
+            licence to store, distribute, and display your content as part of the marketplace's normal operation.
+            This licence ends when you ask us to remove the content (or when it's removed under our review policy).
+          </p>
+          <p>
+            You must have the right to license every file you upload. If you include third-party code, it must be
+            under a compatible open-source licence and that licence must be respected in your bundle.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">4. Acceptable use</h2>
+          <p>
+            You agree not to upload plugins or themes that:
+          </p>
+          <ul class="list-disc pl-6 mt-3 space-y-1.5 text-zinc-400">
+            <li>Contain malicious code, backdoors, cryptomining, or data exfiltration logic.</li>
+            <li>Infringe on copyrights, trademarks, or other intellectual property rights.</li>
+            <li>Violate applicable laws or regulations.</li>
+            <li>Impersonate another person, organisation, or project.</li>
+            <li>Are designed to bypass our static scanner or other review gates.</li>
+          </ul>
+          <p class="mt-4">
+            Our full review policy — including the static scanner's ruleset in plain English — is published at
+            <a href="/docs/security" class="text-white underline hover:opacity-80">/docs/security</a>.
+            Violations may result in the rejection of your bundle, revocation of your plugin, or a ban of your
+            publishing account.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">5. No warranty</h2>
+          <p>
+            Plugins and themes on emdashcms.org are provided <strong class="text-white font-medium">"as is"</strong>.
+            We review every version with automated scans and, where budget allows, AI-assisted audits — but we do
+            not execute plugins in sandboxed runtime environments and we cannot guarantee that any published plugin
+            is safe, bug-free, or fit for purpose. Installing a plugin or theme is at your own risk.
+          </p>
+          <p>
+            emdashcms.org, its operators, and its contributors are not liable for any damages arising from the use
+            of plugins, themes, or the marketplace itself. If you need stronger guarantees, audit the source before
+            installing — every bundle is downloadable and open.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">6. Reports and takedowns</h2>
+          <p>
+            Anyone can report a plugin or theme by clicking "Report a problem" on its detail page or visiting
+            <code class="text-zinc-200 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">{'/report/plugin/{id}'}</code>.
+            We review reports promptly. For security issues, we may revoke the affected version immediately while
+            the investigation proceeds.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">7. Changes to these terms</h2>
+          <p>
+            We may update these terms from time to time. Significant changes will be noted at the top of this page
+            with a new "Last updated" date. Continued use of the marketplace after changes indicates acceptance.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">8. Contact</h2>
+          <p>
+            Questions about these terms? Open an issue on GitHub at
+            <a href="https://github.com/chrisjohnleah/emdashcms-org/issues" target="_blank" rel="noopener noreferrer" class="text-white underline hover:opacity-80">github.com/chrisjohnleah/emdashcms-org/issues</a>.
+          </p>
+        </section>
+
+        <section class="border-t border-zinc-800/60 pt-6 mt-10">
+          <p class="text-xs text-zinc-500">
+            The emdashcms.org marketplace code is MIT-licensed. Your use of the content on this site is governed
+            by the original authors' licences (typically GPL, MIT, or Apache).
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

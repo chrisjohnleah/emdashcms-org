@@ -1,0 +1,127 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const title = 'Privacy Policy - emdashcms.org';
+const description = 'What emdashcms.org collects, what we do not collect, and how we handle your data.';
+const lastUpdated = '2026-04-06';
+---
+<BaseLayout title={title} description={description}>
+  <section class="pt-32 pb-16 px-6">
+    <div class="mx-auto max-w-3xl">
+
+      <div class="mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+          Privacy Policy
+        </h1>
+        <p class="text-sm text-zinc-500">Last updated: {lastUpdated}</p>
+      </div>
+
+      <div class="text-zinc-300 leading-relaxed space-y-6">
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Short version</h2>
+          <p>
+            We collect as little as possible. No advertising trackers, no third-party analytics, no cookie banners
+            because there's nothing to consent to beyond the session cookie you get when you sign in. The
+            marketplace source code is public, so you can verify this yourself.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">What we collect</h2>
+          <p>
+            <strong class="text-white font-medium">GitHub account data</strong> when you sign in with GitHub:
+            your public GitHub ID, username, and avatar URL. We store these so we can attribute plugins and
+            themes to you, credit you as a reviewer, and surface your profile on the marketplace.
+          </p>
+          <p>
+            <strong class="text-white font-medium">Install events</strong> when an EmDash CMS instance installs
+            a plugin from this marketplace. The CMS sends us a SHA-256 hash of its site identity, the plugin id,
+            and the version number. The hash is irreversible — we cannot identify the site or user behind it.
+            Each hash+plugin+version triple is deduplicated so each site counts once per version.
+          </p>
+          <p>
+            <strong class="text-white font-medium">Rate-limit metadata</strong> on API endpoints. We track request
+            counts per IP address and per minute bucket in our database to prevent abuse. IP addresses are
+            discarded after one hour by a scheduled cleanup job.
+          </p>
+          <p>
+            <strong class="text-white font-medium">Plugin bundles, manifests, and findings</strong> you upload.
+            These are stored in Cloudflare R2 and D1 for as long as the plugin is on the marketplace. Bundles
+            carry a SHA-256 checksum so tampering is detectable.
+          </p>
+          <p>
+            <strong class="text-white font-medium">Reports you file.</strong> When you report a plugin or theme,
+            we store your description, the category, and (if you're signed in) your GitHub user id. Anonymous
+            reports are supported — in that case the reporter_author_id column stays null.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">What we do NOT collect</h2>
+          <ul class="list-disc pl-6 space-y-1.5 text-zinc-400">
+            <li>No Google Analytics, Plausible, Fathom, or other third-party tracking.</li>
+            <li>No fingerprinting or cross-site tracking scripts.</li>
+            <li>No email addresses (we don't send marketing emails — we don't send any emails at all currently).</li>
+            <li>No precise location data beyond the IP address used for rate limiting, which is discarded hourly.</li>
+            <li>No behavioural data about what pages you read or how long you spend on them.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Cookies</h2>
+          <p>
+            One cookie: a signed session JWT issued when you complete GitHub OAuth. It's HTTP-only, Secure,
+            SameSite=Lax, and expires after 30 days. It contains your internal author id, your GitHub id, and
+            your GitHub username — nothing else. We don't set any other cookies.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Third parties</h2>
+          <p>
+            We pass through your login request to GitHub for OAuth. GitHub's own privacy policy applies to that
+            interaction. We also call Cloudflare Turnstile to verify anonymous reports aren't from bots — Turnstile
+            is privacy-preserving by design and does not track users across sites.
+          </p>
+          <p>
+            Our infrastructure runs on Cloudflare Workers, D1 (SQLite), R2 (object storage), and Workers AI. As
+            the hosting provider, Cloudflare processes all requests.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Data retention</h2>
+          <ul class="list-disc pl-6 space-y-1.5 text-zinc-400">
+            <li>Account data is kept until you request deletion.</li>
+            <li>Plugin and theme bundles are kept indefinitely so the version history stays honest.</li>
+            <li>Rate-limit rows are deleted hourly by a scheduled job.</li>
+            <li>Audit records and reports are kept indefinitely as part of the public review history.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Your rights</h2>
+          <p>
+            You can request a copy of your data, a correction to your data, or deletion of your account by opening
+            an issue on GitHub or emailing the operator. For account deletion: your authored plugins and themes
+            will have your username replaced with "[deleted author]" so the version history remains honest, and
+            your reviews and reports will be anonymised.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Questions</h2>
+          <p>
+            Open an issue at
+            <a href="https://github.com/chrisjohnleah/emdashcms-org/issues" target="_blank" rel="noopener noreferrer" class="text-white underline hover:opacity-80">github.com/chrisjohnleah/emdashcms-org/issues</a>
+            with the "privacy" label.
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

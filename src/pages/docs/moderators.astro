@@ -1,0 +1,170 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const title = 'Moderator Handbook - emdashcms.org';
+const description = 'Guide for volunteer moderators of the emdashcms.org community marketplace.';
+---
+<BaseLayout title={title} description={description}>
+  <section class="pt-32 pb-16 px-6">
+    <div class="mx-auto max-w-3xl">
+
+      <div class="mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+          Moderator Handbook
+        </h1>
+        <p class="text-lg text-zinc-400 font-light leading-relaxed">
+          If you're reading this, you're about to help keep the EmDash community safe. Thank you.
+        </p>
+      </div>
+
+      <div class="text-zinc-300 leading-relaxed space-y-10">
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Your role</h2>
+          <p>
+            Moderators review flagged versions, respond to reports, and apply admin actions (approve, reject,
+            revoke, ban). You are not expected to be a security expert — our static scanner does the deterministic
+            work. Your job is judgement on ambiguous cases and fair, consistent handling of reports.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Moderation queue</h2>
+          <p>The queue at <code class="text-zinc-200 bg-zinc-800/60 px-1.5 py-0.5 rounded text-xs font-mono">/dashboard/admin/queue</code> shows every version that's pending, flagged, or rejected. Filter by status using the tabs. Each row has inline actions:</p>
+          <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li><strong class="text-emerald-400">Approve</strong> — publishes a pending/flagged version immediately. Use when you've reviewed and decided it's safe.</li>
+            <li><strong class="text-red-400">Reject</strong> — sends the version to rejected state. Always write a clear, actionable reason. The reason is visible to the author on their dashboard and (if you leave the "Post publicly" checkbox on) on the public plugin detail page.</li>
+            <li><strong class="text-zinc-300">Static</strong> — re-run just the static scanner. Free, no neurons.</li>
+            <li><strong class="text-amber-400">AI</strong> — re-run the AI audit. Costs neurons from the daily budget. Use when you want a second opinion on a flagged version.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">When to approve</h2>
+          <ul class="list-disc pl-6 space-y-2 text-sm text-zinc-400">
+            <li>Scanner findings are low-severity (e.g. bundled CJS <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">require()</code>, undeclared hosts pointing to legitimate services) and you've read enough of the source to be confident.</li>
+            <li>AI verdict is <code class="text-emerald-400">pass</code> with a low risk score and no security findings.</li>
+            <li>The plugin has a clear purpose, a linked repository, and the code matches the description.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">When to reject</h2>
+          <ul class="list-disc pl-6 space-y-2 text-sm text-zinc-400">
+            <li>The code does something the manifest doesn't declare (e.g. network calls to undeclared hosts that look like data exfiltration).</li>
+            <li>The plugin is deceptive — the description doesn't match what the code does.</li>
+            <li>Obvious license violations (copying another plugin verbatim with a different name).</li>
+            <li>The plugin is a framework or boilerplate with no meaningful functionality.</li>
+            <li>The manifest declares capabilities the plugin clearly doesn't need (over-scoping for data collection).</li>
+          </ul>
+          <p class="mt-4">
+            <strong class="text-white font-medium">Writing a good rejection reason:</strong> be specific, point to a file and line if possible, describe the fix. Reasons are public by default — assume installers will read them. If you need to reference private context (a Discord conversation, an email), uncheck "Post publicly" before submitting.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">When to revoke a published version</h2>
+          <p>
+            Use <strong class="text-white font-medium">revoke version</strong> (on the admin plugin detail page) when a version that previously passed review is later discovered to be harmful — a backdoor shipped in an update, a maintainer account compromise, a post-publish CVE.
+          </p>
+          <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li>Revocation is at the version level — earlier good versions stay downloadable.</li>
+            <li>Downloads are blocked immediately. The version keeps its tombstone row in the history.</li>
+            <li>A reason is required and defaults to public. The author sees it on their dashboard.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">When to revoke a whole plugin</h2>
+          <p>
+            Use the plugin-level revoke action when the plugin is fundamentally unfit — the author is banned, the plugin is a malicious fork, or every version has been found unsafe. Plugin-level revocation hides the plugin from search, stops downloads for all versions, and renders the detail page with a prominent "This plugin has been revoked" tombstone banner and a <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">noindex</code> meta.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">When to ban an author</h2>
+          <p>
+            Banning is reserved for repeated bad-faith behaviour, not one-off mistakes. Reach for it when:
+          </p>
+          <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li>The author has submitted multiple malicious plugins (backdoors, stealers, cryptominers).</li>
+            <li>The author re-registers after a previous plugin was revoked for cause.</li>
+            <li>The author is harassing other community members per the Code of Conduct.</li>
+            <li>The author is impersonating another project or maintainer.</li>
+          </ul>
+          <p class="mt-4">
+            A banned author can still browse the marketplace but cannot sign in as a publisher or submit new content. Use the <strong class="text-white font-medium">Ban author</strong> action in the admin interface; a reason of at least 5 characters is required and the ban is logged.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Reports queue</h2>
+          <p>
+            The reports queue at <code class="text-zinc-200 bg-zinc-800/60 px-1.5 py-0.5 rounded text-xs font-mono">/dashboard/admin/reports</code> shows user-filed reports. Status lifecycle: <strong class="text-zinc-100">open → investigating → resolved | dismissed</strong>.
+          </p>
+          <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li>Move a report to <strong class="text-blue-400">investigating</strong> to signal you've seen it and are working on it.</li>
+            <li><strong class="text-emerald-400">Resolve</strong> when you've taken action (revoked a version, banned an author, fixed a bug) and optionally include a note.</li>
+            <li><strong class="text-zinc-400">Dismiss</strong> when the report doesn't describe a real problem — e.g. a misunderstanding, a mistaken attribution, or a duplicate of a prior report.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Report triage</h2>
+          <ol class="list-decimal pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li><strong class="text-zinc-100">Security reports first.</strong> If the category is "Security" and the description sounds credible, act immediately — revoke the affected version while you investigate, rather than wait.</li>
+            <li><strong class="text-zinc-100">Broken/abandoned reports.</strong> Check if the plugin's repository has been updated recently. If it's truly abandoned, consider flagging the latest version with a public admin note rather than revoking.</li>
+            <li><strong class="text-zinc-100">License reports.</strong> Compare the plugin against the claimed source. If confirmed, revoke and notify the rightful author if you can identify them.</li>
+            <li><strong class="text-zinc-100">Abuse reports.</strong> Apply the Code of Conduct. Escalate to the superadmin if the situation is sensitive or involves legal threats.</li>
+          </ol>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Transparency is the default</h2>
+          <p>
+            Our policy is that scanner findings and moderator rejection reasons are public by default. This matters:
+          </p>
+          <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li>Authors learn what not to do, which reduces repeat mistakes.</li>
+            <li>Installers can see why a version was refused and decide whether to trust the plugin's future versions.</li>
+            <li>Other moderators can see how past cases were handled and apply consistent standards.</li>
+          </ul>
+          <p class="mt-4">
+            Uncheck the "Post publicly" checkbox only when your note genuinely references something that should not be public — private correspondence, personal information, or a vulnerability that hasn't been patched upstream yet.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Escalation</h2>
+          <p>
+            Contact the superadmin when:
+          </p>
+          <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-zinc-400">
+            <li>You receive a legal threat or DMCA takedown request.</li>
+            <li>A vulnerability has been responsibly disclosed and needs embargo coordination.</li>
+            <li>The situation involves repeated harassment and may need a Code of Conduct escalation.</li>
+            <li>You're unsure — better to ask than to make a controversial decision alone.</li>
+          </ul>
+          <p class="mt-4">
+            The superadmin can be reached via a private GitHub security advisory at
+            <a href="https://github.com/chrisjohnleah/emdashcms-org/security/advisories/new" target="_blank" rel="noopener noreferrer" class="text-white underline hover:opacity-80">github.com/chrisjohnleah/emdashcms-org/security/advisories/new</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold tracking-tight text-white mb-3">Your obligations</h2>
+          <ul class="list-disc pl-6 space-y-2 text-sm text-zinc-400">
+            <li>Follow the <a href="/code-of-conduct" class="text-white underline hover:opacity-80">Code of Conduct</a>.</li>
+            <li>Apply policy consistently. If two similar cases produce different outcomes without a principled reason, that's a problem.</li>
+            <li>Write clear, kind rejection reasons. A rude moderator creates more work downstream.</li>
+            <li>Respect contributor privacy — never share private correspondence or personal details in public notes.</li>
+            <li>When in doubt, err on the side of the users' safety over the author's convenience.</li>
+          </ul>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

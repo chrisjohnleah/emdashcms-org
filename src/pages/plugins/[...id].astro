@@ -158,7 +158,12 @@ const formatSize = (bytes: number) => {
                   ) : (
                     <div class="w-5 h-5 rounded-full bg-zinc-800" />
                   )}
-                  <span class="text-sm text-zinc-400">{plugin.author.name}</span>
+                  <a
+                    href={`/authors/${plugin.author.name}`}
+                    class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
+                  >
+                    {plugin.author.name}
+                  </a>
                 </div>
               </div>
             </div>

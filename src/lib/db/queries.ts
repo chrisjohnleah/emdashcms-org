@@ -196,6 +196,138 @@ export async function getPluginDetail(
   return mapPluginDetail(pluginRows[0], versionRow);
 }
 
+// ---------------------------------------------------------------------------
+// Public author profile queries
+// ---------------------------------------------------------------------------
+
+export interface PublicAuthorProfile {
+  id: string;
+  githubUsername: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  banned: boolean;
+  createdAt: string;
+}
+
+/**
+ * Look up a public author by GitHub username. Returns null when no author
+ * matches OR when the author is banned — banned authors are invisible on
+ * the public profile surface (they can still browse).
+ */
+export async function getPublicAuthorByUsername(
+  db: D1Database,
+  username: string,
+): Promise<PublicAuthorProfile | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, github_username, avatar_url, verified, banned, created_at
+       FROM authors
+       WHERE github_username = ? COLLATE NOCASE
+         AND COALESCE(banned, 0) = 0`,
+    )
+    .bind(username)
+    .first<{
+      id: string;
+      github_username: string;
+      avatar_url: string | null;
+      verified: number;
+      banned: number;
+      created_at: string;
+    }>();
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    githubUsername: row.github_username,
+    avatarUrl: row.avatar_url,
+    verified: Boolean(row.verified),
+    banned: Boolean(row.banned),
+    createdAt: row.created_at,
+  };
+}
+
+/**
+ * Return all publicly-listed plugins by a given author id. Only plugins
+ * with at least one published/flagged version are returned (same rules
+ * as searchPlugins). Shape matches MarketplacePluginSummary so PluginCard
+ * can render them directly.
+ */
+export async function getPublicPluginsByAuthor(
+  db: D1Database,
+  authorId: string,
+): Promise<MarketplacePluginSummary[]> {
+  const result = await db
+    .prepare(
+      `SELECT
+        p.*,
+        a.github_username,
+        a.avatar_url,
+        a.verified,
+        (
+          SELECT pv.version
+          FROM plugin_versions pv
+          WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
+          ORDER BY pv.created_at DESC LIMIT 1
+        ) AS latest_version,
+        (
+          SELECT pv.status
+          FROM plugin_versions pv
+          WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
+          ORDER BY pv.created_at DESC LIMIT 1
+        ) AS latest_version_status,
+        (
+          SELECT pa.verdict
+          FROM plugin_versions pv2
+          LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv2.id
+          WHERE pv2.plugin_id = p.id AND pv2.status IN ('published', 'flagged')
+          ORDER BY pv2.created_at DESC LIMIT 1
+        ) AS latest_audit_verdict,
+        (
+          SELECT pa.risk_score
+          FROM plugin_versions pv3
+          LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv3.id
+          WHERE pv3.plugin_id = p.id AND pv3.status IN ('published', 'flagged')
+          ORDER BY pv3.created_at DESC LIMIT 1
+        ) AS latest_audit_risk_score
+       FROM plugins p
+       JOIN authors a ON p.author_id = a.id
+       WHERE p.author_id = ?
+         AND COALESCE(p.status, 'active') = 'active'
+         AND EXISTS (
+           SELECT 1 FROM plugin_versions pv0
+           WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged')
+         )
+       ORDER BY p.installs_count DESC, p.created_at DESC`,
+    )
+    .bind(authorId)
+    .all();
+
+  return (result.results as Record<string, unknown>[]).map(mapPluginSummary);
+}
+
+/**
+ * Return all themes by a given author. Matches the searchThemes shape so
+ * ThemeCard renders them directly.
+ */
+export async function getPublicThemesByAuthor(
+  db: D1Database,
+  authorId: string,
+): Promise<MarketplaceThemeSummary[]> {
+  const result = await db
+    .prepare(
+      `SELECT t.*, a.github_username, a.avatar_url, a.verified
+       FROM themes t
+       JOIN authors a ON t.author_id = a.id
+       WHERE t.author_id = ?
+       ORDER BY t.created_at DESC`,
+    )
+    .bind(authorId)
+    .all();
+
+  return (result.results as Record<string, unknown>[]).map(mapThemeSummary);
+}
+
 export async function getPluginVersions(
   db: D1Database,
   pluginId: string,
