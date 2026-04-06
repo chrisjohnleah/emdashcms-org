@@ -1,0 +1,130 @@
+---
+/**
+ * Shared FormField component — wraps a label + input/textarea/select with
+ * consistent styling, error state, and hint text. Replaces the 90-char
+ * input class string duplicated across dashboard wizards and edit pages.
+ *
+ * Usage:
+ *   <FormField label="Name" name="name" required placeholder="My Plugin" />
+ *   <FormField label="Description" name="description" type="textarea" rows={5} />
+ *   <FormField label="Category" name="category" type="select" options={[...]} />
+ *
+ * The base input class is stable across all variants so the visual
+ * language stays unified. Error state adds `border-red-700` and surfaces
+ * the error message under the field. Hint text renders in small muted
+ * type below the input.
+ */
+
+type InputType = 'text' | 'url' | 'email' | 'password' | 'textarea' | 'select';
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+interface Props {
+  label: string;
+  name: string;
+  id?: string;
+  type?: InputType;
+  value?: string;
+  required?: boolean;
+  error?: string | null;
+  hint?: string;
+  placeholder?: string;
+  rows?: number;
+  minlength?: number;
+  maxlength?: number;
+  options?: Option[];
+  autoSubmit?: boolean;
+  labelHint?: string;
+  disabled?: boolean;
+}
+
+const {
+  label,
+  name,
+  id = name,
+  type = 'text',
+  value = '',
+  required = false,
+  error = null,
+  hint,
+  placeholder,
+  rows = 4,
+  minlength,
+  maxlength,
+  options = [],
+  autoSubmit = false,
+  labelHint,
+  disabled = false,
+} = Astro.props;
+
+const baseInputClass = [
+  'w-full bg-zinc-900 border text-zinc-100 rounded-lg px-3 py-2 text-sm',
+  'placeholder:text-zinc-500',
+  'focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500',
+  error ? 'border-red-700' : 'border-zinc-800',
+  disabled ? 'opacity-60 cursor-not-allowed' : '',
+]
+  .filter(Boolean)
+  .join(' ');
+---
+<div>
+  <label for={id} class="block text-sm font-semibold text-zinc-100">
+    {label}
+    {!required && <span class="ml-1 text-zinc-500 font-normal">(optional)</span>}
+    {labelHint && <span class="ml-2 text-xs font-normal text-zinc-500">{labelHint}</span>}
+  </label>
+
+  <div class="mt-2">
+    {type === 'textarea' ? (
+      <textarea
+        id={id}
+        name={name}
+        required={required}
+        rows={rows}
+        minlength={minlength}
+        maxlength={maxlength}
+        placeholder={placeholder}
+        disabled={disabled}
+        class={baseInputClass}
+      >{value}</textarea>
+    ) : type === 'select' ? (
+      <select
+        id={id}
+        name={name}
+        required={required}
+        disabled={disabled}
+        class={baseInputClass}
+        data-auto-submit={autoSubmit ? 'true' : undefined}
+      >
+        {options.map((opt) => (
+          <option value={opt.value} selected={opt.value === value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        id={id}
+        name={name}
+        type={type}
+        value={value}
+        required={required}
+        minlength={minlength}
+        maxlength={maxlength}
+        placeholder={placeholder}
+        disabled={disabled}
+        class={baseInputClass}
+      />
+    )}
+  </div>
+
+  {error && (
+    <p class="mt-1.5 text-xs text-red-400">{error}</p>
+  )}
+  {!error && hint && (
+    <p class="mt-1.5 text-xs text-zinc-500">{hint}</p>
+  )}
+</div>
