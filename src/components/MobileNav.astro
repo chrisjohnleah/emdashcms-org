@@ -1,0 +1,89 @@
+---
+/**
+ * Mobile navigation drawer — slides down from the header when toggled.
+ *
+ * Vanilla JS toggle (no framework), aria-expanded/aria-controls for
+ * screen readers, and escape-to-close. The hamburger button lives in
+ * the BaseLayout header as a sibling so that `aria-controls` can
+ * reference this drawer by id.
+ */
+
+interface NavLink {
+  label: string;
+  href: string;
+}
+
+interface Props {
+  links: NavLink[];
+  currentPath: string;
+}
+
+const { links, currentPath } = Astro.props;
+---
+<div
+  id="mobile-nav"
+  class="fixed top-16 inset-x-0 z-40 bg-black/95 backdrop-blur-md border-b border-white/5 hidden md:hidden"
+  data-mobile-nav
+>
+  <nav class="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-1" aria-label="Mobile navigation">
+    {links.map((link) => (
+      <a
+        href={link.href}
+        class:list={[
+          'px-3 py-2 rounded-lg text-base font-medium transition-colors',
+          currentPath.startsWith(link.href)
+            ? 'bg-white/5 text-white'
+            : 'text-zinc-400 hover:bg-white/5 hover:text-white',
+        ]}
+      >
+        {link.label}
+      </a>
+    ))}
+    <a
+      href="https://github.com/chrisjohnleah/emdashcms-org"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="mt-2 px-3 py-2 rounded-lg text-base font-medium text-zinc-400 hover:bg-white/5 hover:text-white transition-colors"
+    >
+      GitHub
+    </a>
+  </nav>
+</div>
+
+<script>
+  const drawer = document.getElementById('mobile-nav');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-mobile-nav-toggle]');
+
+  function closeDrawer() {
+    if (!drawer || !toggle) return;
+    drawer.classList.add('hidden');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function openDrawer() {
+    if (!drawer || !toggle) return;
+    drawer.classList.remove('hidden');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+
+  toggle?.addEventListener('click', () => {
+    if (drawer?.classList.contains('hidden')) {
+      openDrawer();
+    } else {
+      closeDrawer();
+    }
+  });
+
+  // Escape key closes the drawer
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !drawer?.classList.contains('hidden')) {
+      closeDrawer();
+      toggle?.focus();
+    }
+  });
+
+  // Clicking a nav link closes the drawer (important for in-page anchors)
+  drawer?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', closeDrawer);
+  });
+</script>

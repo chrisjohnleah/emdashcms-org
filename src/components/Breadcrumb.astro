@@ -1,0 +1,44 @@
+---
+/**
+ * Shared breadcrumb navigation. Consistent separator colour and spacing
+ * across dashboard and admin pages.
+ *
+ * Items can be link objects ({ label, href }) or plain strings. The last
+ * item is always rendered as the current page (non-link) regardless of
+ * whether href is set.
+ */
+
+interface Item {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: Item[];
+  class?: string;
+}
+
+const { items, class: extraClass } = Astro.props;
+---
+<nav
+  aria-label="Breadcrumb"
+  class:list={['flex items-center gap-2 text-sm text-zinc-500', extraClass]}
+>
+  {items.map((item, i) => {
+    const isLast = i === items.length - 1;
+    return (
+      <>
+        {i > 0 && <span aria-hidden="true" class="text-zinc-700">/</span>}
+        {isLast || !item.href ? (
+          <span class="text-zinc-300" aria-current={isLast ? 'page' : undefined}>
+            {item.label}
+          </span>
+        ) : (
+          <a href={item.href} class="hover:text-zinc-300 transition-colors">
+            {item.label}
+          </a>
+        )}
+      </>
+    );
+  })}
+</nav>

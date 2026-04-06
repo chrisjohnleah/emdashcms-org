@@ -4,12 +4,6 @@
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
-  --color-obsidian: #000000;
-  --color-carbon: #0c0c0c;
-  --color-tungsten: #1a1a1a;
-  --color-ash: #8a8f98;
-  --color-silver: #ededed;
-
   --animate-float-slow: float 8s ease-in-out infinite;
   --animate-float-medium: float 6s ease-in-out infinite;
   --animate-float-fast: float 4s ease-in-out infinite;
@@ -19,6 +13,14 @@
     50% { transform: translateY(-15px); }
   }
 }
+
+/*
+ * The custom `obsidian`, `carbon`, `tungsten`, `ash`, and `silver` colour
+ * tokens were removed — the codebase standardises on Tailwind's `zinc`
+ * scale instead. Any legacy class like `text-ash` should map to
+ * `text-zinc-400`; `bg-obsidian` → `bg-black`; `bg-carbon` → `bg-zinc-950`;
+ * `bg-tungsten` → `bg-zinc-900`; `text-silver` → `text-zinc-100`.
+ */
 
 /* Subtle grid pattern for hero backgrounds */
 .bg-grid-pattern {
@@ -43,7 +45,7 @@
 .border-gradient {
   position: relative;
   border-radius: 1rem;
-  background: var(--color-carbon);
+  background: #0c0c0c; /* was var(--color-carbon) */
 }
 
 .border-gradient::before {
