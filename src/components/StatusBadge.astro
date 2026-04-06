@@ -30,6 +30,12 @@ const variants: Record<string, { bg: string; text: string; border: string; label
     border: 'border-red-800/60',
     label: 'Rejected',
   },
+  revoked: {
+    bg: 'bg-red-950/60',
+    text: 'text-red-300',
+    border: 'border-red-800/80',
+    label: 'Revoked',
+  },
 };
 
 const v = variants[status] || variants.pending;

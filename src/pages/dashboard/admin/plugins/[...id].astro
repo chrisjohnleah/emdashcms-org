@@ -270,6 +270,18 @@ const severityStyle = (severity: string) => {
                               >
                                 Run AI audit
                               </button>
+                              {(v.status === 'published' || v.status === 'flagged') && (
+                                <button
+                                  type="button"
+                                  data-revoke-version
+                                  data-plugin-id={encodeURIComponent(plugin.id)}
+                                  data-version={v.version}
+                                  class="rounded-lg border border-red-800/80 bg-red-950/60 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-950/80 transition-colors cursor-pointer"
+                                  title="Revoke this version — blocks downloads and surfaces a public tombstone"
+                                >
+                                  Revoke version
+                                </button>
+                              )}
                             </div>
                           </div>
 
@@ -353,6 +365,39 @@ document.querySelectorAll('[data-run-audit]').forEach((btn) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ version, mode }),
+    });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
+      alert(`Failed: ${body.error}`);
+      el.disabled = false;
+      el.textContent = original;
+    }
+  });
+});
+
+document.querySelectorAll('[data-revoke-version]').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const el = btn as HTMLButtonElement;
+    const pluginId = el.dataset.pluginId;
+    const version = el.dataset.version;
+    if (!pluginId || !version) return;
+    const reason = prompt(
+      `Revoke ${decodeURIComponent(pluginId)}@${version}?\n\nReason (required, visible to author; may be surfaced publicly):`,
+    );
+    if (reason === null) return;
+    if (reason.trim().length < 5) {
+      alert('Reason must be at least 5 characters.');
+      return;
+    }
+    const original = el.textContent;
+    el.disabled = true;
+    el.textContent = 'Revoking...';
+    const res = await fetch(`/api/v1/admin/plugins/${pluginId}/revoke-version`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version, reason: reason.trim() }),
     });
     if (res.ok) {
       window.location.reload();

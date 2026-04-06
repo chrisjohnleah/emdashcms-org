@@ -253,7 +253,7 @@ export type TrustTier =
 
 export interface VersionDetail {
   version: string;
-  status: "pending" | "published" | "flagged" | "rejected";
+  status: "pending" | "published" | "flagged" | "rejected" | "revoked";
   retryCount: number;
   createdAt: string;
   verdict: "pass" | "warn" | "fail" | null;

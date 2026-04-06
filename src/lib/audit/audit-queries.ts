@@ -28,7 +28,12 @@ export interface CreateAuditParams {
    *   used by static-only scans to leave the version 'pending' while
    *   still recording findings.
    */
-  versionStatusOverride?: "pending" | "published" | "flagged" | "rejected";
+  versionStatusOverride?:
+    | "pending"
+    | "published"
+    | "flagged"
+    | "rejected"
+    | "revoked";
 }
 
 // --- Verdict Mapping ---

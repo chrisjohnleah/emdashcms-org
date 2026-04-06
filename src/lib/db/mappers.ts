@@ -180,7 +180,12 @@ export function mapDashboardPlugin(row: Row): {
   };
 }
 
-type VersionStatus = "pending" | "published" | "flagged" | "rejected";
+type VersionStatus =
+  | "pending"
+  | "published"
+  | "flagged"
+  | "rejected"
+  | "revoked";
 type TrustTier =
   | "unreviewed"
   | "scanned"
@@ -195,7 +200,7 @@ type TrustTier =
  * the schema simple. Rules:
  *
  *   - `status='pending'`                             → 'unreviewed'
- *   - `status='rejected'`                            → 'rejected'
+ *   - `status='rejected' | 'revoked'`                → 'rejected'
  *   - `status='published'` + AI model                → 'ai-reviewed'
  *   - `status='flagged'`   + AI model                → 'ai-reviewed-caution'
  *   - `status='published'` + static-only model       → 'scanned'
@@ -208,7 +213,7 @@ export function deriveTrustTier(
   model: string | null,
 ): TrustTier {
   if (status === "pending") return "unreviewed";
-  if (status === "rejected") return "rejected";
+  if (status === "rejected" || status === "revoked") return "rejected";
 
   const isAiModel = typeof model === "string" && model.startsWith("@cf/");
   const isStatic = model === "static-only";
@@ -249,14 +254,14 @@ export function mapVersionDetail(
   const latestAuditModel = (row.latest_audit_model as string) ?? null;
   return {
     version: row.version as string,
-    status,
+    status: status as VersionStatus,
     retryCount: (row.retry_count as number) ?? 0,
     createdAt: row.created_at as string,
     verdict: (row.verdict as "pass" | "warn" | "fail") ?? null,
     riskScore: (row.risk_score as number) ?? null,
     findings: JSON.parse((row.findings as string) || "[]"),
     latestAuditModel,
-    trustTier: deriveTrustTier(status, latestAuditModel),
+    trustTier: deriveTrustTier(status as VersionStatus, latestAuditModel),
     adminRejectionReason,
   };
 }

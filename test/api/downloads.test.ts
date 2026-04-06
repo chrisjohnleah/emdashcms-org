@@ -229,6 +229,40 @@ describe("DOWN-01: Bundle download queries", () => {
       "plugins/dl-revoked-plugin/1.0.0/bundle.tgz",
     );
   });
+
+  it("returns null for a per-version revoked version (leaves other versions intact)", async () => {
+    // Seed a plugin with two published versions, revoke only one.
+    await seedTestPlugin(env.DB, "dl-partial-revoke", "dl-author-1");
+    await seedTestVersion(
+      env.DB,
+      "dl-partial-revoke",
+      "1.0.0",
+      "published",
+      "plugins/dl-partial-revoke/1.0.0/bundle.tgz",
+    );
+    await seedTestVersion(
+      env.DB,
+      "dl-partial-revoke",
+      "1.1.0",
+      "revoked",
+      "plugins/dl-partial-revoke/1.1.0/bundle.tgz",
+    );
+
+    const bad = await getPublishedVersionBundle(
+      env.DB,
+      "dl-partial-revoke",
+      "1.1.0",
+    );
+    expect(bad).toBeNull();
+
+    const good = await getPublishedVersionBundle(
+      env.DB,
+      "dl-partial-revoke",
+      "1.0.0",
+    );
+    expect(good).not.toBeNull();
+    expect(good!.bundleKey).toBe("plugins/dl-partial-revoke/1.0.0/bundle.tgz");
+  });
 });
 
 // ---------------------------------------------------------------------------
