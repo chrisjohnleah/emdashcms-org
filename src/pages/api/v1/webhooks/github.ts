@@ -66,6 +66,8 @@ export const POST: APIRoute = async ({ request }) => {
       prerelease: boolean;
       draft: boolean;
       tarball_url: string;
+      html_url: string;
+      target_commitish?: string;
       body: string | null;
     };
     repository: { full_name: string };
@@ -247,7 +249,15 @@ export const POST: APIRoute = async ({ request }) => {
       validation.checksum!,
     );
 
-    // Step 14: Create version record with source='github' (D-16)
+    // Step 14: Create version record with source='github' (D-16) + provenance
+    // Capture release.html_url as the primary provenance signal. commit_sha
+    // is populated only when target_commitish looks SHA-like (40 hex chars);
+    // for branch-targeted releases it'd be misleading to call a branch name
+    // a SHA, so we leave it null in that case.
+    const target = payload.release.target_commitish;
+    const commitSha =
+      target && /^[0-9a-f]{40}$/i.test(target) ? target : undefined;
+
     const versionId = await createVersion(env.DB, {
       pluginId: link.pluginId,
       version,
@@ -260,6 +270,8 @@ export const POST: APIRoute = async ({ request }) => {
       changelog: payload.release.body ?? undefined,
       minEmDashVersion: validation.manifest!.minEmDashVersion ?? undefined,
       source: "github",
+      releaseUrl: payload.release.html_url,
+      commitSha,
     });
 
     await enqueueAuditJob(env.AUDIT_QUEUE, {

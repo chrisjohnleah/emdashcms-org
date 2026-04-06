@@ -95,6 +95,10 @@ export interface MarketplacePluginDetail extends MarketplacePluginSummary {
     status: "published" | "flagged";
     audit: MarketplaceAuditDetail | null;
     imageAudit: unknown | null;
+    /** Provenance — GitHub release URL when webhook-sourced. */
+    releaseUrl: string | null;
+    /** Provenance — commit SHA when available. Usually null. */
+    commitSha: string | null;
   } | null;
 }
 

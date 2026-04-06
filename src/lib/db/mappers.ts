@@ -98,6 +98,8 @@ export function mapPluginDetail(
       status: versionRow.status as "published" | "flagged",
       audit: mapAuditDetail(versionRow),
       imageAudit: null, // No image audit system in v1
+      releaseUrl: (versionRow.release_url as string) ?? null,
+      commitSha: (versionRow.commit_sha as string) ?? null,
     };
   }
 

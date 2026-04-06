@@ -36,6 +36,18 @@ export interface CreateVersionInput {
   changelog?: string;
   minEmDashVersion?: string;
   source?: "upload" | "github";
+  /**
+   * GitHub release page URL (release.html_url). Populated for
+   * webhook-sourced versions so the public plugin detail page can
+   * link directly to the release notes and source tag.
+   */
+  releaseUrl?: string;
+  /**
+   * Commit SHA if the release payload carried one directly. GitHub's
+   * release.target_commitish is usually a branch name, so this is
+   * often null. Optional — callers should not invent it.
+   */
+  commitSha?: string;
 }
 
 // --- Author ID Resolution ---
@@ -263,11 +275,13 @@ export async function createVersion(
         id, plugin_id, version, status, bundle_key, manifest,
         file_count, compressed_size, decompressed_size, min_emdash_version,
         checksum, changelog, screenshots, retry_count, source,
+        release_url, commit_sha,
         created_at, updated_at
       ) VALUES (
         ?, ?, ?, 'pending', ?, ?,
         ?, ?, ?, ?,
         ?, ?, '[]', 0, ?,
+        ?, ?,
         strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       )`,
     )
@@ -284,6 +298,8 @@ export async function createVersion(
       input.checksum,
       input.changelog ?? null,
       input.source ?? "upload",
+      input.releaseUrl ?? null,
+      input.commitSha ?? null,
     )
     .run();
 
