@@ -128,6 +128,12 @@ if (Astro.request.method === 'POST') {
       if (!isMaintainer) throw new Error('Maintainer role required');
       const pattern = (data.get('tag_pattern') as string ?? '').trim();
       if (!pattern) throw new Error('Tag pattern cannot be empty');
+      // Bound length and restrict to safe glob characters to prevent ReDoS
+      // when matchesTagPattern compiles the pattern into a regex.
+      if (pattern.length > 100) throw new Error('Tag pattern must be 100 characters or less');
+      if (!/^[a-zA-Z0-9.*_\-]+$/.test(pattern)) {
+        throw new Error('Tag pattern can only contain letters, numbers, dots, asterisks, underscores, and hyphens');
+      }
       await setTagPattern(env.DB, pluginId!, pattern);
       githubSuccess = 'Tag pattern updated.';
     } else if (action === 'disconnect') {

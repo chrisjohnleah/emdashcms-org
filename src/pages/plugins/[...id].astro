@@ -54,6 +54,7 @@ if (plugin && Astro.request.method === 'POST' && authorId) {
     const comment = (formData.get('comment') as string)?.trim();
     if (!rating || rating < 1 || rating > 5) reviewError = 'Please select a rating.';
     else if (!comment || comment.length < 10) reviewError = 'Review must be at least 10 characters.';
+    else if (comment.length > 2000) reviewError = 'Review must be 2000 characters or less.';
     else {
       try {
         await createReview(env.DB, 'plugin', id!, authorId, rating, comment);
@@ -67,6 +68,7 @@ if (plugin && Astro.request.method === 'POST' && authorId) {
     const comment = (formData.get('comment') as string)?.trim();
     if (!rating || rating < 1 || rating > 5) reviewError = 'Please select a rating.';
     else if (!comment || comment.length < 10) reviewError = 'Review must be at least 10 characters.';
+    else if (comment.length > 2000) reviewError = 'Review must be 2000 characters or less.';
     else {
       await updateReview(env.DB, userReview.id, authorId, rating, comment);
       return Astro.redirect(Astro.url.pathname + '?updated=true');
