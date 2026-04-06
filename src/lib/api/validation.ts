@@ -28,8 +28,17 @@ export function validateUrlFields(
   return null;
 }
 
-/** ID format: lowercase alphanumeric with hyphens, optionally @scope/name */
-const ID_REGEX = /^(@[a-z0-9-]+\/)?[a-z0-9-]+$/;
+/**
+ * ID format for new plugin and theme registrations: lowercase
+ * alphanumeric with hyphens. Matches WordPress slug conventions.
+ *
+ * Note: this is *new-registration* validation. The plugin manifest
+ * schema is intentionally more permissive (still accepts @scope/name)
+ * so legacy scoped plugins like @rankshield/emdash-security can keep
+ * uploading new versions of themselves indefinitely. New publishers
+ * cannot register a scoped ID through this API or the dashboard form.
+ */
+const ID_REGEX = /^[a-z0-9-]+$/;
 
 export function isValidResourceId(id: string): boolean {
   return ID_REGEX.test(id);

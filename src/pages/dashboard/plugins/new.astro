@@ -58,7 +58,10 @@ let githubInstalled = false;
 let githubRepos: GitHubRepo[] = [];
 let githubError = '';
 
-const PLUGIN_ID_REGEX = /^(@[a-z0-9-]+\/)?[a-z0-9-]+$/;
+// Slugs only — same as theme register, WordPress-style. Legacy scoped
+// plugins (e.g. @rankshield/emdash-security) keep working at upload time
+// because the manifest schema stays permissive; new registrations don't.
+const PLUGIN_ID_REGEX = /^[a-z0-9-]+$/;
 
 // --- Helpers ---
 function readMetadata(data: FormData) {
@@ -80,7 +83,7 @@ function readMetadata(data: FormData) {
 function validateMetadata(): boolean {
   errors = {};
   if (!formValues.id) errors.id = 'Plugin ID is required.';
-  else if (!PLUGIN_ID_REGEX.test(formValues.id)) errors.id = 'ID must be lowercase alphanumeric with hyphens, optionally scoped (e.g. @scope/name).';
+  else if (!PLUGIN_ID_REGEX.test(formValues.id)) errors.id = 'ID must be lowercase alphanumeric with hyphens (e.g. my-plugin).';
   if (!formValues.name) errors.name = 'Name is required.';
   if (!formValues.shortDescription) errors.shortDescription = 'Short description is required.';
   else if (formValues.shortDescription.length > 150) errors.shortDescription = 'Short description must be 150 characters or less.';
@@ -382,9 +385,9 @@ const inputError = `${inputBase} border-red-700`;
           {/* Plugin ID */}
           <div>
             <label for="id" class="block text-sm font-semibold text-zinc-100">Plugin ID <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">Lowercase alphanumeric with hyphens, optionally scoped (e.g. @scope/name)</p>
+            <p class="mt-1 text-xs text-zinc-500">Lowercase alphanumeric with hyphens (e.g. my-plugin)</p>
             <input type="text" id="id" name="id" value={formValues.id}
-              placeholder="@scope/name or my-plugin"
+              placeholder="my-plugin"
               class:list={['mt-2', errors.id ? inputError : inputNormal]}
               aria-required="true"
               aria-invalid={errors.id ? 'true' : undefined}

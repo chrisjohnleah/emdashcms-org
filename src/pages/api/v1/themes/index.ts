@@ -59,7 +59,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!isValidResourceId(body.id)) {
       return errorResponse(
         400,
-        "Invalid theme id format. Use lowercase alphanumeric with hyphens, optionally @scope/name",
+        "Invalid theme id format. Use lowercase alphanumeric with hyphens (e.g. my-theme)",
       );
     }
 

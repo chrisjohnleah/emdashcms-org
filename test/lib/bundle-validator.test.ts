@@ -6,6 +6,7 @@ import {
   computeSha256,
 } from "../../src/lib/publishing/bundle-validator";
 import { toISOTimestamp } from "../../src/lib/publishing/timestamp";
+import { isValidResourceId } from "../../src/lib/api/validation";
 
 // ---------------------------------------------------------------------------
 // Test helper: create a .tgz (gzipped tar) from a file map
@@ -54,7 +55,11 @@ describe("manifestSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts scoped plugin id", () => {
+  it("accepts scoped plugin id (grandfathered for legacy plugins)", () => {
+    // The manifest schema stays permissive so legacy scoped plugins like
+    // @rankshield/emdash-security can keep uploading new versions of
+    // themselves indefinitely. Only NEW registrations are slug-only via
+    // isValidResourceId — see the dedicated suite below.
     const result = manifestSchema.safeParse(
       validManifest({ id: "@my-org/my-plugin" }),
     );
@@ -345,5 +350,42 @@ describe("toISOTimestamp", () => {
     expect(toISOTimestamp("2026-04-04T12:00:00Z")).toBe(
       "2026-04-04T12:00:00Z",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isValidResourceId — slug-only registrations (Option A)
+// ---------------------------------------------------------------------------
+
+describe("isValidResourceId (new registrations)", () => {
+  it("accepts a simple slug", () => {
+    expect(isValidResourceId("my-plugin")).toBe(true);
+  });
+
+  it("accepts an alphanumeric slug", () => {
+    expect(isValidResourceId("plugin123")).toBe(true);
+  });
+
+  it("rejects scoped @org/name format for new registrations", () => {
+    // Legacy scoped plugins still validate via the manifest schema, but
+    // new publishers cannot register a scoped id through the dashboard
+    // form or POST /api/v1/plugins.
+    expect(isValidResourceId("@my-org/my-plugin")).toBe(false);
+  });
+
+  it("rejects uppercase characters", () => {
+    expect(isValidResourceId("MyPlugin")).toBe(false);
+  });
+
+  it("rejects underscores", () => {
+    expect(isValidResourceId("my_plugin")).toBe(false);
+  });
+
+  it("rejects empty strings", () => {
+    expect(isValidResourceId("")).toBe(false);
+  });
+
+  it("rejects slashes", () => {
+    expect(isValidResourceId("foo/bar")).toBe(false);
   });
 });

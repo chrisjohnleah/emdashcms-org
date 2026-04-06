@@ -72,7 +72,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (!isValidResourceId(id)) {
       return errorResponse(
         400,
-        "Invalid plugin id format. Use lowercase alphanumeric with hyphens, optionally @scope/name",
+        "Invalid plugin id format. Use lowercase alphanumeric with hyphens (e.g. my-plugin)",
       );
     }
 
