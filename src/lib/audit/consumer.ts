@@ -20,11 +20,17 @@ export interface AuditBindings {
   artifacts: R2Bucket;
   /**
    * Audit mode controls how new versions are processed:
-   * - 'manual' (default): skip AI, leave status='pending' for human moderation
-   * - 'auto': run AI audit, neuron-budget bound
-   * - 'off': skip AI, leave status='pending' (admin must approve everything)
+   * - 'static-first': run static scan. Blocking findings → rejected with
+   *   findings preserved. Soft findings → published as 'flagged'. Clean
+   *   scan → published immediately. No AI on the upload hot path; AI
+   *   runs only via admin "Run AI" action.
+   * - 'auto': run static scan + Workers AI audit. Verdict decides status
+   *   (pass→published, warn→flagged, fail→rejected). Neuron-budget bound.
+   * - 'manual' (legacy default): skip AI, leave status='pending' for
+   *   human moderation.
+   * - 'off': same as manual — skip AI, leave pending. Legacy.
    */
-  auditMode?: "manual" | "auto" | "off";
+  auditMode?: "manual" | "auto" | "off" | "static-first";
 }
 
 // --- Result ---
@@ -209,7 +215,59 @@ export async function processAuditJob(
     }
   }
 
-  // 5. Manual / off modes: skip AI, record static findings, leave pending.
+  // 5a. Static-first mode: auto-publish based on static findings alone.
+  //     Blocking findings → rejected with findings preserved. Soft findings
+  //     → published as 'flagged' (Caution tier). Clean scan → published.
+  //     No AI on the upload hot path.
+  if (mode === "static-first") {
+    const blockingFindings = staticFindings.filter((f) => f.blocking);
+    const hasSoftFindings = staticFindings.some((f) => !f.blocking);
+
+    if (blockingFindings.length > 0) {
+      // Hard reject but preserve findings — do NOT call rejectVersion()
+      // which discards them. The contributor needs to see exactly which
+      // patterns blocked their upload so they can fix the source.
+      const blockingTitles = blockingFindings.map((f) => f.title).join(", ");
+      console.log(
+        `[audit] static-first REJECT plugin=${job.pluginId} version=${job.version} blocking=${blockingFindings.length} (${blockingTitles})`,
+      );
+      await createAuditRecord(bindings.db, {
+        versionId,
+        status: "complete",
+        model: "static-only",
+        promptTokens: 0,
+        completionTokens: 0,
+        neuronsUsed: 0,
+        rawResponse: `Static scanner blocked publication: ${blockingTitles}`,
+        verdict: null,
+        riskScore: staticScore,
+        findings: staticFindings.map(staticFindingToMarketplace),
+        versionStatusOverride: "rejected",
+      });
+      return { verdict: null, status: "complete", neuronsUsed: 0 };
+    }
+
+    const targetStatus = hasSoftFindings ? "flagged" : "published";
+    console.log(
+      `[audit] static-first ${targetStatus.toUpperCase()} plugin=${job.pluginId} version=${job.version} findings=${staticFindings.length}`,
+    );
+    await createAuditRecord(bindings.db, {
+      versionId,
+      status: "complete",
+      model: "static-only",
+      promptTokens: 0,
+      completionTokens: 0,
+      neuronsUsed: 0,
+      rawResponse: `Static scan only (mode: static-first, result: ${targetStatus})`,
+      verdict: null,
+      riskScore: staticScore,
+      findings: staticFindings.map(staticFindingToMarketplace),
+      versionStatusOverride: targetStatus,
+    });
+    return { verdict: null, status: "complete", neuronsUsed: 0 };
+  }
+
+  // 5b. Manual / off modes: skip AI, record static findings, leave pending.
   if (mode !== "auto") {
     console.log(
       `[audit] mode=${mode} — skipping AI, plugin=${job.pluginId} version=${job.version} stays pending with ${staticFindings.length} static findings`,

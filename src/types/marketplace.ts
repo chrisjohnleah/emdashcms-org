@@ -154,5 +154,5 @@ export interface AuditJob {
    * force a specific behaviour on a single version regardless of the
    * Worker's configured mode.
    */
-  auditModeOverride?: "manual" | "auto" | "off";
+  auditModeOverride?: "manual" | "auto" | "off" | "static-first";
 }

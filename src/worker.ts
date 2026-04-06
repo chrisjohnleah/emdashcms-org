@@ -30,9 +30,16 @@ export default {
   },
 
   async queue(batch, env, _ctx) {
-    // AUDIT_MODE: 'manual' (default) | 'auto' | 'off' — see wrangler.jsonc
+    // AUDIT_MODE: 'static-first' | 'auto' | 'manual' | 'off' — see wrangler.jsonc.
+    // Default remains 'manual' for now (shadow deploy of static-first);
+    // the wrangler.jsonc var will flip to 'static-first' after smoke testing.
     const auditMode =
-      (env.AUDIT_MODE as "manual" | "auto" | "off" | undefined) ?? "manual";
+      (env.AUDIT_MODE as
+        | "manual"
+        | "auto"
+        | "off"
+        | "static-first"
+        | undefined) ?? "manual";
     for (const message of batch.messages) {
       const job = message.body as AuditJob;
       try {

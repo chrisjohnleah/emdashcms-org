@@ -99,7 +99,7 @@ function makeJob(overrides: Partial<AuditJob> = {}): AuditJob {
 
 function makeBindings(
   ai: { run: ReturnType<typeof vi.fn> },
-  auditMode: "manual" | "auto" | "off" = "auto",
+  auditMode: "manual" | "auto" | "off" | "static-first" = "auto",
 ): AuditBindings {
   return {
     db: env.DB,
@@ -709,5 +709,194 @@ describe("audit mode switch", () => {
       .bind(VERSION_ID)
       .first<{ model: string }>();
     expect(audit!.model).toBe("static-only");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// static-first audit mode: publish/flag/reject based on static scan alone
+// ---------------------------------------------------------------------------
+
+describe("static-first audit mode", () => {
+  /**
+   * Swap the R2 bundle for a custom one before each static-first test so we
+   * can control what the static scanner sees. The afterEach-style cleanup
+   * in the outer beforeEach resets the DB but leaves R2 alone, so we always
+   * restore the default bundle at the end of each test.
+   */
+  async function withBundle(
+    files: Record<string, string>,
+    fn: () => Promise<void>,
+  ): Promise<void> {
+    // NOTE: use a valid capability name. `content:read` is invalid per
+    // PLUGIN_CAPABILITIES — the correct form is `read:content`. If the
+    // manifest fails schema validation the static scan is silently
+    // skipped, which looks identical to a clean scan in the consumer.
+    const manifest = {
+      id: PLUGIN_ID,
+      version: VERSION,
+      capabilities: ["read:content"],
+      allowedHosts: [],
+      hooks: [],
+      routes: [],
+    };
+    const bundle = await createTestTarball({
+      "manifest.json": JSON.stringify(manifest),
+      ...files,
+    });
+    await env.ARTIFACTS.put(BUNDLE_KEY, bundle);
+    try {
+      await fn();
+    } finally {
+      // Restore the baseline clean bundle for the rest of the suite.
+      const cleanBundle = await createTestTarball({
+        "manifest.json": JSON.stringify(manifest),
+        "src/index.ts":
+          'export default { activate() { console.log("hello"); } }',
+      });
+      await env.ARTIFACTS.put(BUNDLE_KEY, cleanBundle);
+    }
+  }
+
+  it("publishes a clean bundle immediately with a static-only audit record", async () => {
+    await withBundle(
+      {
+        "src/index.ts":
+          "export default { activate() { return 'clean plugin'; } };",
+      },
+      async () => {
+        const mockAi = createMockAi(makePassResponse());
+        const result = await processAuditJob(
+          makeJob(),
+          makeBindings(mockAi, "static-first"),
+        );
+
+        expect(result.status).toBe("complete");
+        expect(result.verdict).toBeNull();
+        expect(mockAi.run).not.toHaveBeenCalled();
+
+        const version = await env.DB.prepare(
+          "SELECT status, published_at FROM plugin_versions WHERE id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ status: string; published_at: string | null }>();
+        expect(version!.status).toBe("published");
+        expect(version!.published_at).not.toBeNull();
+
+        const audit = await env.DB.prepare(
+          "SELECT model, verdict, findings FROM plugin_audits WHERE plugin_version_id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ model: string; verdict: string | null; findings: string }>();
+        expect(audit!.model).toBe("static-only");
+        expect(audit!.verdict).toBeNull();
+        expect(JSON.parse(audit!.findings)).toEqual([]);
+      },
+    );
+  });
+
+  it("flags a bundle with soft findings (require call) instead of rejecting it", async () => {
+    await withBundle(
+      {
+        // NOTE: `dist/` and `build/` are excluded by extractCodeFiles, so
+        // bundled CJS shims in those folders never reach the scanner.
+        // Place the CJS file at the root to exercise the require pattern.
+        "vendor.cjs":
+          "var lodash = require('lodash'); module.exports = { lodash };",
+      },
+      async () => {
+        const mockAi = createMockAi(makePassResponse());
+        const result = await processAuditJob(
+          makeJob(),
+          makeBindings(mockAi, "static-first"),
+        );
+
+        expect(result.status).toBe("complete");
+        expect(mockAi.run).not.toHaveBeenCalled();
+
+        const version = await env.DB.prepare(
+          "SELECT status FROM plugin_versions WHERE id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ status: string }>();
+        expect(version!.status).toBe("flagged");
+
+        const audit = await env.DB.prepare(
+          "SELECT model, findings FROM plugin_audits WHERE plugin_version_id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ model: string; findings: string }>();
+        expect(audit!.model).toBe("static-only");
+        const findings = JSON.parse(audit!.findings) as Array<{
+          title: string;
+        }>;
+        expect(findings.length).toBeGreaterThan(0);
+        expect(findings.some((f) => f.title.includes("require"))).toBe(true);
+      },
+    );
+  });
+
+  it("rejects a bundle with a blocking finding and preserves the findings list", async () => {
+    await withBundle(
+      {
+        "src/payload.ts":
+          "export default { run(input) { return eval(input); } };",
+      },
+      async () => {
+        const mockAi = createMockAi(makePassResponse());
+        const result = await processAuditJob(
+          makeJob(),
+          makeBindings(mockAi, "static-first"),
+        );
+
+        expect(result.status).toBe("complete");
+        expect(mockAi.run).not.toHaveBeenCalled();
+
+        const version = await env.DB.prepare(
+          "SELECT status FROM plugin_versions WHERE id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ status: string }>();
+        expect(version!.status).toBe("rejected");
+
+        // Critically: findings must be preserved so the contributor knows
+        // WHY their upload was blocked. The old rejectVersion() path used
+        // to throw these away.
+        const audit = await env.DB.prepare(
+          "SELECT model, findings, raw_response FROM plugin_audits WHERE plugin_version_id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ model: string; findings: string; raw_response: string }>();
+        expect(audit!.model).toBe("static-only");
+        const findings = JSON.parse(audit!.findings) as Array<{
+          title: string;
+        }>;
+        expect(findings.length).toBeGreaterThan(0);
+        expect(findings.some((f) => f.title.includes("eval"))).toBe(true);
+        expect(audit!.raw_response).toContain("eval");
+      },
+    );
+  });
+
+  it("rejects on child_process reference (blocking pattern)", async () => {
+    await withBundle(
+      {
+        "src/exec.ts":
+          "import { spawn } from 'child_process'; spawn('ls');",
+      },
+      async () => {
+        const result = await processAuditJob(
+          makeJob(),
+          makeBindings(createMockAi(makePassResponse()), "static-first"),
+        );
+        expect(result.status).toBe("complete");
+
+        const version = await env.DB.prepare(
+          "SELECT status FROM plugin_versions WHERE id = ?",
+        )
+          .bind(VERSION_ID)
+          .first<{ status: string }>();
+        expect(version!.status).toBe("rejected");
+      },
+    );
   });
 });
