@@ -1,0 +1,123 @@
+---
+/**
+ * Shared Button component — consolidates the 22+ hand-rolled primary button
+ * implementations across the site into one type-safe surface.
+ *
+ * Variants:
+ *   - primary       → bg-zinc-100 text-zinc-950 hover:bg-white
+ *                     Dashboard + form CTAs. The site's dominant pattern.
+ *   - secondary     → bg-zinc-900 border border-zinc-800 text-zinc-300
+ *                     Subordinate actions, outlines, cancel-ish buttons.
+ *   - destructive   → bg-red-950/40 border border-red-800/60 text-red-300
+ *                     Destructive actions (delete, reject, revoke, ban).
+ *   - ghost         → transparent, text-zinc-400 hover:text-zinc-100
+ *                     Text-only subdued actions.
+ *   - hero          → bg-white text-black hover:bg-zinc-200
+ *                     Large marketing CTAs on the homepage and docs.
+ *
+ * Sizes:
+ *   - sm  → px-3 py-1.5 text-xs
+ *   - md  → px-4 py-2 text-sm
+ *   - lg  → px-5 py-2.5 text-sm font-semibold   (default)
+ *
+ * The `hero` variant always renders at `lg` with `py-3.5` regardless of the
+ * requested size, because that's the size the marketing CTAs actually need.
+ *
+ * When `href` is provided, renders as `<a>`. Otherwise renders as `<button>`
+ * with a configurable `type` (default 'button'). `fullWidth` spans the
+ * available width. Any additional attributes are passed through via
+ * `...Astro.props` spread so consumers can attach `data-*` hooks, `disabled`,
+ * `title`, `aria-*`, etc. without special casing.
+ */
+
+type Variant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'hero';
+type Size = 'sm' | 'md' | 'lg';
+
+interface Props {
+  variant?: Variant;
+  size?: Size;
+  href?: string;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  fullWidth?: boolean;
+  target?: string;
+  rel?: string;
+  id?: string;
+  title?: string;
+  class?: string;
+}
+
+const {
+  variant = 'primary',
+  size = 'lg',
+  href,
+  type = 'button',
+  disabled = false,
+  fullWidth = false,
+  target,
+  rel,
+  id,
+  title,
+  class: extraClass,
+  ...rest
+} = Astro.props;
+
+const variantClass: Record<Variant, string> = {
+  primary:
+    'bg-zinc-100 text-zinc-950 hover:bg-white focus-visible:ring-zinc-200',
+  secondary:
+    'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:ring-zinc-700',
+  destructive:
+    'bg-red-950/40 border border-red-800/60 text-red-300 hover:bg-red-950/60 hover:text-red-200 focus-visible:ring-red-800',
+  ghost:
+    'text-zinc-400 hover:text-zinc-100 focus-visible:ring-zinc-700',
+  hero:
+    'bg-white text-black hover:bg-zinc-200 focus-visible:ring-white',
+};
+
+const sizeClass: Record<Size, string> = {
+  sm: 'px-3 py-1.5 text-xs',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-5 py-2.5 text-sm font-semibold',
+};
+
+// Hero variant forces lg + taller padding regardless of requested size.
+const finalSizeClass = variant === 'hero' ? 'px-8 py-3.5 text-sm font-semibold' : sizeClass[size];
+
+const baseClass = [
+  'inline-flex items-center justify-center gap-2 rounded-lg transition-colors',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black',
+  disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+  fullWidth ? 'w-full' : '',
+  variantClass[variant],
+  finalSizeClass,
+  extraClass ?? '',
+]
+  .filter(Boolean)
+  .join(' ');
+---
+{href ? (
+  <a
+    href={disabled ? undefined : href}
+    class={baseClass}
+    target={target}
+    rel={rel}
+    id={id}
+    title={title}
+    aria-disabled={disabled || undefined}
+    {...rest}
+  >
+    <slot />
+  </a>
+) : (
+  <button
+    type={type}
+    disabled={disabled}
+    class={baseClass}
+    id={id}
+    title={title}
+    {...rest}
+  >
+    <slot />
+  </button>
+)}

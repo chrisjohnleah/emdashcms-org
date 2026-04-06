@@ -1,4 +1,6 @@
 ---
+import Button from './Button.astro';
+
 interface Props {
   heading: string;
   body: string;
@@ -12,11 +14,8 @@ const { heading, body, linkHref, linkText } = Astro.props;
   <h2 class="text-xl font-semibold text-zinc-100">{heading}</h2>
   <p class="mt-2 text-sm text-zinc-400">{body}</p>
   {linkHref && linkText && (
-    <a
-      href={linkHref}
-      class="mt-6 inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
-    >
-      {linkText}
-    </a>
+    <div class="mt-6 inline-block">
+      <Button href={linkHref} variant="primary" size="lg">{linkText}</Button>
+    </div>
   )}
 </div>
