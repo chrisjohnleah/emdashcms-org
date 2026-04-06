@@ -44,6 +44,7 @@ const securityHeaders = defineMiddleware(async (_ctx, next) => {
 /**
  * CSRF protection middleware.
  * Validates Origin header on state-changing requests to dashboard and API routes.
+ * Fails closed: requests with no Origin header on a mutation target are rejected.
  */
 const csrfProtection = defineMiddleware(async ({ request, url }, next) => {
   if (request.method === "GET" || request.method === "HEAD") return next();
@@ -51,25 +52,62 @@ const csrfProtection = defineMiddleware(async ({ request, url }, next) => {
   // Webhook endpoints have their own HMAC authentication
   if (url.pathname.startsWith("/api/v1/webhooks/")) return next();
 
+  // Device code flow is for non-browser clients (CLI). It uses a short-lived
+  // user_code and HMAC-style token exchange — no cookies, no CSRF surface.
+  if (url.pathname.startsWith("/api/v1/auth/device/")) return next();
+
   const isMutationTarget =
     url.pathname.startsWith("/dashboard") ||
     url.pathname.startsWith("/api/v1/plugins") ||
-    url.pathname.startsWith("/api/v1/themes");
+    url.pathname.startsWith("/api/v1/themes") ||
+    url.pathname.startsWith("/api/v1/admin") ||
+    url.pathname.startsWith("/api/v1/auth") ||
+    url.pathname.startsWith("/api/v1/github") ||
+    url.pathname.startsWith("/plugins/") ||
+    url.pathname.startsWith("/themes/");
 
   if (!isMutationTarget) return next();
 
-  const origin = request.headers.get("origin");
-  if (origin) {
-    const allowedOrigins = import.meta.env.PROD
-      ? ["https://emdashcms.org"]
-      : ["http://localhost:4321", "http://localhost:8787"];
+  const allowedOrigins = import.meta.env.PROD
+    ? ["https://emdashcms.org"]
+    : ["http://localhost:4321", "http://localhost:8787"];
 
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+
+  // Fail closed: a mutation request must include either Origin or Referer
+  // matching an allowed origin. Most browsers always send one of the two
+  // on POST/PUT/PATCH/DELETE; clients that omit both are not legitimate
+  // browser sessions.
+  let validated = false;
+  if (origin) {
     if (!allowedOrigins.includes(origin)) {
       return new Response(
         JSON.stringify({ error: "CSRF validation failed" }),
         { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
+    validated = true;
+  } else if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (!allowedOrigins.includes(refererOrigin)) {
+        return new Response(
+          JSON.stringify({ error: "CSRF validation failed" }),
+          { status: 403, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      validated = true;
+    } catch {
+      // Malformed Referer — fall through to rejection
+    }
+  }
+
+  if (!validated) {
+    return new Response(
+      JSON.stringify({ error: "Missing Origin or Referer header" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   return next();
