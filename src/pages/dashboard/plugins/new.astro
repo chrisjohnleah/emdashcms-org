@@ -22,22 +22,11 @@ if (!author) {
   return Astro.redirect('/api/v1/auth/github');
 }
 
-// --- Capabilities ---
-const KNOWN_CAPABILITIES = [
-  'network:fetch',
-  'storage:read',
-  'storage:write',
-  'admin:panel',
-  'content:transform',
-  'hook:beforeSave',
-  'hook:afterSave',
-  'hook:beforePublish',
-  'hook:afterPublish',
-  'hook:beforeDelete',
-  'hook:afterDelete',
-];
-
 // --- GitHub App availability ---
+// Capabilities are no longer collected on the form — they're declared in
+// manifest.json inside the bundle and extracted on upload (see
+// validateBundle → result.manifest.capabilities). The form mirrors theme
+// register: marketplace listing data only.
 const githubAppConfigured = Boolean(env.GITHUB_APP_ID);
 
 // --- State ---
@@ -56,7 +45,6 @@ let formValues = {
   shortDescription: '',
   description: '',
   category: '',
-  capabilities: [] as string[],
   keywords: '',
   license: '',
   licenseOther: '',
@@ -79,7 +67,6 @@ function readMetadata(data: FormData) {
   formValues.shortDescription = (data.get('shortDescription') as string ?? '').trim();
   formValues.description = (data.get('description') as string ?? '').trim();
   formValues.category = (data.get('category') as string ?? '').trim();
-  formValues.capabilities = data.getAll('capabilities') as string[];
   formValues.keywords = (data.get('keywords') as string ?? '').trim();
   const licenseSelect = (data.get('license') as string ?? '').trim();
   const licenseOtherVal = (data.get('licenseOther') as string ?? '').trim();
@@ -100,7 +87,6 @@ function validateMetadata(): boolean {
   if (!formValues.description) errors.description = 'Description is required.';
   else if (formValues.description.length > 5000) errors.description = 'Description must be 5000 characters or less.';
   if (!formValues.category) errors.category = 'Category is required.';
-  if (formValues.capabilities.length === 0) errors.capabilities = 'Select at least one capability.';
   return Object.keys(errors).length === 0;
 }
 
@@ -181,35 +167,31 @@ if (Astro.request.method === 'POST') {
           const tarballBytes = await file.arrayBuffer();
 
           try {
-            // Register the plugin first
-            const keywordsArray = formValues.keywords
-              ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
-              : [];
-
-            await registerPlugin(env.DB, authorId, {
-              id: formValues.id,
-              name: formValues.name,
-              short_description: formValues.shortDescription || undefined,
-              description: formValues.description,
-              capabilities: formValues.capabilities,
-              keywords: keywordsArray,
-              license: formValues.license || undefined,
-              category: formValues.category || undefined,
-              repository_url: formValues.repositoryUrl || undefined,
-              homepage_url: formValues.homepageUrl || undefined,
-              support_url: formValues.supportUrl || undefined,
-            });
-
-            // Validate the bundle
+            // Validate the bundle FIRST so we can derive capabilities from
+            // the manifest before touching D1. No rollback path needed.
             const result = await validateBundle(tarballBytes, formValues.id);
             if (!result.valid) {
-              // Rollback: delete the plugin we just created
-              await env.DB.prepare('DELETE FROM plugins WHERE id = ?').bind(formValues.id).run();
               globalError = 'Bundle validation failed: ' + (result.errors?.join('; ') ?? 'Unknown error');
               await loadGitHubState(authorId);
             } else {
-              // Supply chain check: manifest.id must match metadata.id
-              // (already verified inside validateBundle via expectedPluginId)
+              const keywordsArray = formValues.keywords
+                ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
+                : [];
+
+              await registerPlugin(env.DB, authorId, {
+                id: formValues.id,
+                name: formValues.name,
+                short_description: formValues.shortDescription || undefined,
+                description: formValues.description,
+                // Capabilities come from the validated manifest, not the form.
+                capabilities: result.manifest!.capabilities,
+                keywords: keywordsArray,
+                license: formValues.license || undefined,
+                category: formValues.category || undefined,
+                repository_url: formValues.repositoryUrl || undefined,
+                homepage_url: formValues.homepageUrl || undefined,
+                support_url: formValues.supportUrl || undefined,
+              });
 
               // Store in R2
               const { key: bundleKey } = await storeBundleInR2(
@@ -233,9 +215,10 @@ if (Astro.request.method === 'POST') {
                 source: 'upload',
               });
 
-              // Audit budget check
+              // Author audit budget is only meaningful in auto mode, but we
+              // keep the spam-protection check on every upload regardless.
               const budget = await checkAuthorAuditBudget(env.DB, authorId);
-              if (!budget.allowed) throw new Error('Daily audit limit reached (10/day). Try again tomorrow.');
+              if (!budget.allowed) throw new Error('Daily upload limit reached (10/day). Try again tomorrow.');
 
               await enqueueAuditJob(env.AUDIT_QUEUE, {
                 pluginId: formValues.id,
@@ -250,11 +233,10 @@ if (Astro.request.method === 'POST') {
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             if (msg.includes('UNIQUE')) {
-              // Duplicate ID race condition: go back to step 1
               errors.id = 'A plugin with this ID already exists.';
               currentStep = 1;
             } else {
-              // Attempt rollback in case plugin was created
+              // Best-effort cleanup in case registerPlugin landed before the throw
               try {
                 await env.DB.prepare('DELETE FROM plugins WHERE id = ?').bind(formValues.id).run();
               } catch {
@@ -293,13 +275,14 @@ if (Astro.request.method === 'POST') {
               ? formValues.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
               : [];
 
-            // Register plugin
+            // Register plugin. Capabilities start empty; the audit worker
+            // will populate them when the first version bundle arrives.
             await registerPlugin(env.DB, authorId, {
               id: formValues.id,
               name: formValues.name,
               short_description: formValues.shortDescription || undefined,
               description: formValues.description,
-              capabilities: formValues.capabilities,
+              capabilities: [],
               keywords: keywordsArray,
               license: formValues.license || undefined,
               category: formValues.category || undefined,
@@ -469,21 +452,9 @@ const inputError = `${inputBase} border-red-700`;
             {errors.category && <p id="category-error" class="mt-1 text-xs text-red-400">{errors.category}</p>}
           </div>
 
-          {/* Capabilities */}
-          <div>
-            <span class="block text-sm font-semibold text-zinc-100">Capabilities <span class="text-red-400">*</span></span>
-            <p class="mt-1 text-xs text-zinc-500">Select at least one capability your plugin requires</p>
-            {errors.capabilities && <p class="mt-1 text-xs text-red-400">{errors.capabilities}</p>}
-            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {KNOWN_CAPABILITIES.map(cap => (
-                <label class="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-                  <input type="checkbox" name="capabilities" value={cap}
-                    class="h-4 w-4 rounded border-zinc-700 bg-zinc-900 accent-zinc-100"
-                    checked={formValues.capabilities.includes(cap)} />
-                  <code class="font-mono text-xs">{cap}</code>
-                </label>
-              ))}
-            </div>
+          {/* Capabilities live in the bundle's manifest.json — extracted on upload, no need to type them here. */}
+          <div class="rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-3 text-xs text-zinc-500">
+            <span class="text-zinc-400">Capabilities &amp; hooks</span> are read from your bundle's <code class="font-mono text-zinc-300">manifest.json</code> when you upload — you don't need to declare them here.
           </div>
 
           {/* Optional fields in a 2-col grid */}
@@ -557,9 +528,6 @@ const inputError = `${inputBase} border-red-700`;
                 <input type="hidden" name="shortDescription" value={formValues.shortDescription} />
                 <input type="hidden" name="description" value={formValues.description} />
                 <input type="hidden" name="category" value={formValues.category} />
-                {formValues.capabilities.map(cap => (
-                  <input type="hidden" name="capabilities" value={cap} />
-                ))}
                 <input type="hidden" name="keywords" value={formValues.keywords} />
                 <input type="hidden" name="license" value={formValues.license} />
                 <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
@@ -581,13 +549,12 @@ const inputError = `${inputBase} border-red-700`;
             {/* --- Option A: Upload Bundle --- */}
             <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 flex flex-col">
               <input type="hidden" name="_step" value="2-upload" />
-              {/* Carry metadata in hidden fields */}
+              {/* Carry every step-1 field through so readMetadata sees them all */}
               <input type="hidden" name="id" value={formValues.id} />
               <input type="hidden" name="name" value={formValues.name} />
+              <input type="hidden" name="shortDescription" value={formValues.shortDescription} />
               <input type="hidden" name="description" value={formValues.description} />
-              {formValues.capabilities.map(cap => (
-                <input type="hidden" name="capabilities" value={cap} />
-              ))}
+              <input type="hidden" name="category" value={formValues.category} />
               <input type="hidden" name="keywords" value={formValues.keywords} />
               <input type="hidden" name="license" value={formValues.license} />
               <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
@@ -645,13 +612,12 @@ const inputError = `${inputBase} border-red-700`;
                 {githubInstalled ? (
                   <form method="POST" class="flex-1 flex flex-col">
                     <input type="hidden" name="_step" value="2-github" />
-                    {/* Carry metadata in hidden fields */}
+                    {/* Carry every step-1 field through so readMetadata sees them all */}
                     <input type="hidden" name="id" value={formValues.id} />
                     <input type="hidden" name="name" value={formValues.name} />
+                    <input type="hidden" name="shortDescription" value={formValues.shortDescription} />
                     <input type="hidden" name="description" value={formValues.description} />
-                    {formValues.capabilities.map(cap => (
-                      <input type="hidden" name="capabilities" value={cap} />
-                    ))}
+                    <input type="hidden" name="category" value={formValues.category} />
                     <input type="hidden" name="keywords" value={formValues.keywords} />
                     <input type="hidden" name="license" value={formValues.license} />
                     <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />

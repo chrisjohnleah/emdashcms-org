@@ -55,7 +55,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const id = body.id;
     const name = body.name;
     const description = body.description;
-    const capabilities = body.capabilities;
+    // Capabilities are optional — if not provided, the plugin starts with []
+    // and the audit worker populates them when the first version's bundle
+    // is validated against the manifest schema.
+    const capabilities = body.capabilities ?? [];
 
     if (!id || typeof id !== "string")
       return errorResponse(400, "id is required");
@@ -73,9 +76,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
-    // Validate capabilities against known values
-    const capsErr = validateCapabilities(capabilities);
-    if (capsErr) return errorResponse(400, capsErr);
+    // Validate capabilities against known upstream values (when provided)
+    if (capabilities.length > 0) {
+      const capsErr = validateCapabilities(capabilities);
+      if (capsErr) return errorResponse(400, capsErr);
+    }
 
     // Validate keywords if provided
     if (body.keywords !== undefined) {
