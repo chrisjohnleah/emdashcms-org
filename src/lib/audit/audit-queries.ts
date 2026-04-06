@@ -19,6 +19,16 @@ export interface CreateAuditParams {
   verdict: "pass" | "warn" | "fail" | null;
   riskScore: number;
   findings: MarketplaceAuditFinding[];
+  /**
+   * Optional override for the version status update.
+   * - If unset and verdict is non-null, uses verdictToStatus(verdict).
+   * - If unset and verdict is null, defaults to 'rejected' (legacy
+   *   fail-closed behaviour for hard error paths).
+   * - If set explicitly, that status is used regardless of verdict —
+   *   used by static-only scans to leave the version 'pending' while
+   *   still recording findings.
+   */
+  versionStatusOverride?: "pending" | "published" | "flagged" | "rejected";
 }
 
 // --- Verdict Mapping ---
@@ -55,11 +65,13 @@ export async function createAuditRecord(
 ): Promise<void> {
   const auditId = crypto.randomUUID();
 
-  // Determine version status: use verdict mapping if available, reject on error
+  // Determine version status:
+  // - explicit override wins (used by static-only scans to keep status='pending')
+  // - else, use verdict mapping if available
+  // - else, reject (legacy fail-closed for hard error paths)
   const versionStatus =
-    params.verdict !== null
-      ? verdictToStatus(params.verdict)
-      : "rejected";
+    params.versionStatusOverride ??
+    (params.verdict !== null ? verdictToStatus(params.verdict) : "rejected");
 
   await db.batch([
     db

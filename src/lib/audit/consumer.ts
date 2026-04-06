@@ -5,10 +5,12 @@
  * extraction, AI inference, response parsing, record storage, and status update.
  * Every error path leads to version rejection (fail-closed per D-13).
  */
-import type { AuditJob } from "../../types/marketplace";
+import type { AuditJob, MarketplaceAuditFinding } from "../../types/marketplace";
 import { checkNeuronBudget, recordNeuronUsage, tokensToNeurons } from "./budget";
 import { MODEL_ID, SYSTEM_PROMPT, AUDIT_JSON_SCHEMA, extractCodeFiles, buildPromptContent } from "./prompt";
 import { createAuditRecord, rejectVersion } from "./audit-queries";
+import { runStaticScan, type StaticFinding } from "./static-scanner";
+import { manifestSchema } from "../publishing/manifest-schema";
 
 // --- Bindings ---
 
@@ -96,6 +98,35 @@ function validateAuditResponse(
   return true;
 }
 
+/**
+ * Convert a static-scanner finding to the marketplace finding shape so
+ * static and AI findings can live in the same audit record.
+ */
+function staticFindingToMarketplace(f: StaticFinding): MarketplaceAuditFinding {
+  return {
+    severity: f.severity === "info" ? "info" : f.severity,
+    title: f.title,
+    description: f.description,
+    category: f.category,
+    location: f.location ?? null,
+  };
+}
+
+/**
+ * Compute a coarse risk score from static findings alone, used when no
+ * AI verdict is available. Each high finding adds 25, medium 10, low 3,
+ * capped at 100.
+ */
+function staticRiskScore(findings: StaticFinding[]): number {
+  let score = 0;
+  for (const f of findings) {
+    if (f.severity === "high") score += 25;
+    else if (f.severity === "medium") score += 10;
+    else if (f.severity === "low") score += 3;
+  }
+  return Math.min(100, score);
+}
+
 // --- Main Pipeline ---
 
 /**
@@ -120,32 +151,14 @@ export async function processAuditJob(
   const startTime = Date.now();
   const mode = bindings.auditMode ?? "manual";
 
-  // 0. Resolve version ID first (we need it for any non-AI path too)
+  // 1. Resolve version ID
   const versionId = await resolveVersionId(bindings.db, job.pluginId, job.version);
   if (!versionId) {
     console.error(`[audit] Version not found: plugin=${job.pluginId} version=${job.version}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
-  // Manual / off modes: skip AI entirely. Version stays 'pending' for admin review.
-  if (mode !== "auto") {
-    console.log(
-      `[audit] mode=${mode} — skipping AI, leaving plugin=${job.pluginId} version=${job.version} as pending for manual review`,
-    );
-    return { verdict: null, status: "complete", neuronsUsed: 0 };
-  }
-
-  // 1. Check neuron budget (auto mode only)
-  const budget = await checkNeuronBudget(bindings.db);
-  if (!budget.allowed) {
-    // Don't fail-closed: leave version pending for manual review when budget is exhausted.
-    console.warn(
-      `[audit] Daily neuron budget exhausted (${budget.used}) — falling back to manual review for plugin=${job.pluginId} version=${job.version}`,
-    );
-    return { verdict: null, status: "complete", neuronsUsed: 0 };
-  }
-
-  // 3. Fetch bundle from R2
+  // 2. Fetch bundle from R2 (needed for static scan AND any AI path)
   const r2Object = await bindings.artifacts.get(job.bundleKey);
   if (!r2Object) {
     await rejectVersion(bindings.db, versionId, "Bundle not found in R2");
@@ -153,7 +166,7 @@ export async function processAuditJob(
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
-  // 4. Extract code files
+  // 3. Extract code files
   let codeFiles: Map<string, string>;
   try {
     codeFiles = await extractCodeFiles(await r2Object.arrayBuffer());
@@ -164,11 +177,78 @@ export async function processAuditJob(
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
-  // 5. Build prompt
   if (codeFiles.size === 0) {
     await rejectVersion(bindings.db, versionId, "No code files found in bundle");
     console.error(`[audit] No code files in bundle: plugin=${job.pluginId} version=${job.version}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
+  }
+
+  // 4. Always-on static scan: parse manifest from the bundle, run heuristics.
+  //    Records findings against the version regardless of audit mode.
+  let staticFindings: StaticFinding[] = [];
+  let staticScore = 0;
+  const manifestText = codeFiles.get("manifest.json");
+  if (manifestText) {
+    try {
+      const parsed = JSON.parse(manifestText);
+      const result = manifestSchema.safeParse(parsed);
+      if (result.success) {
+        const scan = runStaticScan(codeFiles, result.data);
+        staticFindings = scan.findings;
+        staticScore = staticRiskScore(scan.findings);
+        console.log(
+          `[audit] static scan: plugin=${job.pluginId} version=${job.version} findings=${staticFindings.length} score=${staticScore}`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[audit] static scan failed for plugin=${job.pluginId} version=${job.version}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  // 5. Manual / off modes: skip AI, record static findings, leave pending.
+  if (mode !== "auto") {
+    console.log(
+      `[audit] mode=${mode} — skipping AI, plugin=${job.pluginId} version=${job.version} stays pending with ${staticFindings.length} static findings`,
+    );
+    await createAuditRecord(bindings.db, {
+      versionId,
+      status: "complete",
+      model: "static-only",
+      promptTokens: 0,
+      completionTokens: 0,
+      neuronsUsed: 0,
+      rawResponse: `Static scan only (audit mode: ${mode})`,
+      verdict: null,
+      riskScore: staticScore,
+      findings: staticFindings.map(staticFindingToMarketplace),
+      versionStatusOverride: "pending",
+    });
+    return { verdict: null, status: "complete", neuronsUsed: 0 };
+  }
+
+  // 6. Auto mode: check neuron budget
+  const budget = await checkNeuronBudget(bindings.db);
+  if (!budget.allowed) {
+    // Budget exhausted — record static findings only, leave pending for manual review.
+    console.warn(
+      `[audit] Daily neuron budget exhausted (${budget.used}) — falling back to static-only for plugin=${job.pluginId} version=${job.version}`,
+    );
+    await createAuditRecord(bindings.db, {
+      versionId,
+      status: "complete",
+      model: "static-only",
+      promptTokens: 0,
+      completionTokens: 0,
+      neuronsUsed: 0,
+      rawResponse: "Static scan only (neuron budget exhausted)",
+      verdict: null,
+      riskScore: staticScore,
+      findings: staticFindings.map(staticFindingToMarketplace),
+      versionStatusOverride: "pending",
+    });
+    return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
 
   const promptContent = buildPromptContent(codeFiles);
@@ -234,7 +314,14 @@ export async function processAuditJob(
   }
   const neuronsUsed = tokensToNeurons(promptTokens, completionTokens);
 
-  // 9. Store audit record (atomically updates version status)
+  // 9. Store audit record (atomically updates version status).
+  // Merge static-scan findings with AI findings — the static signals stay
+  // useful even when AI passes the verdict.
+  const aiFindings = parsed.findings as MarketplaceAuditFinding[];
+  const mergedFindings: MarketplaceAuditFinding[] = [
+    ...staticFindings.map(staticFindingToMarketplace),
+    ...aiFindings,
+  ];
   await createAuditRecord(bindings.db, {
     versionId,
     status: "complete",
@@ -245,7 +332,7 @@ export async function processAuditJob(
     rawResponse: result.response ?? "",
     verdict: parsed.verdict,
     riskScore: parsed.riskScore,
-    findings: parsed.findings as import("../../types/marketplace").MarketplaceAuditFinding[],
+    findings: mergedFindings,
   });
 
   // 10. Update neuron budget

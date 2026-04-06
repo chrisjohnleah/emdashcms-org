@@ -587,7 +587,7 @@ describe("neuron budget enforcement (COST-02)", () => {
 // ---------------------------------------------------------------------------
 
 describe("audit mode switch", () => {
-  it("manual mode skips AI and leaves version pending", async () => {
+  it("manual mode skips AI and leaves version pending with static-only audit", async () => {
     const mockAi = createMockAi(makePassResponse());
     const result = await processAuditJob(
       makeJob(),
@@ -607,13 +607,16 @@ describe("audit mode switch", () => {
       .first<{ status: string }>();
     expect(version!.status).toBe("pending");
 
-    // No audit record should be created in manual mode
+    // A static-only audit record IS created so the admin sees scan findings
     const audit = await env.DB.prepare(
-      "SELECT id FROM plugin_audits WHERE plugin_version_id = ?",
+      "SELECT model, verdict, neurons_used FROM plugin_audits WHERE plugin_version_id = ?",
     )
       .bind(VERSION_ID)
-      .first();
-    expect(audit).toBeNull();
+      .first<{ model: string; verdict: string | null; neurons_used: number }>();
+    expect(audit).not.toBeNull();
+    expect(audit!.model).toBe("static-only");
+    expect(audit!.verdict).toBeNull();
+    expect(audit!.neurons_used).toBe(0);
   });
 
   it("off mode also skips AI and leaves version pending", async () => {
