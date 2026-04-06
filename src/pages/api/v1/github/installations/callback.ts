@@ -36,6 +36,16 @@ export const GET: APIRoute = async ({ url, locals, redirect }) => {
       return redirect("/dashboard?banner=GitHub+App+installation+failed.+Please+try+again.&bannerType=error");
     }
 
+    // Verify the installation belongs to the authenticated user. Without this
+    // check, a logged-in attacker could intercept the callback URL and claim
+    // someone else's GitHub App installation under their own account.
+    if (installInfo.accountId !== author.githubId) {
+      console.warn(
+        `[github] Installation ownership mismatch: install_id=${installationId} install_account=${installInfo.accountId} session_account=${author.githubId}`,
+      );
+      return redirect("/dashboard?banner=GitHub+App+installation+does+not+belong+to+your+account.&bannerType=error");
+    }
+
     await saveInstallation(env.DB, {
       id: Number(installationId),
       accountLogin: installInfo.accountLogin,
