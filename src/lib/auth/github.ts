@@ -160,7 +160,7 @@ export async function upsertAuthor(user: GitHubUser): Promise<string> {
 
   if (existing) {
     await env.DB.prepare(
-      "UPDATE authors SET github_username = ?, avatar_url = ?, updated_at = datetime('now') WHERE github_id = ?",
+      "UPDATE authors SET github_username = ?, avatar_url = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE github_id = ?",
     )
       .bind(user.login, user.avatar_url, user.id)
       .run();
@@ -174,4 +174,27 @@ export async function upsertAuthor(user: GitHubUser): Promise<string> {
     .bind(id, user.id, user.login, user.avatar_url)
     .run();
   return id;
+}
+
+/**
+ * Return the ban status for an author (by internal UUID). Used by the OAuth
+ * callback and the plugin/theme registration endpoints to refuse publishing
+ * from banned accounts. Banned authors can still view the site; this check
+ * gates writes and session creation only.
+ */
+export async function isAuthorBanned(
+  db: D1Database,
+  authorId: string,
+): Promise<{ banned: boolean; reason: string | null }> {
+  const row = await db
+    .prepare(
+      "SELECT banned, banned_reason FROM authors WHERE id = ?",
+    )
+    .bind(authorId)
+    .first<{ banned: number; banned_reason: string | null }>();
+
+  if (!row || row.banned !== 1) {
+    return { banned: false, reason: null };
+  }
+  return { banned: true, reason: row.banned_reason ?? null };
 }

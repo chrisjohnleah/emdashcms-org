@@ -8,6 +8,7 @@ import {
   registerPlugin,
   getPluginOwner,
 } from "../../../../lib/publishing/plugin-queries";
+import { isAuthorBanned } from "../../../../lib/auth/github";
 import {
   isValidResourceId,
   validateUrlFields,
@@ -49,6 +50,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
+
+    // Ban gate — refuse publishing from suspended accounts.
+    const ban = await isAuthorBanned(env.DB, authorId);
+    if (ban.banned) {
+      return errorResponse(
+        403,
+        ban.reason
+          ? `Author is banned from publishing: ${ban.reason}`
+          : "Author is banned from publishing",
+      );
+    }
 
     const body = (await request.json()) as Record<string, unknown>;
 

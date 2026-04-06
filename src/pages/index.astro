@@ -16,8 +16,30 @@ const [latestResult, popularResult, themesResult] = await Promise.all([
 ]);
 
 const popularWithInstalls = popularResult.items.filter(p => p.installCount > 0);
+
+// OAuth callback redirects banned authors here with ?banned=1
+const showBannedNotice = Astro.url.searchParams.get('banned') === '1';
 ---
 <BaseLayout title={title} description={description}>
+
+  {showBannedNotice && (
+    <div class="bg-red-950/60 border-b border-red-800/60">
+      <div class="mx-auto max-w-7xl px-6 py-4 flex items-start gap-3">
+        <svg class="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+        </svg>
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-red-300">Your account has been suspended from publishing</p>
+          <p class="mt-1 text-xs text-red-300/80">
+            You can still browse the marketplace but cannot register new plugins or themes or upload new versions.
+            See our <a href="/code-of-conduct" class="underline hover:text-red-200">Code of Conduct</a> for the policies we enforce.
+            If you believe this is a mistake, open an issue at
+            <a href="https://github.com/chrisjohnleah/emdashcms-org/issues" target="_blank" rel="noopener noreferrer" class="underline hover:text-red-200">github.com/chrisjohnleah/emdashcms-org/issues</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  )}
 
   <!-- Ambient lighting -->
   <div class="ambient-glow bg-emerald-500 w-[600px] h-[600px] top-[-200px] left-[-100px]"></div>

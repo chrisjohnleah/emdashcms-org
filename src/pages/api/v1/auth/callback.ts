@@ -1,11 +1,13 @@
 import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
 import {
   exchangeCodeForToken,
   fetchGitHubUser,
   upsertAuthor,
+  isAuthorBanned,
 } from "../../../../lib/auth/github";
 import { createSessionToken } from "../../../../lib/auth/jwt";
-import { setSessionCookie } from "../../../../lib/auth/session";
+import { setSessionCookie, clearSessionCookie } from "../../../../lib/auth/session";
 import { errorResponse } from "../../../../lib/api/response";
 
 export const prerender = false;
@@ -44,8 +46,17 @@ export const GET: APIRoute = async ({ request, cookies, redirect }) => {
     return errorResponse(502, "Failed to fetch GitHub user profile");
   }
 
-  // Create/update author record and issue session
+  // Create/update author record
   const authorId = await upsertAuthor(githubUser);
+
+  // Ban check — do this BEFORE issuing a session. Banned authors get
+  // redirected to the homepage with a banner and no cookie.
+  const ban = await isAuthorBanned(env.DB, authorId);
+  if (ban.banned) {
+    clearSessionCookie(cookies);
+    return redirect("/?banned=1", 302);
+  }
+
   const jwt = await createSessionToken(authorId, githubUser.id, githubUser.login);
   setSessionCookie(cookies, jwt);
 

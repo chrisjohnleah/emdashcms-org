@@ -5,6 +5,7 @@ import { parsePaginationParams } from "../../../../lib/api/pagination";
 import { jsonResponse, errorResponse } from "../../../../lib/api/response";
 import { resolveAuthorId } from "../../../../lib/publishing/plugin-queries";
 import { registerTheme } from "../../../../lib/publishing/theme-queries";
+import { isAuthorBanned } from "../../../../lib/auth/github";
 import {
   isValidResourceId,
   validateUrlFields,
@@ -45,6 +46,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const authorId = await resolveAuthorId(env.DB, locals.author!.githubId);
     if (!authorId) return errorResponse(401, "Author not found");
+
+    const ban = await isAuthorBanned(env.DB, authorId);
+    if (ban.banned) {
+      return errorResponse(
+        403,
+        ban.reason
+          ? `Author is banned from publishing: ${ban.reason}`
+          : "Author is banned from publishing",
+      );
+    }
 
     const body = (await request.json()) as Record<string, unknown>;
 
