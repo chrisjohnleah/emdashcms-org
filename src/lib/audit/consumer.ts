@@ -16,6 +16,13 @@ export interface AuditBindings {
   db: D1Database;
   ai: Ai;
   artifacts: R2Bucket;
+  /**
+   * Audit mode controls how new versions are processed:
+   * - 'manual' (default): skip AI, leave status='pending' for human moderation
+   * - 'auto': run AI audit, neuron-budget bound
+   * - 'off': skip AI, leave status='pending' (admin must approve everything)
+   */
+  auditMode?: "manual" | "auto" | "off";
 }
 
 // --- Result ---
@@ -111,18 +118,31 @@ export async function processAuditJob(
   bindings: AuditBindings,
 ): Promise<AuditResult> {
   const startTime = Date.now();
+  const mode = bindings.auditMode ?? "manual";
 
-  // 1. Check neuron budget
-  const budget = await checkNeuronBudget(bindings.db);
-  if (!budget.allowed) {
-    throw new BudgetExceededError(budget.used);
-  }
-
-  // 2. Resolve version ID
+  // 0. Resolve version ID first (we need it for any non-AI path too)
   const versionId = await resolveVersionId(bindings.db, job.pluginId, job.version);
   if (!versionId) {
     console.error(`[audit] Version not found: plugin=${job.pluginId} version=${job.version}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
+  }
+
+  // Manual / off modes: skip AI entirely. Version stays 'pending' for admin review.
+  if (mode !== "auto") {
+    console.log(
+      `[audit] mode=${mode} — skipping AI, leaving plugin=${job.pluginId} version=${job.version} as pending for manual review`,
+    );
+    return { verdict: null, status: "complete", neuronsUsed: 0 };
+  }
+
+  // 1. Check neuron budget (auto mode only)
+  const budget = await checkNeuronBudget(bindings.db);
+  if (!budget.allowed) {
+    // Don't fail-closed: leave version pending for manual review when budget is exhausted.
+    console.warn(
+      `[audit] Daily neuron budget exhausted (${budget.used}) — falling back to manual review for plugin=${job.pluginId} version=${job.version}`,
+    );
+    return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
 
   // 3. Fetch bundle from R2

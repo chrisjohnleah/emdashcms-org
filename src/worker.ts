@@ -30,6 +30,9 @@ export default {
   },
 
   async queue(batch, env, _ctx) {
+    // AUDIT_MODE: 'manual' (default) | 'auto' | 'off' — see wrangler.jsonc
+    const auditMode =
+      (env.AUDIT_MODE as "manual" | "auto" | "off" | undefined) ?? "manual";
     for (const message of batch.messages) {
       const job = message.body as AuditJob;
       try {
@@ -37,10 +40,12 @@ export default {
           db: env.DB,
           ai: env.AI,
           artifacts: env.ARTIFACTS,
+          auditMode,
         });
         message.ack();
       } catch (err) {
         if (err instanceof BudgetExceededError) {
+          // Budget errors no longer thrown by processAuditJob — kept here as defensive fallback.
           console.log(
             `[audit] Budget exceeded for plugin=${job.pluginId} version=${job.version}, retrying in 1 hour`,
           );

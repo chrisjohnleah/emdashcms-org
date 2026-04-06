@@ -3,7 +3,6 @@ import { env } from "cloudflare:test";
 import { packTar, createGzipEncoder } from "modern-tar";
 import {
   processAuditJob,
-  BudgetExceededError,
   TransientError,
 } from "../../src/lib/audit/consumer";
 import type { AuditBindings } from "../../src/lib/audit/consumer";
@@ -98,8 +97,16 @@ function makeJob(overrides: Partial<AuditJob> = {}): AuditJob {
   };
 }
 
-function makeBindings(ai: { run: ReturnType<typeof vi.fn> }): AuditBindings {
-  return { db: env.DB, ai: ai as unknown as Ai, artifacts: env.ARTIFACTS };
+function makeBindings(
+  ai: { run: ReturnType<typeof vi.fn> },
+  auditMode: "manual" | "auto" | "off" = "auto",
+): AuditBindings {
+  return {
+    db: env.DB,
+    ai: ai as unknown as Ai,
+    artifacts: env.ARTIFACTS,
+    auditMode,
+  };
 }
 
 function makePassResponse(overrides: Partial<MockAiResponse> = {}): MockAiResponse {
@@ -505,7 +512,7 @@ describe("processAuditJob - fail-closed (AUDT-04)", () => {
 // ---------------------------------------------------------------------------
 
 describe("neuron budget enforcement (COST-02)", () => {
-  it("throws BudgetExceededError when budget is exceeded", async () => {
+  it("falls back to manual review when budget is exhausted", async () => {
     // Set budget to the limit
     await env.DB.prepare(
       "INSERT INTO audit_budget (date, neurons_used) VALUES (date('now'), ?)",
@@ -515,11 +522,13 @@ describe("neuron budget enforcement (COST-02)", () => {
 
     const mockAi = createMockAi(makePassResponse());
 
-    await expect(
-      processAuditJob(makeJob(), makeBindings(mockAi)),
-    ).rejects.toThrow(BudgetExceededError);
+    // No longer throws — falls back to manual review (no audit record, version stays pending)
+    const result = await processAuditJob(makeJob(), makeBindings(mockAi));
+    expect(result.status).toBe("complete");
+    expect(result.verdict).toBeNull();
+    expect(result.neuronsUsed).toBe(0);
 
-    // Version should remain pending (budget exceeded is retryable)
+    // Version should remain pending (admin will moderate manually)
     const version = await env.DB.prepare(
       "SELECT status FROM plugin_versions WHERE id = ?",
     )
@@ -570,5 +579,65 @@ describe("neuron budget enforcement (COST-02)", () => {
 
     expect(budget).not.toBeNull();
     expect(budget!.neurons_used).toBe(expectedNeurons);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AUDIT-MODE: manual mode skips AI entirely, leaves version pending
+// ---------------------------------------------------------------------------
+
+describe("audit mode switch", () => {
+  it("manual mode skips AI and leaves version pending", async () => {
+    const mockAi = createMockAi(makePassResponse());
+    const result = await processAuditJob(
+      makeJob(),
+      makeBindings(mockAi, "manual"),
+    );
+
+    expect(result.status).toBe("complete");
+    expect(result.verdict).toBeNull();
+    expect(result.neuronsUsed).toBe(0);
+    expect(mockAi.run).not.toHaveBeenCalled();
+
+    // Version stays pending — admin will approve via the moderation queue
+    const version = await env.DB.prepare(
+      "SELECT status FROM plugin_versions WHERE id = ?",
+    )
+      .bind(VERSION_ID)
+      .first<{ status: string }>();
+    expect(version!.status).toBe("pending");
+
+    // No audit record should be created in manual mode
+    const audit = await env.DB.prepare(
+      "SELECT id FROM plugin_audits WHERE plugin_version_id = ?",
+    )
+      .bind(VERSION_ID)
+      .first();
+    expect(audit).toBeNull();
+  });
+
+  it("off mode also skips AI and leaves version pending", async () => {
+    const mockAi = createMockAi(makePassResponse());
+    const result = await processAuditJob(
+      makeJob(),
+      makeBindings(mockAi, "off"),
+    );
+
+    expect(result.status).toBe("complete");
+    expect(result.verdict).toBeNull();
+    expect(mockAi.run).not.toHaveBeenCalled();
+  });
+
+  it("defaults to manual when auditMode is undefined", async () => {
+    const mockAi = createMockAi(makePassResponse());
+    const result = await processAuditJob(makeJob(), {
+      db: env.DB,
+      ai: mockAi as unknown as Ai,
+      artifacts: env.ARTIFACTS,
+      // auditMode intentionally omitted
+    });
+
+    expect(result.verdict).toBeNull();
+    expect(mockAi.run).not.toHaveBeenCalled();
   });
 });

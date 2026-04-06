@@ -87,11 +87,16 @@
 
   // GitHub OAuth App client ID and App ID (not secrets — safe as vars)
   // TURNSTILE_SITE_KEY: create widget at dash.cloudflare.com → Turnstile (Smart placement)
+  // AUDIT_MODE: 'manual' (default) | 'auto' | 'off'
+  //   - manual: skip AI, leave version status='pending' for human moderation
+  //   - auto: run Workers AI audit (cost-bound by daily neuron budget)
+  //   - off: skip AI, auto-publish if static checks pass (use only in emergency)
   "vars": {
     "GITHUB_CLIENT_ID": "Ov23liIu0eF3FtxoIcYU",
     "GITHUB_APP_ID": "",
     "SUPERADMIN_GITHUB_IDS": "959104",
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAC1FBCZjp5kjJ99c"
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAC1FBCZjp5kjJ99c",
+    "AUDIT_MODE": "manual"
   },
 
   // Secrets set via: wrangler secret put <NAME>
