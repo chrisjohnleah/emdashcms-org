@@ -33,6 +33,53 @@ async function createTestTarball(
   return compressed;
 }
 
+/**
+ * Build a tarball with a symlink (or other non-file) entry alongside a
+ * regular manifest. Used to verify the validator rejects dangerous entry
+ * types outright.
+ */
+async function createTarballWithEntryType(
+  manifest: unknown,
+  specialName: string,
+  specialType:
+    | "symlink"
+    | "link"
+    | "character-device"
+    | "block-device"
+    | "fifo",
+  linkname = "/etc/passwd",
+): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder();
+  const manifestBytes = encoder.encode(JSON.stringify(manifest));
+
+  const entries = [
+    {
+      header: {
+        name: "manifest.json",
+        size: manifestBytes.byteLength,
+        type: "file" as const,
+      },
+      body: manifestBytes,
+    },
+    {
+      header: {
+        name: specialName,
+        size: 0,
+        type: specialType,
+        linkname,
+      },
+      body: null,
+    },
+  ];
+
+  const tarBuffer = await packTar(entries);
+  const stream = new Blob([tarBuffer])
+    .stream()
+    .pipeThrough(createGzipEncoder());
+  const compressed = await new Response(stream).arrayBuffer();
+  return compressed;
+}
+
 function validManifest(overrides: Record<string, unknown> = {}) {
   return {
     id: "test-plugin",
@@ -316,6 +363,61 @@ describe("validateBundle", () => {
     expect(result.valid).toBe(true);
     expect(result.stats!.fileCount).toBe(3);
     expect(result.stats!.decompressedSize).toBeGreaterThan(0);
+  });
+
+  it("rejects tarball containing a symlink entry", async () => {
+    const tarball = await createTarballWithEntryType(
+      validManifest(),
+      "link-to-secrets",
+      "symlink",
+      "/etc/passwd",
+    );
+
+    const result = await validateBundle(tarball, "test-plugin");
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toBeDefined();
+    expect(
+      result.errors!.some(
+        (e) =>
+          e.includes("unsupported entry type") && e.includes("symlink"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects tarball containing a hardlink entry", async () => {
+    const tarball = await createTarballWithEntryType(
+      validManifest(),
+      "hardlink-to-host",
+      "link",
+      "manifest.json",
+    );
+
+    const result = await validateBundle(tarball, "test-plugin");
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors!.some(
+        (e) => e.includes("unsupported entry type") && e.includes("link"),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects tarball containing a fifo entry", async () => {
+    const tarball = await createTarballWithEntryType(
+      validManifest(),
+      "evil.pipe",
+      "fifo",
+    );
+
+    const result = await validateBundle(tarball, "test-plugin");
+
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors!.some(
+        (e) => e.includes("unsupported entry type") && e.includes("fifo"),
+      ),
+    ).toBe(true);
   });
 });
 

@@ -48,6 +48,30 @@ function isUnsafePath(name: string): boolean {
 }
 
 /**
+ * Tar entry types that must be rejected outright. Symlinks and hardlinks
+ * can point outside the extraction root (even after path traversal checks),
+ * and device/fifo entries have no place in a plugin bundle.
+ */
+const BLOCKED_ENTRY_TYPES = new Set([
+  "symlink",
+  "link",
+  "character-device",
+  "block-device",
+  "fifo",
+]);
+
+/**
+ * Tar entry types that are metadata for the parser and should be silently
+ * skipped rather than rejected (long filenames, PAX extended attributes).
+ */
+const SKIPPED_ENTRY_TYPES = new Set([
+  "pax-header",
+  "pax-global-header",
+  "gnu-long-name",
+  "gnu-long-link-name",
+]);
+
+/**
  * Strip common leading prefixes from tar entry names.
  * Tarballs often prefix entries with "./" which we normalize away.
  */
@@ -98,10 +122,30 @@ export async function validateBundle(
 
     for (const entry of entries) {
       const name = normalizePath(entry.header.name);
+      const entryType = entry.header.type;
 
       // Skip directories (they have no data)
-      if (entry.header.type === "directory" || name.endsWith("/")) {
+      if (entryType === "directory" || name.endsWith("/")) {
         continue;
+      }
+
+      // Skip parser metadata entries silently (PAX and GNU long-name/path
+      // extensions). These usually get consumed by the decoder internally,
+      // but defensively skipping them keeps the file map clean.
+      if (entryType && SKIPPED_ENTRY_TYPES.has(entryType)) {
+        continue;
+      }
+
+      // Hard-reject dangerous entry types (symlinks, hardlinks, devices,
+      // fifos). Symlinks can escape the extraction root even after path
+      // traversal checks by pointing `link -> /etc/passwd` from a safe name.
+      if (entryType && BLOCKED_ENTRY_TYPES.has(entryType)) {
+        return {
+          valid: false,
+          errors: [
+            `Bundle contains unsupported entry type '${entryType}' at '${name}' — only regular files and directories are allowed`,
+          ],
+        };
       }
 
       // Path traversal check (Pitfall 4)
