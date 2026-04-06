@@ -148,4 +148,11 @@ export interface AuditJob {
   version: string;
   authorId: string;
   bundleKey: string;
+  /**
+   * Optional per-job override of the global AUDIT_MODE. Set by admin
+   * actions like "Run AI audit" or "Run static scan" so the admin can
+   * force a specific behaviour on a single version regardless of the
+   * Worker's configured mode.
+   */
+  auditModeOverride?: "manual" | "auto" | "off";
 }

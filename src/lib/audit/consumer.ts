@@ -149,7 +149,9 @@ export async function processAuditJob(
   bindings: AuditBindings,
 ): Promise<AuditResult> {
   const startTime = Date.now();
-  const mode = bindings.auditMode ?? "manual";
+  // Per-job override (set by admin "Run AI" / "Run static" actions) wins
+  // over the global AUDIT_MODE env var.
+  const mode = job.auditModeOverride ?? bindings.auditMode ?? "manual";
 
   // 1. Resolve version ID
   const versionId = await resolveVersionId(bindings.db, job.pluginId, job.version);

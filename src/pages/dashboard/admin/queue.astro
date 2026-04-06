@@ -15,6 +15,17 @@ if (!author || !isSuperAdmin(author.githubId)) {
 }
 
 const queue = await getModerationQueue(env.DB);
+const auditMode = (env.AUDIT_MODE as 'manual' | 'auto' | 'off' | undefined) ?? 'manual';
+const auditModeBlurb: Record<string, string> = {
+  manual: 'Manual mode — every upload lands here for human review. AI is skipped by default.',
+  auto: 'Auto mode — AI audit runs on every upload, neuron-budget bound. Failures still land here.',
+  off: 'Off — AI is disabled. Static scan only. Every upload lands here.',
+};
+const auditModeStyle: Record<string, string> = {
+  manual: 'border-amber-800/40 bg-amber-950/20 text-amber-300',
+  auto: 'border-emerald-800/40 bg-emerald-950/20 text-emerald-300',
+  off: 'border-zinc-700/40 bg-zinc-900/40 text-zinc-300',
+};
 
 const statusFilter = Astro.url.searchParams.get('status');
 const filtered = statusFilter
@@ -53,11 +64,17 @@ const tabs: Tab[] = [
       </nav>
 
       <!-- Header -->
-      <div class="flex items-center gap-3 mb-8">
+      <div class="flex items-center gap-3 mb-4">
         <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Moderation Queue</h1>
         <span class="rounded-full bg-zinc-800/60 border border-zinc-700/60 px-2.5 py-0.5 text-[11px] text-zinc-400 font-medium tabular-nums">
           {filtered.length}
         </span>
+      </div>
+
+      <!-- Audit mode indicator -->
+      <div class:list={['mb-8 rounded-lg border px-4 py-3 text-xs', auditModeStyle[auditMode]]}>
+        <span class="font-semibold uppercase tracking-wide">Audit mode: {auditMode}</span>
+        <span class="ml-2 opacity-80">{auditModeBlurb[auditMode]}</span>
       </div>
 
       <!-- Filter tabs -->
@@ -142,30 +159,52 @@ const tabs: Tab[] = [
                   </td>
                   <td class="py-3 px-4 text-zinc-500">{formatDate(item.createdAt)}</td>
                   <td class="py-3 pl-4 pr-6">
-                    {(item.status === 'pending' || item.status === 'flagged') ? (
-                      <div class="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          data-approve-version
-                          data-plugin-id={encodeURIComponent(item.pluginId)}
-                          data-version={item.version}
-                          class="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-950/60 transition-colors cursor-pointer"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          type="button"
-                          data-reject-version
-                          data-plugin-id={encodeURIComponent(item.pluginId)}
-                          data-version={item.version}
-                          class="rounded-md border border-red-800/60 bg-red-950/40 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-950/60 transition-colors cursor-pointer"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : (
-                      <span class="block text-right text-zinc-600 text-[11px]">{'\u2014'}</span>
-                    )}
+                    <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                      {(item.status === 'pending' || item.status === 'flagged') && (
+                        <>
+                          <button
+                            type="button"
+                            data-approve-version
+                            data-plugin-id={encodeURIComponent(item.pluginId)}
+                            data-version={item.version}
+                            class="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-950/60 transition-colors cursor-pointer"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            data-reject-version
+                            data-plugin-id={encodeURIComponent(item.pluginId)}
+                            data-version={item.version}
+                            class="rounded-md border border-red-800/60 bg-red-950/40 px-2.5 py-1 text-[11px] font-medium text-red-300 hover:bg-red-950/60 transition-colors cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        data-run-audit
+                        data-mode="static"
+                        data-plugin-id={encodeURIComponent(item.pluginId)}
+                        data-version={item.version}
+                        class="rounded-md border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1 text-[11px] font-medium text-zinc-300 hover:bg-zinc-800/80 transition-colors cursor-pointer"
+                        title="Static scan only — free"
+                      >
+                        Static
+                      </button>
+                      <button
+                        type="button"
+                        data-run-audit
+                        data-mode="ai"
+                        data-plugin-id={encodeURIComponent(item.pluginId)}
+                        data-version={item.version}
+                        class="rounded-md border border-amber-800/60 bg-amber-950/40 px-2.5 py-1 text-[11px] font-medium text-amber-400 hover:bg-amber-950/60 transition-colors cursor-pointer"
+                        title="Static + AI — uses neuron budget"
+                      >
+                        AI
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -237,6 +276,24 @@ const tabs: Tab[] = [
           { version, reason: reason || undefined },
           el,
           'Rejecting...',
+        );
+      });
+    });
+
+    document.querySelectorAll('[data-run-audit]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const el = btn as HTMLButtonElement;
+        const pluginId = el.dataset.pluginId;
+        const version = el.dataset.version;
+        const mode = el.dataset.mode as 'static' | 'ai';
+        if (!pluginId || !version || !mode) return;
+        const label = mode === 'ai' ? 'AI audit (uses neuron budget)' : 'static scan (free)';
+        if (!confirm(`Re-run ${decodeURIComponent(pluginId)}@${version} with ${label}?`)) return;
+        await callAdminAction(
+          `/api/v1/admin/plugins/${pluginId}/run-audit`,
+          { version, mode },
+          el,
+          mode === 'ai' ? 'Queuing AI...' : 'Queuing...',
         );
       });
     });

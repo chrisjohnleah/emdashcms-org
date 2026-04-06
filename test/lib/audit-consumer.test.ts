@@ -643,4 +643,37 @@ describe("audit mode switch", () => {
     expect(result.verdict).toBeNull();
     expect(mockAi.run).not.toHaveBeenCalled();
   });
+
+  it("per-job auditModeOverride='auto' forces AI even when global mode is manual", async () => {
+    const mockAi = createMockAi(makePassResponse());
+    const result = await processAuditJob(
+      makeJob({ auditModeOverride: "auto" }),
+      makeBindings(mockAi, "manual"),
+    );
+
+    // AI should have been called despite the global manual mode
+    expect(mockAi.run).toHaveBeenCalledOnce();
+    expect(result.verdict).toBe("pass");
+    expect(result.neuronsUsed).toBeGreaterThan(0);
+  });
+
+  it("per-job auditModeOverride='manual' skips AI even when global mode is auto", async () => {
+    const mockAi = createMockAi(makePassResponse());
+    const result = await processAuditJob(
+      makeJob({ auditModeOverride: "manual" }),
+      makeBindings(mockAi, "auto"),
+    );
+
+    expect(mockAi.run).not.toHaveBeenCalled();
+    expect(result.verdict).toBeNull();
+    expect(result.neuronsUsed).toBe(0);
+
+    // Static-only audit record exists
+    const audit = await env.DB.prepare(
+      "SELECT model FROM plugin_audits WHERE plugin_version_id = ?",
+    )
+      .bind(VERSION_ID)
+      .first<{ model: string }>();
+    expect(audit!.model).toBe("static-only");
+  });
 });
