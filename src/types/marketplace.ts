@@ -65,6 +65,13 @@ export interface MarketplacePluginSummary {
   iconUrl: string | null;
   latestVersion: {
     version: string;
+    /**
+     * Latest version status. Published plugins can be in `published` or
+     * `flagged` state — the distinction lets the UI show a Caution trust
+     * tier for flagged versions. Additive field; upstream clients that
+     * only read `version` + `audit` remain compatible.
+     */
+    status: "published" | "flagged";
     audit: MarketplaceAuditSummary | null;
   } | null;
   createdAt: string;
@@ -84,7 +91,8 @@ export interface MarketplacePluginDetail extends MarketplacePluginSummary {
     readme: string | null;
     screenshots: string[];
     capabilities: string[];
-    status: "pending" | "published" | "flagged" | "rejected";
+    // getPluginDetail filters to published/flagged, matching the summary.
+    status: "published" | "flagged";
     audit: MarketplaceAuditDetail | null;
     imageAudit: unknown | null;
   } | null;

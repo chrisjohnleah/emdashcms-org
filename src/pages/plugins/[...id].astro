@@ -9,6 +9,7 @@ import AuditBadge from '../../components/AuditBadge.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import StarRating from '../../components/StarRating.astro';
 import TrustSignals from '../../components/TrustSignals.astro';
+import TrustTierBadge from '../../components/TrustTierBadge.astro';
 import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 
@@ -146,6 +147,13 @@ const formatSize = (bytes: number) => {
                   <StarRating rating={reviewStats.averageRating} />
                   <span class="text-sm text-zinc-500">({reviewStats.totalCount})</span>
                 </div>
+              )}
+              {plugin.latestVersion && (plugin.latestVersion.status === 'published' || plugin.latestVersion.status === 'flagged') && (
+                <TrustTierBadge
+                  status={plugin.latestVersion.status}
+                  verdict={plugin.latestVersion.audit?.verdict ?? null}
+                  showTooltip
+                />
               )}
               {plugin.latestVersion?.audit && (
                 <AuditBadge verdict={plugin.latestVersion.audit.verdict} />

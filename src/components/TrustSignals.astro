@@ -65,23 +65,25 @@ signals.push({
   detail: `${plugin.capabilities.length} capabilities checked against the EmDash contract`,
 });
 
+const latestStatus = plugin.latestVersion?.status ?? null;
+
 if (audit) {
   if (audit.verdict === 'pass') {
     signals.push({
       tone: 'pass',
-      label: 'Automated review',
+      label: 'AI review',
       detail: `Passed (risk score ${audit.riskScore}/100)`,
     });
   } else if (audit.verdict === 'warn') {
     signals.push({
       tone: 'warn',
-      label: 'Automated review',
+      label: 'AI review',
       detail: `Warnings (risk score ${audit.riskScore}/100) — see findings below`,
     });
   } else if (audit.verdict === 'fail') {
     signals.push({
       tone: 'warn',
-      label: 'Automated review',
+      label: 'AI review',
       detail: `Failed (risk score ${audit.riskScore}/100) — see findings below`,
     });
   } else {
@@ -91,11 +93,22 @@ if (audit) {
       detail: 'Reviewed by an admin (no AI verdict)',
     });
   }
+} else if (latestStatus === 'published' || latestStatus === 'flagged') {
+  // Static-first path: version is live based on the static scanner alone.
+  // No AI verdict yet, but also not "pending moderation".
+  signals.push({
+    tone: latestStatus === 'flagged' ? 'warn' : 'pass',
+    label: 'Static scan',
+    detail:
+      latestStatus === 'flagged'
+        ? 'Passed static checks with findings — review before installing'
+        : 'Passed static checks — AI review not yet run',
+  });
 } else {
   signals.push({
     tone: 'info',
     label: 'Manual review',
-    detail: 'Pending admin moderation',
+    detail: 'Pending moderation',
   });
 }
 

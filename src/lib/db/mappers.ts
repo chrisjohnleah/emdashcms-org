@@ -41,6 +41,12 @@ export function mapPluginSummary(row: Row): MarketplacePluginSummary {
   const latestVersion = row.latest_version
     ? {
         version: row.latest_version as string,
+        // searchPlugins only surfaces `published`/`flagged` — fall back to
+        // `published` defensively if the query didn't include the column.
+        status:
+          ((row.latest_version_status as string) === "flagged"
+            ? "flagged"
+            : "published") as "published" | "flagged",
         audit: row.latest_audit_verdict
           ? {
               verdict: row.latest_audit_verdict as "pass" | "warn" | "fail",
@@ -87,11 +93,9 @@ export function mapPluginDetail(
       capabilities: Array.isArray(manifest.capabilities)
         ? manifest.capabilities
         : [],
-      status: versionRow.status as
-        | "pending"
-        | "published"
-        | "flagged"
-        | "rejected",
+      // getPluginDetail only returns versions where status IN
+      // ('published', 'flagged'), so narrow to that union.
+      status: versionRow.status as "published" | "flagged",
       audit: mapAuditDetail(versionRow),
       imageAudit: null, // No image audit system in v1
     };

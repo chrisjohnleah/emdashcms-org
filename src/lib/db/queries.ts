@@ -95,6 +95,12 @@ export async function searchPlugins(
         ORDER BY pv.created_at DESC LIMIT 1
       ) AS latest_version,
       (
+        SELECT pv.status
+        FROM plugin_versions pv
+        WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
+        ORDER BY pv.created_at DESC LIMIT 1
+      ) AS latest_version_status,
+      (
         SELECT pa.verdict
         FROM plugin_versions pv2
         LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv2.id
