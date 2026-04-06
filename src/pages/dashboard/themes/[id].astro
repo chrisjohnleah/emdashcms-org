@@ -18,6 +18,12 @@ import {
 import { updateThemeMetadata, updateThemeThumbnailKey, updateThemeScreenshotKeys } from '../../../lib/publishing/theme-queries';
 import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permissions';
 import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
+import {
+  validateUrlFields,
+  validateStringLengths,
+  validateKeywords,
+  validateCategory,
+} from '../../../lib/api/validation';
 import { getThemeDetail } from '../../../lib/db/queries';
 import {
   getPluginGitHubLink,
@@ -74,17 +80,38 @@ if (Astro.request.method === 'POST') {
         ? keywordsRaw.split(',').map((k: string) => k.trim()).filter(Boolean)
         : [];
 
-      await updateThemeMetadata(env.DB, themeId!, {
+      const metadata: Record<string, unknown> = {
         shortDescription: shortDescription || undefined,
         description,
         category: category || undefined,
-        keywords: keywordsArray,
         previewUrl: previewUrl || undefined,
         demoUrl: demoUrl || undefined,
         repositoryUrl: repositoryUrl || undefined,
         homepageUrl: homepageUrl || undefined,
         license: license || undefined,
-      });
+      };
+
+      // Same validation the API route applies (security audit fix)
+      const badUrl = validateUrlFields(metadata, [
+        'previewUrl', 'demoUrl', 'repositoryUrl', 'homepageUrl',
+      ]);
+      if (badUrl) throw new Error(`${badUrl} must be a valid http/https URL`);
+
+      const lenErr = validateStringLengths(metadata);
+      if (lenErr) throw new Error(lenErr);
+
+      const kwErr = validateKeywords(keywordsArray);
+      if (kwErr) throw new Error(kwErr);
+
+      if (metadata.category) {
+        const catErr = validateCategory(metadata.category as string);
+        if (catErr) throw new Error(catErr);
+      }
+
+      await updateThemeMetadata(env.DB, themeId!, {
+        ...metadata,
+        keywords: keywordsArray,
+      } as Parameters<typeof updateThemeMetadata>[2]);
       saveSuccess = true;
     } catch (e) {
       saveError = e instanceof Error ? e.message : 'An error occurred';

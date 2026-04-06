@@ -21,6 +21,12 @@ import {
 import { resolveAuthorId, updatePluginMetadata } from '../../../lib/publishing/plugin-queries';
 import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permissions';
 import {
+  validateUrlFields,
+  validateStringLengths,
+  validateKeywords,
+  validateCategory,
+} from '../../../lib/api/validation';
+import {
   getPluginGitHubLink,
   getInstallationByAuthor,
   linkPluginToRepo,
@@ -61,18 +67,41 @@ if (Astro.request.method === 'POST') {
 
     if (action === 'metadata') {
       if (!isMaintainer) throw new Error('Maintainer role required to edit metadata');
-      await updatePluginMetadata(env.DB, pluginId!, {
+
+      const metadata: Record<string, unknown> = {
         shortDescription: (data.get('shortDescription') as string) || undefined,
         description: (data.get('description') as string) ?? undefined,
-        keywords: (data.get('keywords') as string ?? '')
-          .split(',').map((k: string) => k.trim()).filter(Boolean),
         category: (data.get('category') as string) || undefined,
         repositoryUrl: (data.get('repositoryUrl') as string) || undefined,
         homepageUrl: (data.get('homepageUrl') as string) || undefined,
         supportUrl: (data.get('supportUrl') as string) || undefined,
         fundingUrl: (data.get('fundingUrl') as string) || undefined,
         license: (data.get('license') as string) || undefined,
-      });
+      };
+      const keywordsArray = (data.get('keywords') as string ?? '')
+        .split(',').map((k: string) => k.trim()).filter(Boolean);
+
+      // Same validation the API route applies (D-16, security audit fix)
+      const badUrl = validateUrlFields(metadata, [
+        'repositoryUrl', 'homepageUrl', 'supportUrl', 'fundingUrl',
+      ]);
+      if (badUrl) throw new Error(`${badUrl} must be a valid http/https URL`);
+
+      const lenErr = validateStringLengths(metadata);
+      if (lenErr) throw new Error(lenErr);
+
+      const kwErr = validateKeywords(keywordsArray);
+      if (kwErr) throw new Error(kwErr);
+
+      if (metadata.category) {
+        const catErr = validateCategory(metadata.category as string);
+        if (catErr) throw new Error(catErr);
+      }
+
+      await updatePluginMetadata(env.DB, pluginId!, {
+        ...metadata,
+        keywords: keywordsArray,
+      } as Parameters<typeof updatePluginMetadata>[2]);
       saveSuccess = true;
     } else if (action === 'connect-repo') {
       if (!isMaintainer) throw new Error('Maintainer role required');
