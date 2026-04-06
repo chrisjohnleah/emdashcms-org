@@ -103,12 +103,17 @@ export function mapPluginDetail(
     };
   }
 
+  const pluginStatusRaw = pluginRow.status as string | null;
+  const pluginStatus: "active" | "revoked" =
+    pluginStatusRaw === "revoked" ? "revoked" : "active";
+
   return {
     ...base,
     category: (pluginRow.category as string) ?? null,
     repositoryUrl: (pluginRow.repository_url as string) ?? null,
     homepageUrl: (pluginRow.homepage_url as string) ?? null,
     license: (pluginRow.license as string) ?? null,
+    pluginStatus,
     latestVersion,
   };
 }
@@ -124,10 +129,17 @@ export function mapVersionSummary(row: Row): MarketplaceVersionSummary {
     capabilities: Array.isArray(manifest.capabilities)
       ? manifest.capabilities
       : [],
-    status: row.status as "pending" | "published" | "flagged" | "rejected",
+    status: row.status as
+      | "pending"
+      | "published"
+      | "flagged"
+      | "rejected"
+      | "revoked",
     auditVerdict: (row.verdict as "pass" | "warn" | "fail") ?? null,
     imageAuditVerdict: null, // No image audit system in v1
     publishedAt: ((row.published_at ?? row.created_at) as string),
+    findings: JSON.parse((row.findings as string) || "[]"),
+    publicAdminNote: (row.public_admin_note as string) ?? null,
   };
 }
 

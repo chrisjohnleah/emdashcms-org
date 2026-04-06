@@ -278,6 +278,47 @@ const trustTiers = [
         </div>
       </section>
 
+      <!-- Section: Public rejection history -->
+      <section class="mb-16">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ash" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-semibold tracking-tight text-white">Public rejection history</h2>
+        </div>
+
+        <div class="text-silver/80 leading-relaxed space-y-4">
+          <p>
+            When a version is rejected or revoked, the scanner findings and (optionally) the moderator's reason are
+            visible on the plugin detail page for anyone to read. Hiding rejections only helps bad actors — the
+            scanner rules are already public on this page, so exposing individual rejections is the honest extension
+            of that policy.
+          </p>
+          <p>
+            <strong class="text-white font-medium">What we always show publicly:</strong> the version number, its
+            status, and the full list of scanner findings (title, severity, description, file location). These are
+            deterministic and reproducible from the open-source scanner.
+          </p>
+          <p>
+            <strong class="text-white font-medium">What's opt-in:</strong> the moderator's free-text reason. When a
+            moderator rejects or revokes a version, they see a "Post this note publicly" checkbox that defaults to
+            <em class="text-white">on</em>. Notes that reference out-of-band context (e.g. a conversation with the
+            author on Discord) can be kept private — they stay in the audit record but don't appear on the public
+            page. Scanner findings remain public either way.
+          </p>
+          <p>
+            <strong class="text-white font-medium">Revoked plugins.</strong> If an entire plugin is revoked, the
+            listing stays reachable at its direct URL with a prominent "This plugin has been revoked" banner. It
+            disappears from search and carries a <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">noindex</code>
+            meta so search engines stop serving it. History and findings remain visible so inbound links don't
+            404 and the record is honest.
+          </p>
+        </div>
+      </section>
+
       <!-- Section: Report a problem -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">

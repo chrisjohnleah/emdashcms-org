@@ -24,10 +24,18 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
 
   let version: string;
   let reason: string | undefined;
+  let publicNote: boolean;
   try {
-    const body = (await request.json()) as { version: string; reason?: string };
+    const body = (await request.json()) as {
+      version: string;
+      reason?: string;
+      publicNote?: boolean;
+    };
     version = body.version;
     reason = body.reason;
+    // Default to public — transparency is the policy. Admin can uncheck
+    // the box for notes referencing out-of-band context.
+    publicNote = body.publicNote !== false;
   } catch {
     return errorResponse(400, "Request body must include { version, reason? }");
   }
@@ -59,15 +67,21 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
       .run();
 
     // Persist the rejection reason as an audit record so the publisher
-    // (and future admins) can see why it was refused.
+    // (and future admins) can see why it was refused. The public_note
+    // flag controls whether the reason surfaces on the plugin detail page.
     if (reason) {
       await env.DB.prepare(
         `INSERT INTO plugin_audits (
           id, plugin_version_id, status, model, prompt_tokens, completion_tokens,
-          neurons_used, raw_response, verdict, risk_score, findings, created_at
-        ) VALUES (?, ?, 'complete', 'admin-action', 0, 0, 0, ?, 'fail', 100, '[]', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
+          neurons_used, raw_response, verdict, risk_score, findings, public_note, created_at
+        ) VALUES (?, ?, 'complete', 'admin-action', 0, 0, 0, ?, 'fail', 100, '[]', ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
       )
-        .bind(crypto.randomUUID(), row.id, `Manually rejected by admin: ${reason}`)
+        .bind(
+          crypto.randomUUID(),
+          row.id,
+          `Manually rejected by admin: ${reason}`,
+          publicNote ? 1 : 0,
+        )
         .run();
     }
 

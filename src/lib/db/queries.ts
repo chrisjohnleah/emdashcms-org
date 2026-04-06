@@ -151,14 +151,27 @@ export async function getPluginDetail(
   db: D1Database,
   pluginId: string,
 ): Promise<MarketplacePluginDetail | null> {
+  // Plugin visibility rules:
+  //   - Active plugins need at least one published/flagged version (the
+  //     original filter — hides register-but-not-yet-published plugins).
+  //   - Revoked plugins are returned regardless, so the tombstone page
+  //     can render with a prominent banner and the history stays
+  //     accessible at its direct URL.
   const [pluginResult, versionResult] = await db.batch([
     db
       .prepare(
         `SELECT p.*, a.github_username, a.avatar_url, a.verified
          FROM plugins p
          JOIN authors a ON p.author_id = a.id
-         WHERE p.id = ? AND COALESCE(p.status, 'active') = 'active'
-           AND EXISTS (SELECT 1 FROM plugin_versions pv0 WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged'))`,
+         WHERE p.id = ?
+           AND (
+             COALESCE(p.status, 'active') = 'revoked'
+             OR EXISTS (
+               SELECT 1 FROM plugin_versions pv0
+               WHERE pv0.plugin_id = p.id
+                 AND pv0.status IN ('published', 'flagged')
+             )
+           )`,
       )
       .bind(pluginId),
     db
@@ -187,9 +200,28 @@ export async function getPluginVersions(
   db: D1Database,
   pluginId: string,
 ): Promise<MarketplaceVersionSummary[]> {
+  // Two correlated subqueries:
+  //   1. Latest audit overall → verdict, risk_score, findings (scanner
+  //      rules are public anyway, so exposing findings for rejected /
+  //      revoked versions is the documented policy).
+  //   2. Latest admin-action audit where public_note = 1 → raw_response
+  //      as public_admin_note. Private notes (public_note = 0) stay
+  //      invisible on the public surface.
   const result = await db
     .prepare(
-      `SELECT pv.*, pa.verdict, pa.risk_score
+      `SELECT pv.*,
+              pa.verdict,
+              pa.risk_score,
+              pa.findings,
+              (
+                SELECT pa_pub.raw_response
+                FROM plugin_audits pa_pub
+                WHERE pa_pub.plugin_version_id = pv.id
+                  AND pa_pub.model = 'admin-action'
+                  AND COALESCE(pa_pub.public_note, 0) = 1
+                ORDER BY pa_pub.created_at DESC
+                LIMIT 1
+              ) AS public_admin_note
        FROM plugin_versions pv
        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv.id
          AND pa.created_at = (SELECT MAX(pa2.created_at) FROM plugin_audits pa2 WHERE pa2.plugin_version_id = pv.id)

@@ -27,7 +27,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
   const pluginId = params.id;
   if (!pluginId) return errorResponse(400, "Missing plugin ID");
 
-  let body: { version?: string; reason?: string };
+  let body: { version?: string; reason?: string; publicNote?: boolean };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -36,6 +36,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
   const version = body.version;
   const reason = body.reason?.trim();
+  // Default to public — transparency is the policy.
+  const publicNote = body.publicNote !== false;
   if (!version) return errorResponse(400, "Missing version");
   if (!reason || reason.length < 5) {
     return errorResponse(
@@ -76,6 +78,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       riskScore: 0,
       findings: [],
       versionStatusOverride: "revoked",
+      publicNote,
     });
 
     return jsonResponse(

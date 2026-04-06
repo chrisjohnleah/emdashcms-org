@@ -34,6 +34,13 @@ export interface CreateAuditParams {
     | "flagged"
     | "rejected"
     | "revoked";
+  /**
+   * When set, marks this audit record's raw_response as publicly visible
+   * on the plugin detail page. Defaults to false (private) so existing
+   * callers keep the old behavior. Admin reject/revoke actions set this
+   * based on the "Post note publicly" checkbox.
+   */
+  publicNote?: boolean;
 }
 
 // --- Verdict Mapping ---
@@ -83,8 +90,8 @@ export async function createAuditRecord(
       .prepare(
         `INSERT INTO plugin_audits (
           id, plugin_version_id, status, model, prompt_tokens, completion_tokens,
-          neurons_used, raw_response, verdict, risk_score, findings, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
+          neurons_used, raw_response, verdict, risk_score, findings, public_note, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
       )
       .bind(
         auditId,
@@ -98,6 +105,7 @@ export async function createAuditRecord(
         params.verdict,
         params.riskScore,
         JSON.stringify(params.findings),
+        params.publicNote ? 1 : 0,
       ),
     db
       .prepare(

@@ -6,9 +6,10 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description?: string;
+  noindex?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, noindex = false } = Astro.props;
 const currentPath = Astro.url.pathname;
 const siteUrl = 'https://emdashcms.org';
 
@@ -25,6 +26,7 @@ const navLinks = [
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={siteUrl + currentPath} />
 
     <meta property="og:type" content="website" />

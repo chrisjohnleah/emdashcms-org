@@ -113,9 +113,32 @@ const formatSize = (bytes: number) => {
     </section>
   </BaseLayout>
 ) : (
-  <BaseLayout title={plugin.name + ' - emdashcms.org'} description={plugin.shortDescription ?? plugin.description ?? undefined}>
+  <BaseLayout
+    title={plugin.name + ' - emdashcms.org'}
+    description={plugin.shortDescription ?? plugin.description ?? undefined}
+    noindex={plugin.pluginStatus === 'revoked'}
+  >
     <section class="pt-24 pb-16 px-6">
       <div class="mx-auto max-w-5xl">
+
+        {plugin.pluginStatus === 'revoked' && (
+          <div class="mb-6 rounded-xl border border-red-800/60 bg-red-950/40 p-5">
+            <div class="flex items-start gap-3">
+              <svg class="w-6 h-6 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <div>
+                <h2 class="text-lg font-semibold text-red-200">This plugin has been revoked</h2>
+                <p class="mt-1 text-sm text-red-300/90">
+                  Downloads are disabled for every version. The listing is preserved so the history, findings, and
+                  any inbound links remain accessible, but the plugin is hidden from search and we do not recommend
+                  installing it. See <a href="/docs/security" class="underline hover:text-red-100">our review policy</a>
+                  for what we check and why revocations happen.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <a href="/plugins" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Plugins</a>
 
@@ -334,35 +357,97 @@ const formatSize = (bytes: number) => {
         {versions.length > 0 && (
           <div class="mt-12">
             <h2 class="text-sm font-semibold text-zinc-100">Version History</h2>
-            <div class="mt-4 overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="border-b border-zinc-800 text-left">
-                    <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Version</th>
-                    <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
-                    <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Audit</th>
-                    <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Size</th>
-                    <th class="pb-3 pr-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Date</th>
-                    <th class="pb-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide"></th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-800/60">
-                  {versions.map(v => (
-                    <tr>
-                      <td class="py-3 pr-4 font-mono text-zinc-300">{v.version}</td>
-                      <td class="py-3 pr-4"><StatusBadge status={v.status} /></td>
-                      <td class="py-3 pr-4"><AuditBadge verdict={v.auditVerdict} /></td>
-                      <td class="py-3 pr-4 text-zinc-500">{formatSize(v.bundleSize)}</td>
-                      <td class="py-3 pr-4 text-zinc-500">{formatDate(v.publishedAt)}</td>
-                      <td class="py-3">
-                        {(v.status === 'published' || v.status === 'flagged') && (
-                          <a href={`/api/v1/plugins/${encodeURIComponent(plugin.id)}/versions/${v.version}/bundle`} class="text-xs text-zinc-400 hover:text-zinc-100 transition-colors">Download</a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <p class="mt-1 text-xs text-zinc-500">
+              Rejected and revoked versions remain visible so the history is honest. Expand any row with findings to see why.
+              See <a href="/docs/security" class="underline hover:text-zinc-300">our review policy</a>.
+            </p>
+            <div class="mt-4 space-y-2">
+              {versions.map(v => {
+                const hasDetail = v.findings.length > 0 || v.publicAdminNote;
+                const isDownloadable = v.status === 'published' || v.status === 'flagged';
+                return (
+                  <div class="rounded-lg border border-zinc-800/60 bg-zinc-900/40 overflow-hidden">
+                    <details class="group">
+                      <summary class:list={[
+                        'grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-3 hover:bg-zinc-900/60 transition-colors',
+                        hasDetail ? 'cursor-pointer' : 'cursor-default list-none',
+                      ]}>
+                        <span class="font-mono text-sm text-zinc-300">{v.version}</span>
+                        <div class="flex items-center gap-2 flex-wrap min-w-0">
+                          <StatusBadge status={v.status} />
+                          <AuditBadge verdict={v.auditVerdict} />
+                          <span class="text-xs text-zinc-500">{formatSize(v.bundleSize)}</span>
+                          <span class="text-xs text-zinc-500">{formatDate(v.publishedAt)}</span>
+                        </div>
+                        <div class="flex items-center gap-3 justify-end">
+                          {isDownloadable && plugin.pluginStatus !== 'revoked' && (
+                            <a
+                              href={`/api/v1/plugins/${encodeURIComponent(plugin.id)}/versions/${v.version}/bundle`}
+                              class="download-link text-xs text-zinc-400 hover:text-zinc-100 transition-colors"
+                            >
+                              Download
+                            </a>
+                          )}
+                          {hasDetail && (
+                            <svg class="w-4 h-4 text-zinc-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                            </svg>
+                          )}
+                        </div>
+                      </summary>
+
+                      {hasDetail && (
+                        <div class="border-t border-zinc-800/60 bg-zinc-950/40 px-5 py-4 space-y-4">
+                          {v.publicAdminNote && (
+                            <div class="rounded-lg border border-amber-800/40 bg-amber-950/20 p-4">
+                              <p class="text-xs font-semibold text-amber-400 uppercase tracking-wide">Moderator note</p>
+                              <p class="mt-2 text-sm text-amber-100/90 whitespace-pre-wrap leading-relaxed">
+                                {v.publicAdminNote}
+                              </p>
+                            </div>
+                          )}
+
+                          {v.findings.length > 0 && (
+                            <div>
+                              <p class="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+                                Scanner findings ({v.findings.length})
+                              </p>
+                              <div class="space-y-2">
+                                {v.findings.map(f => (
+                                  <div class="rounded-lg border border-zinc-800/40 bg-zinc-900/30 p-3">
+                                    <div class="flex items-start gap-2">
+                                      <span class:list={[
+                                        'flex-shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium uppercase',
+                                        f.severity === 'high' || f.severity === 'critical'
+                                          ? 'bg-red-950/40 text-red-400'
+                                          : f.severity === 'medium'
+                                            ? 'bg-amber-950/40 text-amber-400'
+                                            : 'bg-zinc-800 text-zinc-400',
+                                      ]}>
+                                        {f.severity}
+                                      </span>
+                                      <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-zinc-200">{f.title}</p>
+                                        <p class="mt-1 text-xs text-zinc-400 leading-relaxed">{f.description}</p>
+                                        <div class="mt-2 flex items-center gap-2 text-[11px] text-zinc-500">
+                                          <span class="rounded bg-zinc-800/60 px-1.5 py-0.5 font-mono">{f.category}</span>
+                                          {f.location && (
+                                            <span class="font-mono">{f.location}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </details>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -475,6 +560,11 @@ const formatSize = (bytes: number) => {
     </section>
 
     <script>
+      // Download links inside <details> summaries should NOT toggle the accordion
+      document.querySelectorAll<HTMLAnchorElement>('a.download-link').forEach((a) => {
+        a.addEventListener('click', (e) => e.stopPropagation());
+      });
+
       document.querySelectorAll('[data-copy]').forEach(btn => {
         btn.addEventListener('click', () => {
           const text = (btn as HTMLElement).dataset.copy;

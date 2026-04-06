@@ -37,10 +37,25 @@ export interface MarketplaceVersionSummary {
   checksum: string;
   changelog: string | null;
   capabilities: string[];
-  status: "pending" | "published" | "flagged" | "rejected";
+  status: "pending" | "published" | "flagged" | "rejected" | "revoked";
   auditVerdict: "pass" | "warn" | "fail" | null;
   imageAuditVerdict: string | null;
   publishedAt: string;
+  /**
+   * Scanner/AI findings for this version, available for any rejected or
+   * revoked version. Populated so the public plugin detail page can
+   * expand an accordion showing why a version was refused — the scanner
+   * ruleset is public at /docs/security, and individual findings are
+   * part of that transparency.
+   */
+  findings: MarketplaceAuditFinding[];
+  /**
+   * Admin rejection/revocation note for this version, when one exists
+   * AND the admin marked it as public via the "Post note publicly"
+   * checkbox. Null otherwise — private notes stay in the D1 audit
+   * record and are not exposed here.
+   */
+  publicAdminNote: string | null;
 }
 
 export interface MarketplaceVersionDetail extends MarketplaceVersionSummary {
@@ -83,6 +98,13 @@ export interface MarketplacePluginDetail extends MarketplacePluginSummary {
   repositoryUrl: string | null;
   homepageUrl: string | null;
   license: string | null;
+  /**
+   * Plugin-level status. `revoked` plugins still return from
+   * getPluginDetail (so the tombstone page can render) but are hidden
+   * from browse results. Internal clients should only surface revoked
+   * plugins with a clear "revoked" banner.
+   */
+  pluginStatus: "active" | "revoked";
   latestVersion: {
     version: string;
     bundleSize: number;
