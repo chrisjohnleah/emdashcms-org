@@ -115,9 +115,27 @@ const csrfProtection = defineMiddleware(async ({ request, url }, next) => {
 
 /**
  * Rate limiting middleware.
- * Per-IP rate limiting via D1. Exempts protected (authenticated)
- * write endpoints. Auth endpoints get a separate, more generous limit.
+ *
+ * First line: Cloudflare's native rate limit binding — counters live in
+ * the edge node's local cache, never touch D1, and reject abusive IPs
+ * before any further work. Free on Workers free tier.
+ *
+ * Fallback: the D1 checkRateLimit function, used when the binding is
+ * unavailable (local dev / tests). The D1 path is also still useful for
+ * authenticated per-author limits applied inside route handlers.
  */
+const rateLimitResponse = () =>
+  new Response(
+    JSON.stringify({ error: "Rate limit exceeded. Try again in 60 seconds." }),
+    {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": "60",
+      },
+    },
+  );
+
 const rateLimit = defineMiddleware(async ({ request, url }, next) => {
   if (isProtectedRoute(url.pathname, request.method)) {
     return next();
@@ -131,38 +149,24 @@ const rateLimit = defineMiddleware(async ({ request, url }, next) => {
   }
 
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const isAuth = url.pathname.startsWith("/api/v1/auth/");
 
-  // Auth endpoints get a separate, more generous limit (20/min)
-  if (url.pathname.startsWith("/api/v1/auth/")) {
-    const { allowed } = await checkRateLimit(env.DB, ip, 20);
-    if (!allowed) {
-      return new Response(
-        JSON.stringify({ error: "Too many requests. Try again shortly." }),
-        {
-          status: 429,
-          headers: { "Content-Type": "application/json", "Retry-After": "60" },
-        },
-      );
+  // Try the native binding first. Cached at the edge — no D1 hit.
+  const binding = isAuth ? env.AUTH_RATE_LIMITER : env.GENERAL_RATE_LIMITER;
+  if (binding) {
+    try {
+      const { success } = await binding.limit({ key: ip });
+      if (!success) return rateLimitResponse();
+      return next();
+    } catch (err) {
+      console.error("[ratelimit] binding failed, falling back to D1:", err);
     }
-    return next();
   }
 
-  const { allowed } = await checkRateLimit(env.DB, ip, 60);
-
-  if (!allowed) {
-    return new Response(
-      JSON.stringify({
-        error: "Rate limit exceeded. Try again in 60 seconds.",
-      }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": "60",
-        },
-      },
-    );
-  }
+  // Fallback: D1-backed rate limiter (dev / tests / binding outage)
+  const threshold = isAuth ? 20 : 60;
+  const { allowed } = await checkRateLimit(env.DB, ip, threshold);
+  if (!allowed) return rateLimitResponse();
 
   return next();
 });

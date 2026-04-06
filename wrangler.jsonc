@@ -51,6 +51,23 @@
     "binding": "AI"
   },
 
+  // Edge-cached rate limiters (free tier). Counters live in Cloudflare's
+  // local-machine cache, never touching D1. Two namespaces:
+  //  - GENERAL: 60 req / 60s — applies to most public API requests
+  //  - AUTH:    20 req / 60s — stricter limit for /api/v1/auth/*
+  "ratelimits": [
+    {
+      "name": "GENERAL_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 60 }
+    },
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ],
+
   // Hourly cleanup of expired rate_limits rows (prevents unbounded D1 growth)
   "triggers": {
     "crons": ["0 * * * *"]
