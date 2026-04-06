@@ -1,0 +1,211 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TurnstileWidget from '../../components/TurnstileWidget.astro';
+import {
+  createReport,
+  type ReportCategory,
+  type ReportEntityType,
+} from '../../lib/db/report-queries';
+import { verifyTurnstile } from '../../lib/turnstile/verify';
+import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
+
+const rawTarget = Astro.params.target ?? '';
+const parts = rawTarget.split('/').filter(Boolean);
+const entityType = (parts[0] ?? '') as ReportEntityType;
+const entityId = parts.slice(1).join('/');
+
+const VALID_TYPES: ReportEntityType[] = ['plugin', 'theme'];
+const invalidPath = !VALID_TYPES.includes(entityType) || !entityId;
+
+let entityName: string | null = null;
+if (!invalidPath) {
+  const table = entityType === 'plugin' ? 'plugins' : 'themes';
+  const row = await env.DB
+    .prepare(`SELECT name FROM ${table} WHERE id = ?`)
+    .bind(entityId)
+    .first<{ name: string }>();
+  entityName = row?.name ?? null;
+}
+
+const notFound = !invalidPath && !entityName;
+if (invalidPath || notFound) {
+  Astro.response.status = 404;
+}
+
+const categories: { value: ReportCategory; label: string; hint: string }[] = [
+  { value: 'security', label: 'Security vulnerability', hint: 'Exfiltration, backdoor, malicious behaviour' },
+  { value: 'abuse',    label: 'Abuse or spam',          hint: 'Harassment, deceptive behaviour, spam content' },
+  { value: 'broken',   label: 'Broken or abandoned',    hint: 'Crashes, non-functional, no longer maintained' },
+  { value: 'license',  label: 'License violation',      hint: 'Stolen code, trademark issue, GPL breach' },
+  { value: 'other',    label: 'Other',                  hint: 'Anything else worth telling us about' },
+];
+
+let errorMessage = '';
+let success = false;
+
+if (Astro.request.method === 'POST' && !invalidPath && !notFound) {
+  const form = await Astro.request.formData();
+  const category = form.get('category') as string;
+  const description = (form.get('description') as string)?.trim() ?? '';
+  const turnstileToken = form.get('cf-turnstile-response') as string | null;
+
+  if (!categories.find((c) => c.value === category)) {
+    errorMessage = 'Please select a reason category.';
+  } else if (description.length < 10) {
+    errorMessage = 'Description must be at least 10 characters.';
+  } else if (description.length > 2000) {
+    errorMessage = 'Description must be 2000 characters or less.';
+  } else {
+    // Turnstile check only for anonymous reporters.
+    let turnstileOk = true;
+    if (!Astro.locals.author) {
+      if (!turnstileToken) {
+        errorMessage = 'Please complete the verification challenge.';
+        turnstileOk = false;
+      } else {
+        const result = await verifyTurnstile(
+          turnstileToken,
+          (env as unknown as { TURNSTILE_SECRET_KEY: string }).TURNSTILE_SECRET_KEY,
+        );
+        if (!result.success) {
+          errorMessage = 'Verification failed. Please try again.';
+          turnstileOk = false;
+        }
+      }
+    }
+
+    if (turnstileOk && !errorMessage) {
+      let reporterAuthorId: string | null = null;
+      if (Astro.locals.author) {
+        reporterAuthorId = await resolveAuthorId(env.DB, Astro.locals.author.githubId);
+      }
+
+      try {
+        await createReport(env.DB, {
+          entityType,
+          entityId,
+          reporterAuthorId,
+          reasonCategory: category as ReportCategory,
+          description,
+        });
+        success = true;
+      } catch (err) {
+        console.error('[report] failed to create report', err);
+        errorMessage = 'Something went wrong saving your report. Please try again in a moment.';
+      }
+    }
+  }
+}
+
+const title = notFound || invalidPath
+  ? 'Not found — emdashcms.org'
+  : `Report ${entityName} — emdashcms.org`;
+---
+<BaseLayout title={title} description="Report a plugin or theme to the emdashcms.org moderators.">
+  <section class="pt-32 pb-16 px-6">
+    <div class="mx-auto max-w-3xl">
+
+      {invalidPath || notFound ? (
+        <>
+          <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Nothing to report here</h1>
+          <p class="mt-4 text-sm text-zinc-400">
+            The entity you're trying to report doesn't exist. Go back to
+            <a href="/plugins" class="underline hover:text-zinc-100">Plugins</a> or
+            <a href="/themes" class="underline hover:text-zinc-100">Themes</a> and try again from the detail page.
+          </p>
+        </>
+      ) : success ? (
+        <>
+          <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Report received</h1>
+          <p class="mt-4 text-sm text-zinc-400">
+            Thanks — a moderator will review your report. If the issue is a security vulnerability, we may
+            restrict downloads of the affected version while we investigate.
+          </p>
+          <div class="mt-6">
+            <a href={`/${entityType}s/${entityId}`} class="inline-flex items-center gap-2 text-sm text-zinc-300 hover:text-zinc-100">
+              ← Back to {entityName}
+            </a>
+          </div>
+        </>
+      ) : (
+        <>
+          <a href={`/${entityType}s/${entityId}`} class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+            ← Back to {entityName}
+          </a>
+
+          <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+            Report a problem
+          </h1>
+          <p class="mt-2 text-sm text-zinc-400">
+            Reporting <strong class="text-zinc-100">{entityName}</strong> (<code class="font-mono text-zinc-300">{entityId}</code>).
+            See our <a href="/docs/security" class="underline hover:text-zinc-100">review policy</a> for what we check.
+          </p>
+
+          {errorMessage && (
+            <div class="mt-6 rounded-lg border border-red-800/60 bg-red-950/40 p-4">
+              <p class="text-sm text-red-300">{errorMessage}</p>
+            </div>
+          )}
+
+          <form method="POST" class="mt-8 space-y-6">
+            <fieldset>
+              <legend class="text-sm font-semibold text-zinc-100">Reason</legend>
+              <div class="mt-3 space-y-2">
+                {categories.map((c) => (
+                  <label class="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 cursor-pointer hover:border-zinc-700 transition-colors">
+                    <input type="radio" name="category" value={c.value} required class="mt-1 accent-zinc-100" />
+                    <div>
+                      <div class="text-sm font-medium text-zinc-100">{c.label}</div>
+                      <div class="text-xs text-zinc-500">{c.hint}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div>
+              <label for="description" class="block text-sm font-semibold text-zinc-100">
+                What did you observe? <span class="text-zinc-500 font-normal">(required, 10–2000 chars)</span>
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                required
+                minlength="10"
+                maxlength="2000"
+                rows="6"
+                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                placeholder="Describe what you saw, any steps to reproduce, and the version number if relevant. Include links to evidence where possible."
+              ></textarea>
+            </div>
+
+            {!Astro.locals.author && (
+              <div>
+                <p class="text-xs text-zinc-500 mb-2">You're reporting anonymously — please complete this check:</p>
+                <TurnstileWidget />
+              </div>
+            )}
+
+            <div class="flex items-center justify-between">
+              <p class="text-xs text-zinc-500">
+                {Astro.locals.author
+                  ? `Reporting as @${Astro.locals.author.username}`
+                  : 'Reporting anonymously'}
+              </p>
+              <button
+                type="submit"
+                class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
+              >
+                Submit report
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+
+    </div>
+  </section>
+</BaseLayout>

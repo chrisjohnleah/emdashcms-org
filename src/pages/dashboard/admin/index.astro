@@ -50,7 +50,16 @@ const formatDate = (iso: string) =>
         </div>
         <a href="/dashboard/admin/queue" class="rounded-xl border border-amber-800/40 bg-amber-950/20 p-5 hover:bg-amber-950/30 transition-colors">
           <p class="text-2xl font-bold text-amber-400">{pendingCount}</p>
-          <p class="text-xs text-amber-500/80 mt-1">Needs Attention &rarr;</p>
+          <p class="text-xs text-amber-500/80 mt-1">Moderation queue &rarr;</p>
+        </a>
+      </div>
+
+      <div class="mb-8 flex gap-3">
+        <a href="/dashboard/admin/reports" class="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-900/60 hover:text-zinc-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+          Reports queue
         </a>
       </div>
 
