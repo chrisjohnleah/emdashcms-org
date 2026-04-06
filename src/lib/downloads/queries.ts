@@ -16,7 +16,10 @@ interface VersionBundle {
 
 /**
  * Look up the R2 bundle key for a published or flagged version (D-02).
- * Returns null if the version does not exist or is not in a downloadable status.
+ * Returns null if the version does not exist, is not in a downloadable
+ * status, or the parent plugin has been revoked. The plugin-level status
+ * check (via INNER JOIN) means revocation is airtight at the Worker
+ * boundary — but only if the R2 bucket itself is not publicly exposed.
  * The bundle_key column contains the R2 key (pattern: plugins/{pluginId}/{version}/bundle.tgz).
  */
 export async function getPublishedVersionBundle(
@@ -26,9 +29,13 @@ export async function getPublishedVersionBundle(
 ): Promise<VersionBundle | null> {
   const row = await db
     .prepare(
-      `SELECT bundle_key, compressed_size, checksum
-       FROM plugin_versions
-       WHERE plugin_id = ? AND version = ? AND status IN ('published', 'flagged')`,
+      `SELECT pv.bundle_key, pv.compressed_size, pv.checksum
+       FROM plugin_versions pv
+       INNER JOIN plugins p ON p.id = pv.plugin_id
+       WHERE pv.plugin_id = ?
+         AND pv.version = ?
+         AND pv.status IN ('published', 'flagged')
+         AND COALESCE(p.status, 'active') = 'active'`,
     )
     .bind(pluginId, version)
     .first<{ bundle_key: string; compressed_size: number; checksum: string }>();

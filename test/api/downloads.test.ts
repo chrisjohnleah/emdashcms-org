@@ -186,6 +186,49 @@ describe("DOWN-01: Bundle download queries", () => {
     );
     expect(result).toBeNull();
   });
+
+  it("returns null when the parent plugin is revoked, even for a published version", async () => {
+    // Seed a second plugin that is revoked with a published version.
+    // We keep the default plugin active so other tests continue to work.
+    await seedTestPlugin(env.DB, "dl-revoked-plugin", "dl-author-1");
+    await env.DB.prepare(
+      "UPDATE plugins SET status = 'revoked' WHERE id = ?",
+    )
+      .bind("dl-revoked-plugin")
+      .run();
+    await seedTestVersion(
+      env.DB,
+      "dl-revoked-plugin",
+      "1.0.0",
+      "published",
+      "plugins/dl-revoked-plugin/1.0.0/bundle.tgz",
+    );
+
+    const result = await getPublishedVersionBundle(
+      env.DB,
+      "dl-revoked-plugin",
+      "1.0.0",
+    );
+    expect(result).toBeNull();
+  });
+
+  it("returns bundle info again after a revoked plugin is restored", async () => {
+    await env.DB.prepare(
+      "UPDATE plugins SET status = 'active' WHERE id = ?",
+    )
+      .bind("dl-revoked-plugin")
+      .run();
+
+    const result = await getPublishedVersionBundle(
+      env.DB,
+      "dl-revoked-plugin",
+      "1.0.0",
+    );
+    expect(result).not.toBeNull();
+    expect(result!.bundleKey).toBe(
+      "plugins/dl-revoked-plugin/1.0.0/bundle.tgz",
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
