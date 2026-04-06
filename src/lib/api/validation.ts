@@ -2,6 +2,8 @@
  * Shared input validation utilities for API routes.
  */
 
+import { PLUGIN_CAPABILITIES } from "../publishing/manifest-schema";
+
 /** Validate a user-supplied URL has an http/https scheme. */
 export function isValidUrl(url: string): boolean {
   try {
@@ -104,21 +106,16 @@ export function validateStringLengths(
   return null;
 }
 
-/** Known plugin capabilities. */
-const KNOWN_CAPABILITIES = new Set([
-  "network:fetch",
-  "storage:read",
-  "storage:write",
-  "admin:panel",
-  "content:transform",
-  "hook:beforeSave",
-  "hook:afterSave",
-]);
+/**
+ * Known plugin capabilities — single source of truth lives in
+ * lib/publishing/manifest-schema.ts to stay aligned with upstream EmDash.
+ */
+const KNOWN_CAPABILITIES_SET: ReadonlySet<string> = new Set(PLUGIN_CAPABILITIES);
 
-/** Validate capabilities array against known values. */
+/** Validate capabilities array against the upstream-aligned known values. */
 export function validateCapabilities(caps: unknown[]): string | null {
   for (const c of caps) {
-    if (typeof c !== "string" || !KNOWN_CAPABILITIES.has(c)) {
+    if (typeof c !== "string" || !KNOWN_CAPABILITIES_SET.has(c)) {
       return `Invalid capability: ${String(c)}`;
     }
   }

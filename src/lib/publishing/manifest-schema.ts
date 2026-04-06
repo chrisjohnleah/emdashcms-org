@@ -2,9 +2,74 @@ import * as z from "zod/mini";
 
 /**
  * Zod/mini validation schema for plugin manifest.json files.
- * Validates all fields from the PluginManifest contract with stricter
- * type enforcement than the upstream TypeScript interface.
+ *
+ * Mirrors the upstream schema in:
+ *   github.com/emdash-cms/emdash/packages/core/src/plugins/manifest-schema.ts
+ *
+ * Whenever upstream adds a capability or hook, the corresponding constant
+ * below must be updated. The constants are exported so the rest of the
+ * marketplace (form pickers, API validation, capability badges) shares one
+ * source of truth.
  */
+
+/** The 11 plugin capabilities recognised by EmDash core. */
+export const PLUGIN_CAPABILITIES = [
+  "network:fetch",
+  "network:fetch:any",
+  "read:content",
+  "write:content",
+  "read:media",
+  "write:media",
+  "read:users",
+  "email:send",
+  "email:provide",
+  "email:intercept",
+  "page:inject",
+] as const;
+
+export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
+
+/** The 20 hook names recognised by EmDash core. */
+export const HOOK_NAMES = [
+  "plugin:install",
+  "plugin:activate",
+  "plugin:deactivate",
+  "plugin:uninstall",
+  "content:beforeSave",
+  "content:afterSave",
+  "content:beforeDelete",
+  "content:afterDelete",
+  "media:beforeUpload",
+  "media:afterUpload",
+  "cron",
+  "email:beforeSend",
+  "email:deliver",
+  "email:afterSend",
+  "comment:beforeCreate",
+  "comment:moderate",
+  "comment:afterCreate",
+  "comment:afterModerate",
+  "page:metadata",
+  "page:fragments",
+] as const;
+
+export type HookName = (typeof HOOK_NAMES)[number];
+
+const PLUGIN_CAPABILITIES_SET: ReadonlySet<string> = new Set(PLUGIN_CAPABILITIES);
+const HOOK_NAMES_SET: ReadonlySet<string> = new Set(HOOK_NAMES);
+
+const capabilitySchema = z.string().check(
+  z.refine((val) => PLUGIN_CAPABILITIES_SET.has(val), {
+    message: `Capability must be one of: ${PLUGIN_CAPABILITIES.join(", ")}`,
+  }),
+);
+
+const hookNameSchema = z.string().check(
+  z.refine((val) => HOOK_NAMES_SET.has(val), {
+    message: `Hook name must be one of: ${HOOK_NAMES.join(", ")}`,
+  }),
+);
+
 export const manifestSchema = z.object({
   // Required: lowercase or @scope/name, per D-01
   id: z.string().check(z.regex(/^(@[a-z0-9-]+\/)?[a-z0-9-]+$/)),
@@ -12,21 +77,23 @@ export const manifestSchema = z.object({
   // Required: strict semver X.Y.Z
   version: z.string().check(z.regex(/^\d+\.\d+\.\d+$/)),
 
-  // Required: array of capability strings (can be empty)
-  capabilities: z.array(z.string()),
+  // Required: array of capability strings, each from PLUGIN_CAPABILITIES
+  capabilities: z.array(capabilitySchema),
 
   // Required: array of allowed external hosts
   allowedHosts: z.array(z.string()),
 
-  // Optional/nullable: key-value storage declarations
+  // Optional/nullable: key-value storage declarations.
+  // Upstream requires this; we accept null/undefined for backwards compatibility
+  // with the very first prod plugin which omitted it. Treat missing as {}.
   storage: z.nullable(z.optional(z.record(z.string(), z.unknown()))),
 
-  // Required: hook declarations (string or structured object)
+  // Required: hook declarations (string from HOOK_NAMES, or structured object).
   hooks: z.array(
     z.union([
-      z.string(),
+      hookNameSchema,
       z.object({
-        name: z.string(),
+        name: hookNameSchema,
         exclusive: z.optional(z.boolean()),
         priority: z.optional(z.number()),
         timeout: z.optional(z.number()),
@@ -100,4 +167,12 @@ export function formatManifestErrors(error: z.core.$ZodError): string[] {
     const path = issue.path?.length ? issue.path.join(".") : "root";
     return `${path}: ${issue.message}`;
   });
+}
+
+/**
+ * Normalise a hook entry to its name string. Accepts both legacy plain
+ * strings and structured objects per the upstream contract.
+ */
+export function hookName(entry: string | { name: string }): string {
+  return typeof entry === "string" ? entry : entry.name;
 }

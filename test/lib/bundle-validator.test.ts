@@ -108,6 +108,95 @@ describe("manifestSchema", () => {
     );
     expect(result.success).toBe(true);
   });
+
+  it("accepts all upstream capabilities", () => {
+    const result = manifestSchema.safeParse(
+      validManifest({
+        capabilities: [
+          "network:fetch",
+          "network:fetch:any",
+          "read:content",
+          "write:content",
+          "read:media",
+          "write:media",
+          "read:users",
+          "email:send",
+          "email:provide",
+          "email:intercept",
+          "page:inject",
+        ],
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects fabricated capability 'storage:read'", () => {
+    const result = manifestSchema.safeParse(
+      validManifest({ capabilities: ["storage:read"] }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects fabricated capability 'admin:panel'", () => {
+    const result = manifestSchema.safeParse(
+      validManifest({ capabilities: ["admin:panel"] }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts upstream hook names as plain strings", () => {
+    const result = manifestSchema.safeParse(
+      validManifest({
+        hooks: ["plugin:install", "content:beforeSave", "cron"],
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts upstream hook names as structured objects", () => {
+    const result = manifestSchema.safeParse(
+      validManifest({
+        hooks: [
+          { name: "plugin:install" },
+          { name: "content:beforeSave", priority: 10, timeout: 5000 },
+        ],
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects fabricated hook name 'hook:beforeSave'", () => {
+    const result = manifestSchema.safeParse(
+      validManifest({ hooks: ["hook:beforeSave"] }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts production serpdelta manifest shape", () => {
+    // Real manifest from prod D1, used as a regression check
+    const result = manifestSchema.safeParse({
+      id: "serpdelta",
+      version: "0.1.0",
+      capabilities: ["network:fetch"],
+      allowedHosts: [
+        "accounts.google.com",
+        "oauth2.googleapis.com",
+        "www.googleapis.com",
+        "searchconsole.googleapis.com",
+      ],
+      storage: {
+        connections: { indexes: ["siteUrl", "createdAt"] },
+        snapshots: { indexes: ["siteUrl", "date", "type"] },
+      },
+      hooks: ["plugin:install"],
+      routes: ["admin"],
+      admin: {
+        pages: [{ path: "/serpdelta", label: "SerpDelta", icon: "chart" }],
+        widgets: [{ id: "serpdelta-movers", size: "half", title: "Top Movers" }],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
