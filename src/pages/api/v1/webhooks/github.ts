@@ -227,6 +227,17 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
+    // Audit budget check (COST-03) — runs BEFORE we write to R2 or D1
+    // so we don't leave orphaned objects/rows when the budget is exhausted.
+    const budget = await checkAuthorAuditBudget(env.DB, link.authorId);
+    if (!budget.allowed) {
+      console.log(`[webhook] Author ${link.authorId} audit budget exceeded, skipping`);
+      return new Response(
+        JSON.stringify({ message: "Author audit budget exceeded" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     // Step 13: Store in R2
     const { key: bundleKey } = await storeBundleInR2(
       env.ARTIFACTS,
@@ -250,16 +261,6 @@ export const POST: APIRoute = async ({ request }) => {
       minEmDashVersion: validation.manifest!.minEmDashVersion ?? undefined,
       source: "github",
     });
-
-    // Audit budget check (COST-03)
-    const budget = await checkAuthorAuditBudget(env.DB, link.authorId);
-    if (!budget.allowed) {
-      console.log(`[webhook] Author ${link.authorId} audit budget exceeded, skipping`);
-      return new Response(
-        JSON.stringify({ message: "Author audit budget exceeded" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }
 
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId: link.pluginId,

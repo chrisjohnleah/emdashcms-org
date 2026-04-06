@@ -100,6 +100,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
         `Version ${versionStr} already exists for this plugin`,
       );
 
+    // Audit budget check (COST-03) — runs BEFORE we write to R2 or D1.
+    // If the budget is exhausted, we'd otherwise leave an orphaned R2
+    // object and a "pending" version row that never gets audited.
+    const budget = await checkAuthorAuditBudget(env.DB, authorId);
+    if (!budget.allowed) {
+      return errorResponse(429, "Daily audit limit reached (10/day). Try again tomorrow.");
+    }
+
     // Steps 12-13: Store in R2 (checksum already computed by validateBundle)
     const { key: bundleKey } = await storeBundleInR2(
       env.ARTIFACTS,
@@ -122,12 +130,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       changelog: validation.manifest!.changelog ?? undefined,
       minEmDashVersion: validation.manifest!.minEmDashVersion ?? undefined,
     });
-
-    // Audit budget check (COST-03)
-    const budget = await checkAuthorAuditBudget(env.DB, authorId);
-    if (!budget.allowed) {
-      return errorResponse(429, "Daily audit limit reached (10/day). Try again tomorrow.");
-    }
 
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId,
