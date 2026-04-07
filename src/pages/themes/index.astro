@@ -38,10 +38,9 @@ const sortOptions = [
 const isFiltered = q || keyword;
 ---
 <BaseLayout title="Themes - emdashcms.org">
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
-      <h1 class="text-3xl font-semibold tracking-tight leading-[1.15]">Themes</h1>
+      <h1 class="text-3xl tracking-tight leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">Themes</h1>
 
       <div class="mt-8">
         <SearchBar action="/themes" placeholder="Search themes..." value={q} />
@@ -53,7 +52,7 @@ const isFiltered = q || keyword;
         <form method="GET" action="/themes" class="flex-shrink-0">
           {q && <input type="hidden" name="q" value={q} />}
           {keyword && <input type="hidden" name="keyword" value={keyword} />}
-          <select name="sort" data-auto-submit class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+          <select name="sort" data-auto-submit class="rounded-md border border-rule-strong bg-paper-soft px-3 py-2 text-sm text-ink focus:border-accent-deep focus:outline-none">
             {sortOptions.map(opt => (
               <option value={opt.value} selected={sort === opt.value}>{opt.label}</option>
             ))}
@@ -87,7 +86,6 @@ const isFiltered = q || keyword;
         </div>
       )}
 
-    </div>
   </section>
 
   <script>

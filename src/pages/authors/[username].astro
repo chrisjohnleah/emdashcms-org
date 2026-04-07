@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Button from '../../components/Button.astro';
 import PluginCard from '../../components/PluginCard.astro';
 import ThemeCard from '../../components/ThemeCard.astro';
 import {
@@ -42,26 +43,24 @@ const description = author
   : undefined;
 ---
 <BaseLayout title={title} description={description} noindex={!author}>
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
       {!author ? (
         <div class="text-center py-16">
-          <h1 class="text-2xl font-semibold text-zinc-100">Author not found</h1>
-          <p class="mt-2 text-sm text-zinc-400">
+          <h1 class="text-2xl text-ink" style="font-weight: 500; letter-spacing: -0.02em;">Author not found</h1>
+          <p class="mt-2 text-sm text-ink-muted">
             No public profile exists for that username. The author may not yet be registered, or their profile is
             hidden.
           </p>
-          <a
-            href="/plugins"
-            class="mt-6 inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
-          >
-            Browse plugins
-          </a>
+          <div class="mt-6 inline-flex">
+            <Button href="/plugins" variant="primary">
+              Browse plugins
+            </Button>
+          </div>
         </div>
       ) : (
         <>
-          <a href="/plugins" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+          <a href="/plugins" class="text-sm text-ink-muted hover:text-ink transition-colors">
             &larr; Back to Plugins
           </a>
 
@@ -71,22 +70,22 @@ const description = author
               <img
                 src={author.avatarUrl}
                 alt={author.githubUsername}
-                class="w-20 h-20 rounded-full border border-zinc-800"
+                class="w-20 h-20 rounded-full border border-rule"
               />
             ) : (
-              <div class="w-20 h-20 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                <svg class="w-10 h-10 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <div class="w-20 h-20 rounded-full bg-paper-sunk border border-rule-strong flex items-center justify-center">
+                <svg class="w-10 h-10 text-ink-soft" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                 </svg>
               </div>
             )}
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-3 flex-wrap">
-                <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">
+                <h1 class="text-3xl tracking-tight text-ink" style="font-weight: 500; letter-spacing: -0.02em;">
                   {author.githubUsername}
                 </h1>
                 {author.verified && (
-                  <span class="inline-flex items-center gap-1 rounded-full border border-emerald-800/60 bg-emerald-950/40 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-emerald-400">
+                  <span class="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success-soft px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-success">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75 10.5 18.75 19.5 5.25" />
                     </svg>
@@ -94,14 +93,14 @@ const description = author
                   </span>
                 )}
               </div>
-              <p class="mt-1 text-sm text-zinc-500">
+              <p class="mt-1 text-sm text-ink-soft">
                 Member since {formatDate(author.createdAt)}
               </p>
               <a
                 href={`https://github.com/${author.githubUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="mt-3 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-100 transition-colors"
+                class="mt-3 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink transition-colors"
               >
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
                   <path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" />
@@ -112,15 +111,15 @@ const description = author
           </div>
 
           <!-- Summary stats -->
-          <div class="mt-8 flex gap-4 text-sm text-zinc-500">
-            <span><strong class="text-zinc-100">{plugins.length}</strong> plugin{plugins.length === 1 ? '' : 's'}</span>
-            <span><strong class="text-zinc-100">{themes.length}</strong> theme{themes.length === 1 ? '' : 's'}</span>
+          <div class="mt-8 flex gap-4 text-sm text-ink-soft">
+            <span><strong class="text-ink">{plugins.length}</strong> plugin{plugins.length === 1 ? '' : 's'}</span>
+            <span><strong class="text-ink">{themes.length}</strong> theme{themes.length === 1 ? '' : 's'}</span>
           </div>
 
           <!-- Plugins -->
           {plugins.length > 0 && (
             <div class="mt-12">
-              <h2 class="text-xl font-semibold text-zinc-100 mb-4">Plugins</h2>
+              <h2 class="text-xl font-semibold text-ink mb-4">Plugins</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {plugins.map((plugin) => (
                   <PluginCard plugin={plugin} />
@@ -132,7 +131,7 @@ const description = author
           <!-- Themes -->
           {themes.length > 0 && (
             <div class="mt-12">
-              <h2 class="text-xl font-semibold text-zinc-100 mb-4">Themes</h2>
+              <h2 class="text-xl font-semibold text-ink mb-4">Themes</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {themes.map((theme) => (
                   <ThemeCard theme={theme} />
@@ -142,8 +141,8 @@ const description = author
           )}
 
           {plugins.length === 0 && themes.length === 0 && (
-            <div class="mt-12 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-12 text-center">
-              <p class="text-sm text-zinc-400">
+            <div class="mt-12 rounded-xl border border-rule bg-paper-soft p-12 text-center">
+              <p class="text-sm text-ink-muted">
                 {author.githubUsername} hasn't published any plugins or themes yet.
               </p>
             </div>
@@ -151,6 +150,5 @@ const description = author
         </>
       )}
 
-    </div>
   </section>
 </BaseLayout>

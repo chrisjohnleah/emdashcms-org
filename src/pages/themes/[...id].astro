@@ -4,6 +4,7 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import { getThemeDetail } from '../../lib/db/queries';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Button from '../../components/Button.astro';
 
 const { id } = Astro.params;
 const theme = await getThemeDetail(env.DB, id!);
@@ -14,49 +15,50 @@ if (!theme) {
 ---
 {!theme ? (
   <BaseLayout title="Theme not found - emdashcms.org">
-    <section class="pt-24 pb-16 px-6">
-      <div class="mx-auto max-w-5xl text-center py-16">
-        <h1 class="text-xl font-semibold text-zinc-100">Theme not found</h1>
-        <p class="mt-2 text-sm text-zinc-400">The theme you're looking for doesn't exist or may have been removed.</p>
-        <a href="/themes" class="mt-6 inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Browse Themes</a>
+    <section class="page pt-12 pb-16 md:pt-16">
+      <div class="text-center py-16">
+        <h1 class="text-xl text-ink" style="font-weight: 500; letter-spacing: -0.02em;">Theme not found</h1>
+        <p class="mt-2 text-sm text-ink-muted">The theme you're looking for doesn't exist or may have been removed.</p>
+        <div class="mt-6 inline-flex">
+          <Button href="/themes" variant="primary">Browse Themes</Button>
+        </div>
       </div>
     </section>
   </BaseLayout>
 ) : (
   <BaseLayout title={theme.name + " - emdashcms.org"} description={theme.shortDescription ?? theme.description ?? undefined}>
-    <section class="pt-24 pb-16 px-6">
-      <div class="mx-auto max-w-5xl">
+    <section class="page pt-12 pb-16 md:pt-16">
 
-        <a href="/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Themes</a>
+        <a href="/themes" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Themes</a>
 
         <div class="mt-6 max-w-3xl">
 
-          <h1 class="text-3xl font-semibold tracking-tight leading-[1.15]">{theme.name}</h1>
+          <h1 class="text-3xl tracking-tight leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">{theme.name}</h1>
           {theme.shortDescription && (
-            <p class="mt-1 text-sm text-zinc-400">{theme.shortDescription}</p>
+            <p class="mt-1 text-sm text-ink-muted">{theme.shortDescription}</p>
           )}
           <div class="mt-2 flex items-center gap-3">
             {theme.author.avatarUrl ? (
               <img src={theme.author.avatarUrl} alt={theme.author.name} class="w-5 h-5 rounded-full" />
             ) : (
-              <div class="w-5 h-5 rounded-full bg-zinc-800" />
+              <div class="w-5 h-5 rounded-full bg-paper-sunk" />
             )}
-            <span class="text-sm text-zinc-400">{theme.author.name}</span>
+            <span class="text-sm text-ink-muted">{theme.author.name}</span>
           </div>
 
           <div class="mt-6 flex items-center gap-3 flex-wrap">
             {theme.previewUrl && (
-              <a
+              <Button
                 href={theme.previewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
+                variant="primary"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
                 Preview Theme
-              </a>
+              </Button>
             )}
-            <a href="/guide" class="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+            <a href="/guide" class="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink-muted transition-colors">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
               How to install themes &rarr;
             </a>
@@ -64,14 +66,14 @@ if (!theme) {
 
           {theme.description && (
             <div class="mt-8">
-              <h2 class="text-sm font-semibold text-zinc-100">Description</h2>
-              <p class="mt-2 text-sm text-zinc-400 leading-relaxed">{theme.description}</p>
+              <h2 class="text-sm font-semibold text-ink">Description</h2>
+              <p class="mt-2 text-sm text-ink-muted leading-relaxed">{theme.description}</p>
             </div>
           )}
 
           {theme.screenshotUrls.length > 0 && (
             <div class="mt-8">
-              <h2 class="text-sm font-semibold text-zinc-100">Screenshots</h2>
+              <h2 class="text-sm font-semibold text-ink">Screenshots</h2>
               <div class="mt-2 flex gap-3 overflow-x-auto pb-2" role="list" style="scroll-snap-type: x mandatory;">
                 {theme.screenshotUrls.map((url, index) => (
                   <a
@@ -93,45 +95,44 @@ if (!theme) {
             </div>
           )}
 
-          <div class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+          <div class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
             {theme.keywords.length > 0 && (
               <div>
-                <dt class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Keywords</dt>
+                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Keywords</dt>
                 <dd class="mt-1 flex flex-wrap gap-1.5">
                   {theme.keywords.map(kw => (
-                    <span class="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-400">{kw}</span>
+                    <span class="rounded-full bg-paper-sunk px-2 py-0.5 text-[11px] text-ink-muted">{kw}</span>
                   ))}
                 </dd>
               </div>
             )}
             {theme.license && (
               <div>
-                <dt class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">License</dt>
-                <dd class="mt-1 text-sm text-zinc-300">{theme.license}</dd>
+                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">License</dt>
+                <dd class="mt-1 text-sm text-ink-muted">{theme.license}</dd>
               </div>
             )}
             {theme.repositoryUrl && (
               <div>
-                <dt class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Repository</dt>
-                <dd class="mt-1"><a href={theme.repositoryUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors break-all">{theme.repositoryUrl.replace('https://', '')}</a></dd>
+                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Repository</dt>
+                <dd class="mt-1"><a href={theme.repositoryUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.repositoryUrl.replace('https://', '')}</a></dd>
               </div>
             )}
             {theme.homepageUrl && (
               <div>
-                <dt class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Homepage</dt>
-                <dd class="mt-1"><a href={theme.homepageUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors break-all">{theme.homepageUrl.replace('https://', '')}</a></dd>
+                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Homepage</dt>
+                <dd class="mt-1"><a href={theme.homepageUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.homepageUrl.replace('https://', '')}</a></dd>
               </div>
             )}
             {theme.demoUrl && (
               <div>
-                <dt class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Demo</dt>
-                <dd class="mt-1"><a href={theme.demoUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors break-all">{theme.demoUrl.replace('https://', '')}</a></dd>
+                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Demo</dt>
+                <dd class="mt-1"><a href={theme.demoUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.demoUrl.replace('https://', '')}</a></dd>
               </div>
             )}
           </div>
 
         </div>
-      </div>
     </section>
   </BaseLayout>
 )}

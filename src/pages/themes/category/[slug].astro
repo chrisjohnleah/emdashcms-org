@@ -38,19 +38,18 @@ const title = `${titleCategory} themes - emdashcms.org`;
 const description = `Browse ${titleCategory} themes on the emdashcms.org community marketplace for EmDash CMS.`;
 ---
 <BaseLayout title={title} description={description}>
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
-      <nav class="flex items-center gap-2 text-sm text-zinc-500 mb-6" aria-label="Breadcrumb">
-        <a href="/themes" class="hover:text-zinc-300 transition-colors">Themes</a>
-        <span class="text-zinc-700">/</span>
-        <span class="text-zinc-300">{titleCategory}</span>
+      <nav class="flex items-center gap-2 text-sm text-ink-soft mb-6" aria-label="Breadcrumb">
+        <a href="/themes" class="hover:text-ink-muted transition-colors">Themes</a>
+        <span class="text-rule-strong">/</span>
+        <span class="text-ink-muted">{titleCategory}</span>
       </nav>
 
-      <h1 class="text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+      <h1 class="text-3xl tracking-tight leading-[1.15] text-ink" style="font-weight: 500; letter-spacing: -0.02em;">
         {titleCategory}
       </h1>
-      <p class="mt-1 text-sm text-zinc-400">
+      <p class="mt-1 text-sm text-ink-muted">
         Themes in the {titleCategory.toLowerCase()} category.
       </p>
 
@@ -85,6 +84,5 @@ const description = `Browse ${titleCategory} themes on the emdashcms.org communi
         </div>
       )}
 
-    </div>
   </section>
 </BaseLayout>

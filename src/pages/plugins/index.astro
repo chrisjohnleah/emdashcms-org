@@ -6,13 +6,11 @@ import { searchPlugins } from '../../lib/db/queries';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PluginCard from '../../components/PluginCard.astro';
 import SearchBar from '../../components/SearchBar.astro';
-import FilterChips from '../../components/FilterChips.astro';
 import Pagination from '../../components/Pagination.astro';
 import EmptyState from '../../components/EmptyState.astro';
 
 const url = Astro.url;
 const q = url.searchParams.get('q') ?? '';
-const capability = url.searchParams.get('capability') ?? null;
 const category = url.searchParams.get('category') ?? null;
 const sort = url.searchParams.get('sort') ?? 'installs';
 const cursor = url.searchParams.get('cursor') ?? null;
@@ -20,21 +18,11 @@ const cursor = url.searchParams.get('cursor') ?? null;
 const { items: plugins, nextCursor } = await searchPlugins(env.DB, {
   query: q,
   category,
-  capability,
+  capability: null,
   sort,
   cursor,
   limit: 12,
 });
-
-const knownCapabilities = [
-  'network:fetch',
-  'storage:read',
-  'storage:write',
-  'admin:panel',
-  'content:transform',
-  'hook:beforeSave',
-  'hook:afterSave',
-];
 
 const sortOptions = [
   { value: 'installs', label: 'Most installed' },
@@ -43,29 +31,25 @@ const sortOptions = [
   { value: 'name', label: 'Name A-Z' },
 ];
 
-const isFiltered = q || capability || category;
+const isFiltered = q || category;
 ---
 <BaseLayout title="Plugins - emdashcms.org" description="Browse community plugins for EmDash CMS. Search, filter by capability, and discover extensions for your site.">
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
-      <h1 class="text-3xl font-semibold tracking-tight leading-[1.15]">Plugins</h1>
+      <h1 class="text-3xl tracking-tight leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">Plugins</h1>
 
       <div class="mt-8">
         <SearchBar action="/plugins" placeholder="Search plugins..." value={q} />
       </div>
 
-      <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <FilterChips items={knownCapabilities} active={capability} paramName="capability" baseUrl="/plugins" />
-
+      <div class="mt-4 flex justify-end">
         <form method="GET" action="/plugins" class="flex-shrink-0">
           {q && <input type="hidden" name="q" value={q} />}
-          {capability && <input type="hidden" name="capability" value={capability} />}
           {category && <input type="hidden" name="category" value={category} />}
           <select
             name="sort"
             data-auto-submit
-            class="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            class="rounded-md border border-rule-strong bg-paper-soft px-3 py-2 text-sm text-ink focus:border-accent-deep focus:outline-none"
           >
             {sortOptions.map(opt => (
               <option value={opt.value} selected={sort === opt.value}>{opt.label}</option>
@@ -102,7 +86,6 @@ const isFiltered = q || capability || category;
         </div>
       )}
 
-    </div>
   </section>
 
   <script>
