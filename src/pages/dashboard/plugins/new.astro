@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Button from '../../../components/Button.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import TurnstileWidget from '../../../components/TurnstileWidget.astro';
 import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit, updatePluginIconKey } from '../../../lib/publishing/plugin-queries';
@@ -325,42 +326,41 @@ if (Astro.request.method === 'POST') {
 }
 
 // CSS helper for input styling
-const inputBase = 'w-full bg-zinc-900 border text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500';
-const inputNormal = `${inputBase} border-zinc-800`;
-const inputError = `${inputBase} border-red-700`;
+const inputBase = 'w-full bg-paper-soft text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none border';
+const inputNormal = `${inputBase} border-rule-strong`;
+const inputError = `${inputBase} border-danger`;
 ---
 <BaseLayout title="Register Plugin - Dashboard - emdashcms.org">
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page-narrow pt-12 pb-16 md:pt-16">
 
-      <a href="/dashboard" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Dashboard</a>
+      <a href="/dashboard" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Dashboard</a>
 
-      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">Register Plugin</h1>
+      <h1 class="mt-4 text-3xl text-ink">Register Plugin</h1>
 
       {/* --- Step Indicator --- */}
       <div class="mt-8 flex items-center justify-center gap-0">
         <div class="flex flex-col items-center">
           <div class:list={[
             'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
-            currentStep >= 1 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+            currentStep >= 1 ? 'bg-ink text-paper' : 'bg-paper-sunk text-ink-soft',
           ]}>1</div>
           <span class:list={[
             'mt-2 text-xs font-medium',
-            currentStep >= 1 ? 'text-zinc-100' : 'text-zinc-500',
+            currentStep >= 1 ? 'text-ink' : 'text-ink-soft',
           ]}>Plugin Details</span>
         </div>
         <div class:list={[
           'mx-4 h-px w-24 sm:w-32 -mt-5 transition-colors',
-          currentStep >= 2 ? 'bg-white' : 'bg-zinc-800',
+          currentStep >= 2 ? 'bg-ink' : 'bg-rule-strong',
         ]} />
         <div class="flex flex-col items-center">
           <div class:list={[
             'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
-            currentStep >= 2 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+            currentStep >= 2 ? 'bg-ink text-paper' : 'bg-paper-sunk text-ink-soft',
           ]}>2</div>
           <span class:list={[
             'mt-2 text-xs font-medium',
-            currentStep >= 2 ? 'text-zinc-100' : 'text-zinc-500',
+            currentStep >= 2 ? 'text-ink' : 'text-ink-soft',
           ]}>First Version</span>
         </div>
       </div>
@@ -379,37 +379,37 @@ const inputError = `${inputBase} border-red-700`;
 
       {/* =============================== STEP 1 =============================== */}
       {currentStep === 1 && (
-        <form method="POST" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-5">
+        <form method="POST" class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-5">
           <input type="hidden" name="_step" value="1" />
 
           {/* Plugin ID */}
           <div>
-            <label for="id" class="block text-sm font-semibold text-zinc-100">Plugin ID <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">Lowercase alphanumeric with hyphens (e.g. my-plugin)</p>
+            <label for="id" class="block text-sm font-semibold text-ink">Plugin ID <span class="text-danger">*</span></label>
+            <p class="mt-1 text-xs text-ink-soft">Lowercase alphanumeric with hyphens (e.g. my-plugin)</p>
             <input type="text" id="id" name="id" value={formValues.id}
               placeholder="my-plugin"
               class:list={['mt-2', errors.id ? inputError : inputNormal]}
               aria-required="true"
               aria-invalid={errors.id ? 'true' : undefined}
               aria-describedby={errors.id ? 'id-error' : undefined} />
-            {errors.id && <p id="id-error" class="mt-1 text-xs text-red-400">{errors.id}</p>}
+            {errors.id && <p id="id-error" class="mt-1 text-xs text-danger">{errors.id}</p>}
           </div>
 
           {/* Name */}
           <div>
-            <label for="name" class="block text-sm font-semibold text-zinc-100">Name <span class="text-red-400">*</span></label>
+            <label for="name" class="block text-sm font-semibold text-ink">Name <span class="text-danger">*</span></label>
             <input type="text" id="name" name="name" value={formValues.name}
               class:list={['mt-2', errors.name ? inputError : inputNormal]}
               aria-required="true"
               aria-invalid={errors.name ? 'true' : undefined}
               aria-describedby={errors.name ? 'name-error' : undefined} />
-            {errors.name && <p id="name-error" class="mt-1 text-xs text-red-400">{errors.name}</p>}
+            {errors.name && <p id="name-error" class="mt-1 text-xs text-danger">{errors.name}</p>}
           </div>
 
           {/* Short Description */}
           <div>
-            <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards</p>
+            <label for="shortDescription" class="block text-sm font-semibold text-ink">Short Description <span class="text-danger">*</span></label>
+            <p class="mt-1 text-xs text-ink-soft">A one-line tagline shown in search results and cards</p>
             <input type="text" id="shortDescription" name="shortDescription" value={formValues.shortDescription}
               maxlength="150"
               placeholder="e.g. Adds real-time collaboration editing to your CMS"
@@ -418,15 +418,15 @@ const inputError = `${inputBase} border-red-700`;
               aria-invalid={errors.shortDescription ? 'true' : undefined}
               aria-describedby={errors.shortDescription ? 'shortDescription-error' : 'shortDescription-counter'} />
             <div class="mt-1 flex justify-between">
-              {errors.shortDescription ? <p id="shortDescription-error" class="text-xs text-red-400">{errors.shortDescription}</p> : <span />}
-              <p id="shortDescription-counter" class="text-xs text-zinc-600"><span data-counter="shortDescription">{formValues.shortDescription.length}</span>/150</p>
+              {errors.shortDescription ? <p id="shortDescription-error" class="text-xs text-danger">{errors.shortDescription}</p> : <span />}
+              <p id="shortDescription-counter" class="text-xs text-ink-soft"><span data-counter="shortDescription">{formValues.shortDescription.length}</span>/150</p>
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label for="description" class="block text-sm font-semibold text-zinc-100">Description <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">Detailed description shown on your listing page. Markdown supported.</p>
+            <label for="description" class="block text-sm font-semibold text-ink">Description <span class="text-danger">*</span></label>
+            <p class="mt-1 text-xs text-ink-soft">Detailed description shown on your listing page. Markdown supported.</p>
             <textarea id="description" name="description"
               maxlength="5000"
               class:list={['mt-2 min-h-[120px] resize-y', errors.description ? inputError : inputNormal]}
@@ -434,14 +434,14 @@ const inputError = `${inputBase} border-red-700`;
               aria-invalid={errors.description ? 'true' : undefined}
               aria-describedby={errors.description ? 'description-error' : 'description-counter'}>{formValues.description}</textarea>
             <div class="mt-1 flex justify-between">
-              {errors.description ? <p id="description-error" class="text-xs text-red-400">{errors.description}</p> : <span />}
-              <p id="description-counter" class="text-xs text-zinc-600"><span data-counter="description">{formValues.description.length}</span>/5000</p>
+              {errors.description ? <p id="description-error" class="text-xs text-danger">{errors.description}</p> : <span />}
+              <p id="description-counter" class="text-xs text-ink-soft"><span data-counter="description">{formValues.description.length}</span>/5000</p>
             </div>
           </div>
 
           {/* Category */}
           <div>
-            <label for="category" class="block text-sm font-semibold text-zinc-100">Category <span class="text-red-400">*</span></label>
+            <label for="category" class="block text-sm font-semibold text-ink">Category <span class="text-danger">*</span></label>
             <select id="category" name="category"
               class:list={['mt-2', errors.category ? inputError : inputNormal]}
               aria-required="true"
@@ -452,27 +452,27 @@ const inputError = `${inputBase} border-red-700`;
                 <option value={cat} selected={formValues.category === cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}</option>
               ))}
             </select>
-            {errors.category && <p id="category-error" class="mt-1 text-xs text-red-400">{errors.category}</p>}
+            {errors.category && <p id="category-error" class="mt-1 text-xs text-danger">{errors.category}</p>}
           </div>
 
           {/* Capabilities live in the bundle's manifest.json — extracted on upload, no need to type them here. */}
-          <div class="rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-3 text-xs text-zinc-500">
-            <span class="text-zinc-400">Capabilities &amp; hooks</span> are read from your bundle's <code class="font-mono text-zinc-300">manifest.json</code> when you upload — you don't need to declare them here.
+          <div class="rounded-lg border border-rule bg-paper-sunk p-3 text-xs text-ink-soft">
+            <span class="text-ink-muted">Capabilities &amp; hooks</span> are read from your bundle's <code class="font-mono text-ink">manifest.json</code> when you upload — you don't need to declare them here.
           </div>
 
           {/* Optional fields in a 2-col grid */}
-          <div class="border-t border-zinc-800/60 pt-5">
-            <p class="text-sm font-semibold text-zinc-100 mb-4">Optional Details</p>
+          <div class="border-t border-rule pt-5">
+            <p class="text-sm font-semibold text-ink mb-4">Optional Details</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label for="keywords" class="block text-sm text-zinc-400">Keywords</label>
-                <p class="mt-0.5 text-xs text-zinc-600">Comma-separated</p>
+                <label for="keywords" class="block text-sm text-ink-muted">Keywords</label>
+                <p class="mt-0.5 text-xs text-ink-soft">Comma-separated</p>
                 <input type="text" id="keywords" name="keywords" value={formValues.keywords}
                   placeholder="markdown, editor, syntax"
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div>
-                <label for="license" class="block text-sm text-zinc-400">License</label>
+                <label for="license" class="block text-sm text-ink-muted">License</label>
                 <select id="license" name="license" class:list={['mt-1.5', inputNormal]}>
                   <option value="">None</option>
                   {SPDX_LICENSES.map(lic => (
@@ -487,19 +487,19 @@ const inputError = `${inputBase} border-red-700`;
                   data-license-other />
               </div>
               <div>
-                <label for="repositoryUrl" class="block text-sm text-zinc-400">Repository URL</label>
+                <label for="repositoryUrl" class="block text-sm text-ink-muted">Repository URL</label>
                 <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
                   placeholder="https://github.com/..."
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div>
-                <label for="homepageUrl" class="block text-sm text-zinc-400">Homepage URL</label>
+                <label for="homepageUrl" class="block text-sm text-ink-muted">Homepage URL</label>
                 <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
                   placeholder="https://..."
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div class="sm:col-span-2">
-                <label for="supportUrl" class="block text-sm text-zinc-400">Support URL</label>
+                <label for="supportUrl" class="block text-sm text-ink-muted">Support URL</label>
                 <input type="url" id="supportUrl" name="supportUrl" value={formValues.supportUrl}
                   placeholder="https://..."
                   class:list={['mt-1.5', inputNormal]} />
@@ -507,9 +507,9 @@ const inputError = `${inputBase} border-red-700`;
             </div>
           </div>
 
-          <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+          <Button type="submit" variant="primary" fullWidth>
             Continue to Version Setup
-          </button>
+          </Button>
         </form>
       )}
 
@@ -517,12 +517,12 @@ const inputError = `${inputBase} border-red-700`;
       {currentStep === 2 && (
         <div class="mt-8 space-y-6">
           {/* Summary of selected metadata */}
-          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+          <div class="rounded-xl border border-rule bg-paper-soft p-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Plugin</p>
-                <p class="mt-1 text-sm text-zinc-100 font-mono">{formValues.id}</p>
-                <p class="text-xs text-zinc-400 mt-0.5">{formValues.name}</p>
+                <p class="text-xs text-ink-soft uppercase tracking-wider font-medium">Plugin</p>
+                <p class="mt-1 text-sm text-ink font-mono">{formValues.id}</p>
+                <p class="text-xs text-ink-muted mt-0.5">{formValues.name}</p>
               </div>
               <form method="POST">
                 <input type="hidden" name="_step" value="1" />
@@ -536,9 +536,9 @@ const inputError = `${inputBase} border-red-700`;
                 <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
                 <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
                 <input type="hidden" name="supportUrl" value={formValues.supportUrl} />
-                <button type="submit" class="text-xs text-zinc-400 hover:text-zinc-100 transition-colors underline underline-offset-2">
+                <Button type="submit" variant="ghost" size="sm">
                   Edit details
-                </button>
+                </Button>
               </form>
             </div>
           </div>
@@ -550,7 +550,7 @@ const inputError = `${inputBase} border-red-700`;
           ]}>
 
             {/* --- Option A: Upload Bundle --- */}
-            <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 flex flex-col">
+            <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-rule bg-paper-soft p-6 flex flex-col">
               <input type="hidden" name="_step" value="2-upload" />
               {/* Carry every step-1 field through so readMetadata sees them all */}
               <input type="hidden" name="id" value={formValues.id} />
@@ -565,44 +565,44 @@ const inputError = `${inputBase} border-red-700`;
               <input type="hidden" name="supportUrl" value={formValues.supportUrl} />
 
               <div class="flex items-center gap-3 mb-4">
-                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-paper-sunk text-ink">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                   </svg>
                 </div>
                 <div>
-                  <h3 class="text-sm font-semibold text-zinc-100">Upload Bundle</h3>
-                  <p class="text-xs text-zinc-500">Upload a .tgz plugin bundle directly</p>
+                  <h3 class="text-sm font-semibold text-ink">Upload Bundle</h3>
+                  <p class="text-xs text-ink-soft">Upload a .tgz plugin bundle directly</p>
                 </div>
               </div>
 
               <div class="flex-1">
-                <label for="bundle" class="block text-sm text-zinc-400 mb-2">Plugin bundle (.tgz)</label>
+                <label for="bundle" class="block text-sm text-ink-muted mb-2">Plugin bundle (.tgz)</label>
                 <input type="file" id="bundle" name="bundle" accept=".tgz,.tar.gz,application/gzip"
-                  class="w-full text-sm text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-100 file:cursor-pointer hover:file:bg-zinc-700 file:transition-colors cursor-pointer" />
-                <p class="mt-2 text-xs text-zinc-600">Max 10 MB. Must contain a valid manifest.json.</p>
+                  class="w-full text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-paper-sunk file:px-3 file:py-2 file:text-sm file:font-medium file:text-ink file:cursor-pointer hover:file:bg-paper-deep file:transition-colors cursor-pointer" />
+                <p class="mt-2 text-xs text-ink-soft">Max 10 MB. Must contain a valid manifest.json.</p>
               </div>
 
               <div class="mt-4">
                 <TurnstileWidget />
               </div>
-              <button type="submit" class="mt-4 w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+              <Button type="submit" variant="primary" fullWidth class="mt-4">
                 Upload &amp; Register
-              </button>
+              </Button>
             </form>
 
             {/* --- Option B: Connect GitHub --- */}
             {githubAppConfigured && (
-              <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 flex flex-col">
+              <div class="rounded-xl border border-rule bg-paper-soft p-6 flex flex-col">
                 <div class="flex items-center gap-3 mb-4">
-                  <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 text-zinc-300">
+                  <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-paper-sunk text-ink">
                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 class="text-sm font-semibold text-zinc-100">Connect GitHub</h3>
-                    <p class="text-xs text-zinc-500">Auto-publish from GitHub releases</p>
+                    <h3 class="text-sm font-semibold text-ink">Connect GitHub</h3>
+                    <p class="text-xs text-ink-soft">Auto-publish from GitHub releases</p>
                   </div>
                 </div>
 
@@ -628,10 +628,10 @@ const inputError = `${inputBase} border-red-700`;
                     <input type="hidden" name="supportUrl" value={formValues.supportUrl} />
 
                     <div class="flex-1">
-                      <label for="repoFullName" class="block text-sm text-zinc-400 mb-2">Repository</label>
+                      <label for="repoFullName" class="block text-sm text-ink-muted mb-2">Repository</label>
                       {githubRepos.length > 0 ? (
                         <select id="repoFullName" name="repoFullName"
-                          class="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                          class="w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
                           onchange="this.form.querySelector('[name=repoId]').value = this.options[this.selectedIndex].dataset.repoId || ''">
                           <option value="">Select a repository...</option>
                           {githubRepos.map(repo => (
@@ -641,37 +641,32 @@ const inputError = `${inputBase} border-red-700`;
                           ))}
                         </select>
                       ) : (
-                        <p class="text-sm text-zinc-500">No repositories found. Grant access to repositories in the GitHub App settings.</p>
+                        <p class="text-sm text-ink-soft">No repositories found. Grant access to repositories in the GitHub App settings.</p>
                       )}
                       <input type="hidden" name="repoId" value="" />
                     </div>
 
-                    <button type="submit" disabled={githubRepos.length === 0}
-                      class:list={[
-                        'mt-6 w-full rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors',
-                        githubRepos.length > 0
-                          ? 'bg-zinc-100 text-zinc-950 hover:bg-white'
-                          : 'bg-zinc-800 text-zinc-500 cursor-not-allowed',
-                      ]}>
+                    <Button type="submit" variant="primary" fullWidth disabled={githubRepos.length === 0} class="mt-6">
                       Link Repository
-                    </button>
+                    </Button>
                   </form>
                 ) : (
                   <div class="flex-1 flex flex-col justify-center">
-                    <div class="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4 text-center">
-                      <p class="text-sm text-zinc-400 mb-3">Install the emdashcms.org GitHub App to connect a repository.</p>
-                      <a href={`https://github.com/apps/emdashcms-org/installations/new`}
+                    <div class="rounded-lg border border-rule bg-paper-sunk p-4 text-center">
+                      <p class="text-sm text-ink-muted mb-3">Install the emdashcms.org GitHub App to connect a repository.</p>
+                      <Button href={`https://github.com/apps/emdashcms-org/installations/new`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 transition-colors">
+                        variant="secondary"
+                        size="md">
                         <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
                           <path d="M8 .2a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 8 .2Z" />
                         </svg>
                         Install GitHub App
-                      </a>
+                      </Button>
                     </div>
                     <p class="mt-3 text-center">
-                      <a href={Astro.url.pathname} class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2">
+                      <a href={Astro.url.pathname} class="text-xs text-ink-soft hover:text-ink transition-colors underline underline-offset-2">
                         I've installed it, refresh
                       </a>
                     </p>
@@ -684,7 +679,6 @@ const inputError = `${inputBase} border-red-700`;
         </div>
       )}
 
-    </div>
   </section>
 
   <script is:inline>

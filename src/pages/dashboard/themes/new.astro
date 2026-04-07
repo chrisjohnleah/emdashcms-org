@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Button from '../../../components/Button.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import TurnstileWidget from '../../../components/TurnstileWidget.astro';
 import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
@@ -164,42 +165,41 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const inputBase = 'w-full bg-zinc-900 border text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500';
-const inputNormal = `${inputBase} border-zinc-800`;
-const inputError = `${inputBase} border-red-700`;
+const inputBase = 'w-full bg-paper-soft text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none border';
+const inputNormal = `${inputBase} border-rule-strong`;
+const inputError = `${inputBase} border-danger`;
 ---
 <BaseLayout title="Register Theme - Dashboard - emdashcms.org">
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page-narrow pt-12 pb-16 md:pt-16">
 
-      <a href="/dashboard/themes" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Themes</a>
+      <a href="/dashboard/themes" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Themes</a>
 
-      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">Register Theme</h1>
+      <h1 class="mt-4 text-3xl text-ink">Register Theme</h1>
 
       {/* --- Step Indicator --- */}
       <div class="mt-8 flex items-center justify-center gap-0">
         <div class="flex flex-col items-center">
           <div class:list={[
             'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
-            currentStep >= 1 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+            currentStep >= 1 ? 'bg-ink text-paper' : 'bg-paper-sunk text-ink-soft',
           ]}>1</div>
           <span class:list={[
             'mt-2 text-xs font-medium',
-            currentStep >= 1 ? 'text-zinc-100' : 'text-zinc-500',
+            currentStep >= 1 ? 'text-ink' : 'text-ink-soft',
           ]}>Theme Details</span>
         </div>
         <div class:list={[
           'mx-4 h-px w-24 sm:w-32 -mt-5 transition-colors',
-          currentStep >= 2 ? 'bg-white' : 'bg-zinc-800',
+          currentStep >= 2 ? 'bg-ink' : 'bg-rule-strong',
         ]} />
         <div class="flex flex-col items-center">
           <div class:list={[
             'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-colors',
-            currentStep >= 2 ? 'bg-white text-zinc-950' : 'bg-zinc-800 text-zinc-500',
+            currentStep >= 2 ? 'bg-ink text-paper' : 'bg-paper-sunk text-ink-soft',
           ]}>2</div>
           <span class:list={[
             'mt-2 text-xs font-medium',
-            currentStep >= 2 ? 'text-zinc-100' : 'text-zinc-500',
+            currentStep >= 2 ? 'text-ink' : 'text-ink-soft',
           ]}>Visual Assets</span>
         </div>
       </div>
@@ -213,37 +213,37 @@ const inputError = `${inputBase} border-red-700`;
 
       {/* =============================== STEP 1 =============================== */}
       {currentStep === 1 && (
-        <form method="POST" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-5">
+        <form method="POST" class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-5">
           <input type="hidden" name="_step" value="1" />
 
           {/* Theme ID */}
           <div>
-            <label for="id" class="block text-sm font-semibold text-zinc-100">Theme ID <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">Lowercase alphanumeric with hyphens (e.g. my-theme)</p>
+            <label for="id" class="block text-sm font-semibold text-ink">Theme ID <span class="text-danger">*</span></label>
+            <p class="mt-1 text-xs text-ink-soft">Lowercase alphanumeric with hyphens (e.g. my-theme)</p>
             <input type="text" id="id" name="id" value={formValues.id}
               placeholder="my-theme"
               class:list={['mt-2 font-mono', errors.id ? inputError : inputNormal]}
               aria-required="true"
               aria-invalid={errors.id ? 'true' : undefined}
               aria-describedby={errors.id ? 'id-error' : undefined} />
-            {errors.id && <p id="id-error" class="mt-1 text-xs text-red-400">{errors.id}</p>}
+            {errors.id && <p id="id-error" class="mt-1 text-xs text-danger">{errors.id}</p>}
           </div>
 
           {/* Name */}
           <div>
-            <label for="name" class="block text-sm font-semibold text-zinc-100">Name <span class="text-red-400">*</span></label>
+            <label for="name" class="block text-sm font-semibold text-ink">Name <span class="text-danger">*</span></label>
             <input type="text" id="name" name="name" value={formValues.name}
               class:list={['mt-2', errors.name ? inputError : inputNormal]}
               aria-required="true"
               aria-invalid={errors.name ? 'true' : undefined}
               aria-describedby={errors.name ? 'name-error' : undefined} />
-            {errors.name && <p id="name-error" class="mt-1 text-xs text-red-400">{errors.name}</p>}
+            {errors.name && <p id="name-error" class="mt-1 text-xs text-danger">{errors.name}</p>}
           </div>
 
           {/* Short Description */}
           <div>
-            <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards</p>
+            <label for="shortDescription" class="block text-sm font-semibold text-ink">Short Description <span class="text-danger">*</span></label>
+            <p class="mt-1 text-xs text-ink-soft">A one-line tagline shown in search results and cards</p>
             <input type="text" id="shortDescription" name="shortDescription" value={formValues.shortDescription}
               maxlength="150"
               placeholder="e.g. A minimal blog theme with beautiful typography"
@@ -252,15 +252,15 @@ const inputError = `${inputBase} border-red-700`;
               aria-invalid={errors.shortDescription ? 'true' : undefined}
               aria-describedby={errors.shortDescription ? 'shortDescription-error' : 'shortDescription-counter'} />
             <div class="mt-1 flex justify-between">
-              {errors.shortDescription ? <p id="shortDescription-error" class="text-xs text-red-400">{errors.shortDescription}</p> : <span />}
-              <p id="shortDescription-counter" class="text-xs text-zinc-600"><span data-counter="shortDescription">{formValues.shortDescription.length}</span>/150</p>
+              {errors.shortDescription ? <p id="shortDescription-error" class="text-xs text-danger">{errors.shortDescription}</p> : <span />}
+              <p id="shortDescription-counter" class="text-xs text-ink-soft"><span data-counter="shortDescription">{formValues.shortDescription.length}</span>/150</p>
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label for="description" class="block text-sm font-semibold text-zinc-100">Description <span class="text-red-400">*</span></label>
-            <p class="mt-1 text-xs text-zinc-500">Detailed description shown on your listing page. Markdown supported.</p>
+            <label for="description" class="block text-sm font-semibold text-ink">Description <span class="text-danger">*</span></label>
+            <p class="mt-1 text-xs text-ink-soft">Detailed description shown on your listing page. Markdown supported.</p>
             <textarea id="description" name="description"
               maxlength="5000"
               class:list={['mt-2 min-h-[120px] resize-y', errors.description ? inputError : inputNormal]}
@@ -268,17 +268,17 @@ const inputError = `${inputBase} border-red-700`;
               aria-invalid={errors.description ? 'true' : undefined}
               aria-describedby={errors.description ? 'description-error' : 'description-counter'}>{formValues.description}</textarea>
             <div class="mt-1 flex justify-between">
-              {errors.description ? <p id="description-error" class="text-xs text-red-400">{errors.description}</p> : <span />}
-              <p id="description-counter" class="text-xs text-zinc-600"><span data-counter="description">{formValues.description.length}</span>/5000</p>
+              {errors.description ? <p id="description-error" class="text-xs text-danger">{errors.description}</p> : <span />}
+              <p id="description-counter" class="text-xs text-ink-soft"><span data-counter="description">{formValues.description.length}</span>/5000</p>
             </div>
           </div>
 
           {/* Optional fields in a 2-col grid */}
-          <div class="border-t border-zinc-800/60 pt-5">
-            <p class="text-sm font-semibold text-zinc-100 mb-4">Optional Details</p>
+          <div class="border-t border-rule pt-5">
+            <p class="text-sm font-semibold text-ink mb-4">Optional Details</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label for="category" class="block text-sm text-zinc-400">Category</label>
+                <label for="category" class="block text-sm text-ink-muted">Category</label>
                 <select id="category" name="category" class:list={['mt-1.5', inputNormal]}>
                   <option value="">None</option>
                   {KNOWN_CATEGORIES.map(cat => (
@@ -287,14 +287,14 @@ const inputError = `${inputBase} border-red-700`;
                 </select>
               </div>
               <div>
-                <label for="keywords" class="block text-sm text-zinc-400">Keywords</label>
-                <p class="mt-0.5 text-xs text-zinc-600">Comma-separated</p>
+                <label for="keywords" class="block text-sm text-ink-muted">Keywords</label>
+                <p class="mt-0.5 text-xs text-ink-soft">Comma-separated</p>
                 <input type="text" id="keywords" name="keywords" value={formValues.keywords}
                   placeholder="blog, minimal, dark"
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div>
-                <label for="license" class="block text-sm text-zinc-400">License</label>
+                <label for="license" class="block text-sm text-ink-muted">License</label>
                 <select id="license" name="license" class:list={['mt-1.5', inputNormal]}>
                   <option value="">None</option>
                   {SPDX_LICENSES.map(lic => (
@@ -309,25 +309,25 @@ const inputError = `${inputBase} border-red-700`;
                   data-license-other />
               </div>
               <div>
-                <label for="previewUrl" class="block text-sm text-zinc-400">Preview URL</label>
+                <label for="previewUrl" class="block text-sm text-ink-muted">Preview URL</label>
                 <input type="url" id="previewUrl" name="previewUrl" value={formValues.previewUrl}
                   placeholder="https://..."
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div>
-                <label for="demoUrl" class="block text-sm text-zinc-400">Demo URL</label>
+                <label for="demoUrl" class="block text-sm text-ink-muted">Demo URL</label>
                 <input type="url" id="demoUrl" name="demoUrl" value={formValues.demoUrl}
                   placeholder="https://..."
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div>
-                <label for="repositoryUrl" class="block text-sm text-zinc-400">Repository URL</label>
+                <label for="repositoryUrl" class="block text-sm text-ink-muted">Repository URL</label>
                 <input type="url" id="repositoryUrl" name="repositoryUrl" value={formValues.repositoryUrl}
                   placeholder="https://github.com/..."
                   class:list={['mt-1.5', inputNormal]} />
               </div>
               <div class="sm:col-span-2">
-                <label for="homepageUrl" class="block text-sm text-zinc-400">Homepage URL</label>
+                <label for="homepageUrl" class="block text-sm text-ink-muted">Homepage URL</label>
                 <input type="url" id="homepageUrl" name="homepageUrl" value={formValues.homepageUrl}
                   placeholder="https://..."
                   class:list={['mt-1.5', inputNormal]} />
@@ -335,9 +335,9 @@ const inputError = `${inputBase} border-red-700`;
             </div>
           </div>
 
-          <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+          <Button type="submit" variant="primary" fullWidth>
             Continue to Visual Assets
-          </button>
+          </Button>
         </form>
       )}
 
@@ -345,12 +345,12 @@ const inputError = `${inputBase} border-red-700`;
       {currentStep === 2 && (
         <div class="mt-8 space-y-6">
           {/* Summary of selected metadata */}
-          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+          <div class="rounded-xl border border-rule bg-paper-soft p-4">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Theme</p>
-                <p class="mt-1 text-sm text-zinc-100 font-mono">{formValues.id}</p>
-                <p class="text-xs text-zinc-400 mt-0.5">{formValues.name}</p>
+                <p class="text-xs text-ink-soft uppercase tracking-wider font-medium">Theme</p>
+                <p class="mt-1 text-sm text-ink font-mono">{formValues.id}</p>
+                <p class="text-xs text-ink-muted mt-0.5">{formValues.name}</p>
               </div>
               <form method="POST">
                 <input type="hidden" name="_step" value="1" />
@@ -365,15 +365,15 @@ const inputError = `${inputBase} border-red-700`;
                 <input type="hidden" name="demoUrl" value={formValues.demoUrl} />
                 <input type="hidden" name="repositoryUrl" value={formValues.repositoryUrl} />
                 <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
-                <button type="submit" class="text-xs text-zinc-400 hover:text-zinc-100 transition-colors underline underline-offset-2">
+                <Button type="submit" variant="ghost" size="sm">
                   Edit details
-                </button>
+                </Button>
               </form>
             </div>
           </div>
 
           {/* Visual assets form */}
-          <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-5">
+          <form method="POST" enctype="multipart/form-data" class="rounded-xl border border-rule bg-paper-soft p-6 space-y-5">
             <input type="hidden" name="_step" value="2" />
             <input type="hidden" name="id" value={formValues.id} />
             <input type="hidden" name="name" value={formValues.name} />
@@ -388,33 +388,32 @@ const inputError = `${inputBase} border-red-700`;
             <input type="hidden" name="homepageUrl" value={formValues.homepageUrl} />
 
             <div>
-              <label for="thumbnail" class="block text-sm font-semibold text-zinc-100">Thumbnail</label>
-              <p class="mt-1 text-xs text-zinc-500">Strongly recommended. This image appears on the theme card in search results.</p>
+              <label for="thumbnail" class="block text-sm font-semibold text-ink">Thumbnail</label>
+              <p class="mt-1 text-xs text-ink-soft">Strongly recommended. This image appears on the theme card in search results.</p>
               <input type="file" id="thumbnail" name="thumbnail" accept="image/jpeg,image/png,image/webp"
-                class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700 file:cursor-pointer file:transition-colors cursor-pointer" />
-              <p class="mt-1 text-xs text-zinc-600">Max 5MB. JPEG, PNG, or WebP.</p>
+                class="mt-2 block w-full text-sm text-ink-muted file:mr-4 file:rounded-lg file:border-0 file:bg-paper-sunk file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:bg-paper-deep file:cursor-pointer file:transition-colors cursor-pointer" />
+              <p class="mt-1 text-xs text-ink-soft">Max 5MB. JPEG, PNG, or WebP.</p>
             </div>
 
             <div>
-              <label for="screenshots" class="block text-sm font-semibold text-zinc-100">Screenshots</label>
-              <p class="mt-1 text-xs text-zinc-500">Show off your theme's design and features.</p>
+              <label for="screenshots" class="block text-sm font-semibold text-ink">Screenshots</label>
+              <p class="mt-1 text-xs text-ink-soft">Show off your theme's design and features.</p>
               <input type="file" id="screenshots" name="screenshots" accept="image/jpeg,image/png,image/webp" multiple
-                class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700 file:cursor-pointer file:transition-colors cursor-pointer" />
-              <p class="mt-1 text-xs text-zinc-600">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
+                class="mt-2 block w-full text-sm text-ink-muted file:mr-4 file:rounded-lg file:border-0 file:bg-paper-sunk file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:bg-paper-deep file:cursor-pointer file:transition-colors cursor-pointer" />
+              <p class="mt-1 text-xs text-ink-soft">Up to 5 images. Max 5MB each. JPEG, PNG, or WebP.</p>
             </div>
 
             <div>
               <TurnstileWidget />
             </div>
 
-            <button type="submit" class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+            <Button type="submit" variant="primary" fullWidth>
               Register Theme
-            </button>
+            </Button>
           </form>
         </div>
       )}
 
-    </div>
   </section>
 
   <script is:inline>

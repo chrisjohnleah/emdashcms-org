@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Button from '../../../components/Button.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
 import AuditBadge from '../../../components/AuditBadge.astro';
 import SourceBadge from '../../../components/SourceBadge.astro';
@@ -252,12 +253,11 @@ const formatDate = (iso: string) =>
   });
 ---
 <BaseLayout title={plugin.name + ' - Dashboard - emdashcms.org'}>
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
-      <a href="/dashboard" class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">&larr; Back to Dashboard</a>
+      <a href="/dashboard" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Dashboard</a>
 
-      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">{plugin.name}</h1>
+      <h1 class="mt-4 text-3xl text-ink">{plugin.name}</h1>
 
       {uploaded && (
         <div class="mt-6">
@@ -277,46 +277,46 @@ const formatDate = (iso: string) =>
 
       <!-- Section 1: Plugin Details -->
       <div class="mt-8">
-        <h2 class="text-xl font-semibold text-zinc-100">Plugin Details</h2>
+        <h2 class="text-xl text-ink">Plugin Details</h2>
         {isMaintainer ? (
-          <form method="POST" class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+          <form method="POST" class="mt-4 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
             <input type="hidden" name="_action" value="metadata" />
 
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">Plugin ID</dt>
-              <dd class="mt-1 text-sm text-zinc-400 font-mono">{plugin.id}</dd>
+              <dt class="text-sm font-semibold text-ink">Plugin ID</dt>
+              <dd class="mt-1 text-sm text-ink-muted font-mono">{plugin.id}</dd>
             </div>
 
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">Name</dt>
-              <dd class="mt-1 text-sm text-zinc-400">{plugin.name}</dd>
+              <dt class="text-sm font-semibold text-ink">Name</dt>
+              <dd class="mt-1 text-sm text-ink-muted">{plugin.name}</dd>
             </div>
 
             {!rawPlugin?.short_description && (
-              <div class="rounded-lg border border-amber-800/40 bg-amber-950/20 px-4 py-3">
-                <p class="text-sm text-amber-400">Add a short description to improve your listing in search results and cards.</p>
+              <div class="rounded-lg border border-warn/35 bg-warn-soft px-4 py-3">
+                <p class="text-sm text-warn">Add a short description to improve your listing in search results and cards.</p>
               </div>
             )}
 
             <div>
-              <label for="shortDescription" class="block text-sm font-semibold text-zinc-100">Short Description</label>
-              <p class="mt-1 text-xs text-zinc-500">A one-line tagline shown in search results and cards (150 chars max)</p>
+              <label for="shortDescription" class="block text-sm font-semibold text-ink">Short Description</label>
+              <p class="mt-1 text-xs text-ink-soft">A one-line tagline shown in search results and cards (150 chars max)</p>
               <input type="text" id="shortDescription" name="shortDescription" value={rawPlugin?.short_description ?? ''}
                 maxlength="150"
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
             <div>
-              <label for="description" class="block text-sm font-semibold text-zinc-100">Description</label>
+              <label for="description" class="block text-sm font-semibold text-ink">Description</label>
               <textarea id="description" name="description"
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y focus:border-accent-deep focus:outline-none"
               >{rawPlugin?.description ?? ''}</textarea>
             </div>
 
             <div>
-              <label for="category" class="block text-sm font-semibold text-zinc-100">Category</label>
+              <label for="category" class="block text-sm font-semibold text-ink">Category</label>
               <select id="category" name="category"
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none">
                 <option value="">None</option>
                 <option value="content" selected={rawPlugin?.category === 'content'}>Content</option>
                 <option value="media" selected={rawPlugin?.category === 'media'}>Media</option>
@@ -332,66 +332,66 @@ const formatDate = (iso: string) =>
             </div>
 
             <div>
-              <label for="repositoryUrl" class="block text-sm font-semibold text-zinc-100">Repository URL</label>
+              <label for="repositoryUrl" class="block text-sm font-semibold text-ink">Repository URL</label>
               <input type="url" id="repositoryUrl" name="repositoryUrl" value={rawPlugin?.repository_url ?? ''}
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
             <div>
-              <label for="homepageUrl" class="block text-sm font-semibold text-zinc-100">Homepage URL</label>
+              <label for="homepageUrl" class="block text-sm font-semibold text-ink">Homepage URL</label>
               <input type="url" id="homepageUrl" name="homepageUrl" value={rawPlugin?.homepage_url ?? ''}
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
             <div>
-              <label for="supportUrl" class="block text-sm font-semibold text-zinc-100">Support URL</label>
+              <label for="supportUrl" class="block text-sm font-semibold text-ink">Support URL</label>
               <input type="url" id="supportUrl" name="supportUrl" value={rawPlugin?.support_url ?? ''}
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
             <div>
-              <label for="fundingUrl" class="block text-sm font-semibold text-zinc-100">Funding URL</label>
+              <label for="fundingUrl" class="block text-sm font-semibold text-ink">Funding URL</label>
               <input type="url" id="fundingUrl" name="fundingUrl" value={rawPlugin?.funding_url ?? ''}
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
             <div>
-              <label for="keywords" class="block text-sm font-semibold text-zinc-100">Keywords</label>
-              <p class="mt-1 text-xs text-zinc-500">Comma-separated (e.g. markdown, editor, syntax)</p>
+              <label for="keywords" class="block text-sm font-semibold text-ink">Keywords</label>
+              <p class="mt-1 text-xs text-ink-soft">Comma-separated (e.g. markdown, editor, syntax)</p>
               <input type="text" id="keywords" name="keywords" value={parsedKeywords}
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
             <div>
-              <label for="license" class="block text-sm font-semibold text-zinc-100">License</label>
+              <label for="license" class="block text-sm font-semibold text-ink">License</label>
               <input type="text" id="license" name="license" value={rawPlugin?.license ?? ''}
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500" />
+                class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none" />
             </div>
 
-            <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Save Plugin Details</button>
+            <Button type="submit" variant="primary">Save Plugin Details</Button>
 
           </form>
         ) : (
-          <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+          <div class="mt-4 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">Plugin ID</dt>
-              <dd class="mt-1 text-sm text-zinc-400 font-mono">{plugin.id}</dd>
+              <dt class="text-sm font-semibold text-ink">Plugin ID</dt>
+              <dd class="mt-1 text-sm text-ink-muted font-mono">{plugin.id}</dd>
             </div>
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">Name</dt>
-              <dd class="mt-1 text-sm text-zinc-400">{plugin.name}</dd>
+              <dt class="text-sm font-semibold text-ink">Name</dt>
+              <dd class="mt-1 text-sm text-ink-muted">{plugin.name}</dd>
             </div>
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">Description</dt>
-              <dd class="mt-1 text-sm text-zinc-400">{rawPlugin?.description ?? 'No description'}</dd>
+              <dt class="text-sm font-semibold text-ink">Description</dt>
+              <dd class="mt-1 text-sm text-ink-muted">{rawPlugin?.description ?? 'No description'}</dd>
             </div>
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">Keywords</dt>
-              <dd class="mt-1 text-sm text-zinc-400">{parsedKeywords || 'None'}</dd>
+              <dt class="text-sm font-semibold text-ink">Keywords</dt>
+              <dd class="mt-1 text-sm text-ink-muted">{parsedKeywords || 'None'}</dd>
             </div>
             <div>
-              <dt class="text-sm font-semibold text-zinc-100">License</dt>
-              <dd class="mt-1 text-sm text-zinc-400">{rawPlugin?.license ?? 'Not specified'}</dd>
+              <dt class="text-sm font-semibold text-ink">License</dt>
+              <dd class="mt-1 text-sm text-ink-muted">{rawPlugin?.license ?? 'Not specified'}</dd>
             </div>
           </div>
         )}
@@ -409,30 +409,30 @@ const formatDate = (iso: string) =>
       )}
 
       <div class="mt-12">
-        <h2 class="text-xl font-semibold text-zinc-100">GitHub</h2>
-        <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+        <h2 class="text-xl text-ink">GitHub</h2>
+        <div class="mt-4 rounded-xl border border-rule bg-paper-soft p-6">
           {githubLink ? (
             <div class="space-y-4">
               <div>
-                <span class="text-sm text-zinc-100 font-mono">{githubLink.repoFullName}</span>
-                <span class="ml-3 text-sm text-emerald-400">Connected</span>
+                <span class="text-sm text-ink font-mono">{githubLink.repoFullName}</span>
+                <span class="ml-3 text-sm text-success">Connected</span>
               </div>
               {isMaintainer && (
                 <div class="flex items-center gap-3">
                   <form method="POST">
                     <input type="hidden" name="_action" value="toggle-auto-submit" />
-                    <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+                    <Button type="submit" variant="secondary" size="md">
                       {githubLink.autoSubmit ? 'Pause auto-submit' : 'Enable auto-submit'}
-                    </button>
+                    </Button>
                   </form>
-                  <span class:list={['text-sm', githubLink.autoSubmit ? 'text-emerald-400' : 'text-amber-400']}>
+                  <span class:list={['text-sm', githubLink.autoSubmit ? 'text-success' : 'text-warn']}>
                     {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
                   </span>
                 </div>
               )}
               {!isMaintainer && (
                 <div class="flex items-center gap-3">
-                  <span class:list={['text-sm', githubLink.autoSubmit ? 'text-emerald-400' : 'text-amber-400']}>
+                  <span class:list={['text-sm', githubLink.autoSubmit ? 'text-success' : 'text-warn']}>
                     {githubLink.autoSubmit ? 'Auto-submit on release' : 'Auto-submit paused'}
                   </span>
                 </div>
@@ -441,30 +441,30 @@ const formatDate = (iso: string) =>
                 <form method="POST" class="flex items-end gap-3">
                   <input type="hidden" name="_action" value="update-tag-pattern" />
                   <div class="flex-1">
-                    <label for="tag_pattern" class="block text-sm font-semibold text-zinc-100">Tag pattern</label>
-                    <p class="mt-1 text-xs text-zinc-500">Glob pattern for release tags (e.g. v*, release-*, *). Only matching tags trigger auto-submit.</p>
+                    <label for="tag_pattern" class="block text-sm font-semibold text-ink">Tag pattern</label>
+                    <p class="mt-1 text-xs text-ink-soft">Glob pattern for release tags (e.g. v*, release-*, *). Only matching tags trigger auto-submit.</p>
                     <input type="text" id="tag_pattern" name="tag_pattern" value={githubLink.tagPattern}
-                      class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                      class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
                       placeholder="*" />
                   </div>
-                  <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+                  <Button type="submit" variant="secondary" size="md">
                     Save pattern
-                  </button>
+                  </Button>
                 </form>
               )}
               {!isMaintainer && (
                 <div>
-                  <dt class="text-sm font-semibold text-zinc-100">Tag pattern</dt>
-                  <dd class="mt-1 text-sm text-zinc-400 font-mono">{githubLink.tagPattern}</dd>
+                  <dt class="text-sm font-semibold text-ink">Tag pattern</dt>
+                  <dd class="mt-1 text-sm text-ink-muted font-mono">{githubLink.tagPattern}</dd>
                 </div>
               )}
               {isOwner && (
                 <div class="flex justify-end">
                   <form method="POST">
                     <input type="hidden" name="_action" value="disconnect" />
-                    <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-4 py-2 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">
+                    <Button type="submit" variant="destructive" size="md">
                       Disconnect {githubLink.repoFullName}
-                    </button>
+                    </Button>
                   </form>
                 </div>
               )}
@@ -474,19 +474,19 @@ const formatDate = (iso: string) =>
               <input type="hidden" name="_action" value="connect-repo" />
               <input type="hidden" name="repo_id" id="repo_id" value="" />
               <div>
-                <label for="repo_select" class="block text-sm font-semibold text-zinc-100">Select repository</label>
+                <label for="repo_select" class="block text-sm font-semibold text-ink">Select repository</label>
                 {availableRepos.length === 0 ? (
-                  <p class="mt-2 text-sm text-zinc-500">No accessible repositories found. Install the GitHub App on your repos first.</p>
+                  <p class="mt-2 text-sm text-ink-soft">No accessible repositories found. Install the GitHub App on your repos first.</p>
                 ) : (
                   <div class="mt-2 flex items-end gap-3">
                     <select id="repo_select" name="repo_full_name"
-                      class="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500">
+                      class="flex-1 bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none">
                       <option value="">Choose a repository...</option>
                       {availableRepos.map(repo => (
                         <option value={repo.full_name} data-repo-id={repo.id}>{repo.full_name}</option>
                       ))}
                     </select>
-                    <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Connect</button>
+                    <Button type="submit" variant="primary">Connect</Button>
                   </div>
                 )}
               </div>
@@ -502,18 +502,17 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
             </form>
           ) : isMaintainer ? (
             <div>
-              <p class="text-sm text-zinc-400">No GitHub repository connected.</p>
-              <p class="mt-1 text-sm text-zinc-500">Connect a repo to automatically submit new versions when you publish a release.</p>
+              <p class="text-sm text-ink-muted">No GitHub repository connected.</p>
+              <p class="mt-1 text-sm text-ink-soft">Connect a repo to automatically submit new versions when you publish a release.</p>
               <div class="mt-4">
-                <a href={`https://github.com/apps/emdashcms/installations/new?state=${pluginId}`}
-                  class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+                <Button href={`https://github.com/apps/emdashcms/installations/new?state=${pluginId}`} variant="primary">
                   Connect GitHub Repo
-                </a>
+                </Button>
               </div>
             </div>
           ) : (
             <div>
-              <p class="text-sm text-zinc-400">No GitHub repository connected.</p>
+              <p class="text-sm text-ink-muted">No GitHub repository connected.</p>
             </div>
           )}
         </div>
@@ -522,37 +521,37 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
       <!-- Section 2: Versions -->
       <div class="mt-12">
         <div class="flex items-center justify-between">
-          <h2 class="text-xl font-semibold text-zinc-100">Versions</h2>
+          <h2 class="text-xl text-ink">Versions</h2>
           {isMaintainer && (
-            <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/upload'} class="inline-flex items-center rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Upload Version</a>
+            <Button href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/upload'} variant="primary">Upload Version</Button>
           )}
         </div>
 
         {versions.length === 0 ? (
-          <p class="mt-4 text-sm text-zinc-400">No versions uploaded yet.</p>
+          <p class="mt-4 text-sm text-ink-muted">No versions uploaded yet.</p>
         ) : (
-          <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 overflow-x-auto">
+          <div class="mt-4 rounded-xl border border-rule bg-paper-soft overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
-                <tr class="border-b border-zinc-800 text-left">
-                  <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Version</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Status</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Audit</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Source</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Uploaded</th>
-                  <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide" scope="col">Actions</th>
+                <tr class="border-b border-rule text-left">
+                  <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Version</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Status</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Audit</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Source</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Uploaded</th>
+                  <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Actions</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-zinc-800/60">
+              <tbody class="divide-y divide-rule">
                 {versions.map(v => (
-                  <tr class="hover:bg-zinc-900/30 transition-colors">
-                    <td class="py-3 pl-6 pr-4 font-mono text-zinc-100">{v.version}</td>
+                  <tr class="hover:bg-paper-sunk transition-colors">
+                    <td class="py-3 pl-6 pr-4 font-mono text-ink">{v.version}</td>
                     <td class="py-3 px-4"><StatusBadge status={v.status} /></td>
                     <td class="py-3 px-4"><AuditBadge verdict={v.auditVerdict} /></td>
                     <td class="py-3 px-4"><SourceBadge source={(sourceMap.get(v.version) ?? 'upload') as 'github' | 'upload'} /></td>
-                    <td class="py-3 px-4 text-zinc-500">{formatDate(v.publishedAt)}</td>
+                    <td class="py-3 px-4 text-ink-soft">{formatDate(v.publishedAt)}</td>
                     <td class="py-3 pl-4 pr-6">
-                      <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/versions/' + v.version} class="text-zinc-400 hover:text-zinc-100 transition-colors text-sm">View Audit</a>
+                      <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/versions/' + v.version} class="text-ink-muted hover:text-ink transition-colors text-sm">View Audit</a>
                     </td>
                   </tr>
                 ))}
@@ -564,14 +563,14 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
 
       <!-- Section: Team -->
       <div class="mt-12">
-        <h2 class="text-xl font-semibold text-zinc-100">Team</h2>
-        <div class="mt-4 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+        <h2 class="text-xl text-ink">Team</h2>
+        <div class="mt-4 rounded-xl border border-rule bg-paper-soft p-6">
 
           <div class="space-y-3">
             {collaborators.map(collab => (
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                  <span class="text-sm text-zinc-100">{collab.githubUsername}</span>
+                  <span class="text-sm text-ink">{collab.githubUsername}</span>
                   <RoleBadge role={collab.role} />
                 </div>
                 {isOwner && collab.role !== 'owner' && (
@@ -580,16 +579,16 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
                       <input type="hidden" name="_action" value="change-role" />
                       <input type="hidden" name="collaborator_author_id" value={collab.authorId} />
                       <select name="new_role"
-                        class="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-2 py-1 text-sm focus:border-zinc-500 focus:outline-none">
+                        class="bg-paper-soft border border-rule-strong text-ink rounded-lg px-2 py-1 text-sm focus:border-accent-deep focus:outline-none">
                         <option value="maintainer" selected={collab.role === 'maintainer'}>Maintainer</option>
                         <option value="contributor" selected={collab.role === 'contributor'}>Contributor</option>
                       </select>
-                      <button type="submit" class="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">Update</button>
+                      <Button type="submit" variant="secondary" size="sm">Update</Button>
                     </form>
                     <form method="POST">
                       <input type="hidden" name="_action" value="remove-collaborator" />
                       <input type="hidden" name="collaborator_author_id" value={collab.authorId} />
-                      <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-3 py-1 text-sm text-red-400 hover:bg-red-950/60 transition-colors">Remove</button>
+                      <Button type="submit" variant="destructive" size="sm">Remove</Button>
                     </form>
                   </div>
                 )}
@@ -598,14 +597,14 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
           </div>
 
           {pendingPluginInvites.length > 0 && (
-            <div class="mt-4 pt-4 border-t border-zinc-800/60">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">Pending Invitations</h3>
+            <div class="mt-4 pt-4 border-t border-rule">
+              <h3 class="text-sm font-semibold text-ink-muted uppercase tracking-wide mb-3">Pending Invitations</h3>
               {pendingPluginInvites.map(invite => (
                 <div class="flex items-center justify-between py-2">
                   <div class="flex items-center gap-3">
-                    <span class="text-sm text-zinc-300">{invite.invitedGithubUsername}</span>
+                    <span class="text-sm text-ink-muted">{invite.invitedGithubUsername}</span>
                     <RoleBadge role={invite.role as 'owner' | 'maintainer' | 'contributor'} />
-                    <span class="text-xs text-zinc-500">Pending</span>
+                    <span class="text-xs text-ink-soft">Pending</span>
                   </div>
                 </div>
               ))}
@@ -613,25 +612,25 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
           )}
 
           {isOwner && (
-            <div class="mt-4 pt-4 border-t border-zinc-800/60">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">Invite Collaborator</h3>
+            <div class="mt-4 pt-4 border-t border-rule">
+              <h3 class="text-sm font-semibold text-ink-muted uppercase tracking-wide mb-3">Invite Collaborator</h3>
               <form method="POST" class="flex items-end gap-3">
                 <input type="hidden" name="_action" value="invite" />
                 <div class="flex-1">
-                  <label for="github_username" class="block text-sm text-zinc-300">GitHub Username</label>
+                  <label for="github_username" class="block text-sm text-ink-muted">GitHub Username</label>
                   <input type="text" id="github_username" name="github_username" required
-                    class="mt-1 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                    class="mt-1 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
                     placeholder="username" />
                 </div>
                 <div>
-                  <label for="invite_role" class="block text-sm text-zinc-300">Role</label>
+                  <label for="invite_role" class="block text-sm text-ink-muted">Role</label>
                   <select id="invite_role" name="role"
-                    class="mt-1 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none">
+                    class="mt-1 bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none">
                     <option value="maintainer">Maintainer</option>
                     <option value="contributor">Contributor</option>
                   </select>
                 </div>
-                <button type="submit" class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">Invite</button>
+                <Button type="submit" variant="primary">Invite</Button>
               </form>
             </div>
           )}
@@ -640,27 +639,27 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
 
       {isOwner && collaborators.filter(c => c.role !== 'owner').length > 0 && (
         <div class="mt-12">
-          <h2 class="text-xl font-semibold text-zinc-100">Transfer Ownership</h2>
-          <div class="mt-4 rounded-xl border border-red-900/30 bg-zinc-900/40 p-6">
-            <p class="text-sm text-zinc-400 mb-4">Transfer ownership to a collaborator. You will be downgraded to Maintainer.</p>
+          <h2 class="text-xl text-ink">Transfer Ownership</h2>
+          <div class="mt-4 rounded-xl border border-danger/35 bg-paper-soft p-6">
+            <p class="text-sm text-ink-muted mb-4">Transfer ownership to a collaborator. You will be downgraded to Maintainer.</p>
             <form method="POST" class="space-y-4">
               <input type="hidden" name="_action" value="transfer-ownership" />
               <div>
-                <label for="new_owner" class="block text-sm text-zinc-300">New Owner</label>
+                <label for="new_owner" class="block text-sm text-ink-muted">New Owner</label>
                 <select id="new_owner" name="new_owner_author_id"
-                  class="mt-1 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none">
+                  class="mt-1 bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none">
                   {collaborators.filter(c => c.role !== 'owner').map(c => (
                     <option value={c.authorId}>{c.githubUsername} ({c.role})</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label for="confirm_transfer_id" class="block text-sm text-zinc-300">Type <code class="font-mono text-zinc-100">{pluginId}</code> to confirm</label>
+                <label for="confirm_transfer_id" class="block text-sm text-ink-muted">Type <code class="font-mono text-ink">{pluginId}</code> to confirm</label>
                 <input type="text" id="confirm_transfer_id" name="confirm_plugin_id" required
-                  class="mt-1 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                  class="mt-1 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
                   placeholder="plugin-id" />
               </div>
-              <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-5 py-2.5 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">Transfer Ownership</button>
+              <Button type="submit" variant="destructive">Transfer Ownership</Button>
             </form>
           </div>
         </div>
@@ -668,23 +667,22 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
 
       {isOwner && (
         <div class="mt-12">
-          <h2 class="text-xl font-semibold text-zinc-100">Danger Zone</h2>
-          <div class="mt-4 rounded-xl border border-red-900/30 bg-zinc-900/40 p-6">
-            <p class="text-sm text-zinc-400 mb-4">Permanently delete this plugin and all its versions, audit records, and collaborator access. This action cannot be undone.</p>
+          <h2 class="text-xl text-ink">Danger Zone</h2>
+          <div class="mt-4 rounded-xl border border-danger/35 bg-paper-soft p-6">
+            <p class="text-sm text-ink-muted mb-4">Permanently delete this plugin and all its versions, audit records, and collaborator access. This action cannot be undone.</p>
             <form method="POST" class="space-y-4">
               <input type="hidden" name="_action" value="delete-plugin" />
               <div>
-                <label for="confirm_delete_id" class="block text-sm text-zinc-300">Type <code class="font-mono text-zinc-100">{pluginId}</code> to confirm deletion</label>
+                <label for="confirm_delete_id" class="block text-sm text-ink-muted">Type <code class="font-mono text-ink">{pluginId}</code> to confirm deletion</label>
                 <input type="text" id="confirm_delete_id" name="confirm_plugin_id" required
-                  class="mt-1 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                  class="mt-1 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
                   placeholder="plugin-id" />
               </div>
-              <button type="submit" class="rounded-lg bg-red-950/40 border border-red-800/60 px-5 py-2.5 text-sm text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors">Delete Plugin</button>
+              <Button type="submit" variant="destructive">Delete Plugin</Button>
             </form>
           </div>
         </div>
       )}
 
-    </div>
   </section>
 </BaseLayout>

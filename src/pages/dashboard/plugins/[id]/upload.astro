@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import Button from '../../../../components/Button.astro';
 import DashboardBanner from '../../../../components/DashboardBanner.astro';
 import {
   resolveAuthorId,
@@ -116,14 +117,13 @@ if (Astro.request.method === 'POST') {
 }
 ---
 <BaseLayout title={'Upload Version - ' + pluginName + ' - Dashboard - emdashcms.org'}>
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page-narrow pt-12 pb-16 md:pt-16">
 
-      <a href={'/dashboard/plugins/' + pluginId} class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+      <a href={'/dashboard/plugins/' + pluginId} class="text-sm text-ink-muted hover:text-ink transition-colors">
         Back to {pluginName}
       </a>
 
-      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+      <h1 class="mt-4 text-3xl text-ink">
         Upload Version
       </h1>
 
@@ -133,12 +133,12 @@ if (Astro.request.method === 'POST') {
         </div>
       )}
 
-      <form method="POST" enctype="multipart/form-data" class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 space-y-4">
+      <form method="POST" enctype="multipart/form-data" class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
         <div>
-          <label for="tarball" class="block text-sm font-semibold text-zinc-100">
+          <label for="tarball" class="block text-sm font-semibold text-ink">
             Plugin bundle (.tgz) *
           </label>
-          <p class="mt-1 text-xs text-zinc-500">
+          <p class="mt-1 text-xs text-ink-soft">
             Upload a .tgz tarball built with emdash plugin build
           </p>
           <input
@@ -147,21 +147,17 @@ if (Astro.request.method === 'POST') {
             name="tarball"
             accept=".tgz,application/gzip"
             aria-required="true"
-            class="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-300 hover:file:bg-zinc-700 focus:outline-2 focus:outline-offset-2 focus:outline-zinc-500"
+            class="mt-2 block w-full text-sm text-ink-muted file:mr-4 file:rounded-lg file:border-0 file:bg-paper-sunk file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:bg-paper-deep focus:outline-none"
           />
         </div>
 
         <div class="mb-4">
           <TurnstileWidget />
         </div>
-        <button
-          type="submit"
-          class="w-full rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
-        >
+        <Button type="submit" variant="primary" fullWidth>
           Upload Version
-        </button>
+        </Button>
       </form>
 
-    </div>
   </section>
 </BaseLayout>

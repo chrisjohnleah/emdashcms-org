@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../../../layouts/BaseLayout.astro';
+import Button from '../../../../../components/Button.astro';
 import AuditBadge from '../../../../../components/AuditBadge.astro';
 import StatusBadge from '../../../../../components/StatusBadge.astro';
 import DashboardBanner from '../../../../../components/DashboardBanner.astro';
@@ -73,36 +74,35 @@ if (!versionDetail) return Astro.redirect('/dashboard/plugins/' + pluginId);
 
 // Risk score color helper
 const riskColor = (score: number | null) => {
-  if (score === null) return 'text-zinc-400';
-  if (score <= 33) return 'text-emerald-400';
-  if (score <= 66) return 'text-amber-400';
-  return 'text-red-400';
+  if (score === null) return 'text-ink-muted';
+  if (score <= 33) return 'text-success';
+  if (score <= 66) return 'text-warn';
+  return 'text-danger';
 };
 
 // Severity badge classes (matching existing pattern from plugins/[id].astro)
 const severityClasses = (severity: string) => {
   switch (severity) {
-    case 'critical': return 'bg-red-950/40 text-red-400';
-    case 'high': return 'bg-red-950/40 text-red-400';
-    case 'medium': return 'bg-amber-950/40 text-amber-400';
-    case 'low': return 'bg-zinc-800 text-zinc-400';
-    case 'info': return 'bg-zinc-800 text-zinc-500';
-    default: return 'bg-zinc-800 text-zinc-400';
+    case 'critical': return 'bg-danger-soft text-danger';
+    case 'high': return 'bg-danger-soft text-danger';
+    case 'medium': return 'bg-warn-soft text-warn';
+    case 'low': return 'bg-paper-sunk text-ink-muted';
+    case 'info': return 'bg-paper-sunk text-ink-soft';
+    default: return 'bg-paper-sunk text-ink-muted';
   }
 };
 ---
 <BaseLayout title={'v' + versionDetail.version + ' Audit - ' + pluginName + ' - Dashboard - emdashcms.org'}>
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page-narrow pt-12 pb-16 md:pt-16">
 
-      <a href={'/dashboard/plugins/' + pluginId} class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+      <a href={'/dashboard/plugins/' + pluginId} class="text-sm text-ink-muted hover:text-ink transition-colors">
         Back to {pluginName}
       </a>
 
-      <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+      <h1 class="mt-4 text-3xl text-ink">
         Audit Results
       </h1>
-      <p class="mt-1 text-sm text-zinc-400">
+      <p class="mt-1 text-sm text-ink-muted">
         Version <code class="font-mono">{versionDetail.version}</code>
       </p>
 
@@ -120,19 +120,19 @@ const severityClasses = (severity: string) => {
 
       {versionDetail.status === 'pending' ? (
         <div class="mt-8 text-center py-16">
-          <h2 class="text-xl font-semibold text-zinc-100">Audit in progress</h2>
-          <p class="mt-2 text-sm text-zinc-400">Check back shortly.</p>
+          <h2 class="text-xl text-ink">Audit in progress</h2>
+          <p class="mt-2 text-sm text-ink-muted">Check back shortly.</p>
         </div>
       ) : (
         <>
-          <div class="mt-8 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+          <div class="mt-8 rounded-xl border border-rule bg-paper-soft p-6">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-4">
                 <AuditBadge verdict={versionDetail.verdict} />
                 <StatusBadge status={versionDetail.status} />
               </div>
               <div class="text-right">
-                <p class="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Risk Score</p>
+                <p class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Risk Score</p>
                 <p class:list={['text-2xl font-semibold', riskColor(versionDetail.riskScore)]}>
                   {versionDetail.riskScore ?? '\u2014'}
                 </p>
@@ -140,41 +140,38 @@ const severityClasses = (severity: string) => {
             </div>
 
             {versionDetail.status === 'rejected' && (
-              <div class="mt-4 pt-4 border-t border-zinc-800/60 flex items-center justify-between">
-                <p class="text-sm text-zinc-400">
+              <div class="mt-4 pt-4 border-t border-rule flex items-center justify-between">
+                <p class="text-sm text-ink-muted">
                   {versionDetail.retryCount} of 3 retry attempts used
                 </p>
                 {versionDetail.latestAuditModel === 'static-only' ? (
-                  <p class="text-sm text-zinc-500">
+                  <p class="text-sm text-ink-soft">
                     Static-scanner rejection — upload a corrected bundle.
                   </p>
                 ) : isMaintainer && versionDetail.retryCount < 3 ? (
                   <form method="POST" class="inline">
-                    <button
-                      type="submit"
-                      class="rounded-lg bg-red-950/40 border border-red-800/60 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-colors"
-                    >
+                    <Button type="submit" variant="destructive" size="md">
                       Retry Audit
-                    </button>
+                    </Button>
                   </form>
                 ) : versionDetail.retryCount >= 3 ? (
-                  <p class="text-sm text-red-400">Maximum retries reached. Upload a new version.</p>
+                  <p class="text-sm text-danger">Maximum retries reached. Upload a new version.</p>
                 ) : null}
               </div>
             )}
           </div>
 
           {versionDetail.status === 'rejected' && versionDetail.adminRejectionReason && (
-            <div class="mt-8 rounded-xl border border-amber-800/40 bg-amber-950/20 p-5">
+            <div class="mt-8 rounded-xl border border-warn/35 bg-warn-soft p-5">
               <div class="flex items-start gap-3">
-                <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-warn shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                 </svg>
                 <div>
-                  <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wide">
+                  <h3 class="text-sm font-semibold text-warn uppercase tracking-wide">
                     Moderator note
                   </h3>
-                  <p class="mt-2 text-sm text-amber-100/80 whitespace-pre-wrap leading-relaxed">
+                  <p class="mt-2 text-sm text-ink whitespace-pre-wrap leading-relaxed">
                     {versionDetail.adminRejectionReason}
                   </p>
                 </div>
@@ -183,30 +180,30 @@ const severityClasses = (severity: string) => {
           )}
 
           {versionDetail.latestAuditModel === 'static-only' && versionDetail.status === 'rejected' && (
-            <div class="mt-4 text-xs text-zinc-500">
+            <div class="mt-4 text-xs text-ink-soft">
               Static-scanner rejections are deterministic — retrying the same bundle will produce the same result.
               Review the findings below, fix the issue in your source, and upload a new version.
-              See <a href="/docs/security" class="text-zinc-300 hover:text-zinc-100 underline decoration-zinc-700">the review policy</a> for the full ruleset.
+              See <a href="/docs/security" class="text-ink hover:text-accent-deep underline decoration-rule-strong">the review policy</a> for the full ruleset.
             </div>
           )}
 
-          <h2 class="mt-12 text-xl font-semibold text-zinc-100">Findings</h2>
+          <h2 class="mt-12 text-xl text-ink">Findings</h2>
 
           {versionDetail.findings.length === 0 ? (
-            <p class="mt-4 text-sm text-zinc-400">No findings reported.</p>
+            <p class="mt-4 text-sm text-ink-muted">No findings reported.</p>
           ) : (
             <div class="mt-4 space-y-3">
               {versionDetail.findings.map((finding) => (
-                <div class="rounded-lg border border-zinc-800/60 bg-zinc-900/40 p-4">
+                <div class="rounded-lg border border-rule bg-paper-soft p-4">
                   <div class="flex items-start gap-3">
                     <span class:list={['flex-shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium uppercase', severityClasses(finding.severity)]}>
                       {finding.severity}
                     </span>
-                    <h3 class="text-sm font-semibold text-zinc-100">{finding.title}</h3>
+                    <h3 class="text-sm font-semibold text-ink">{finding.title}</h3>
                   </div>
-                  <p class="mt-2 text-sm text-zinc-400">{finding.description}</p>
-                  <div class="mt-2 flex items-center gap-3 text-xs text-zinc-500">
-                    <span class="rounded bg-zinc-800 px-1.5 py-0.5">{finding.category}</span>
+                  <p class="mt-2 text-sm text-ink-muted">{finding.description}</p>
+                  <div class="mt-2 flex items-center gap-3 text-xs text-ink-soft">
+                    <span class="rounded bg-paper-sunk px-1.5 py-0.5">{finding.category}</span>
                     {finding.location && <code class="font-mono">{finding.location}</code>}
                   </div>
                 </div>
@@ -216,6 +213,5 @@ const severityClasses = (severity: string) => {
         </>
       )}
 
-    </div>
   </section>
 </BaseLayout>
