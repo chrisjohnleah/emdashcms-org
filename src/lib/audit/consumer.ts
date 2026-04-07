@@ -7,7 +7,13 @@
  */
 import type { AuditJob, MarketplaceAuditFinding } from "../../types/marketplace";
 import { checkNeuronBudget, recordNeuronUsage, tokensToNeurons } from "./budget";
-import { MODEL_ID, SYSTEM_PROMPT, extractCodeFiles, buildPromptContent, extractJsonFromResponse } from "./prompt";
+import {
+  SYSTEM_PROMPT,
+  extractCodeFiles,
+  buildPromptContent,
+  extractJsonFromResponse,
+  resolveAuditModel,
+} from "./prompt";
 import { createAuditRecord, rejectVersion } from "./audit-queries";
 import { runStaticScan, type StaticFinding } from "./static-scanner";
 import { manifestSchema } from "../publishing/manifest-schema";
@@ -313,14 +319,19 @@ export async function processAuditJob(
 
   const promptContent = buildPromptContent(codeFiles);
 
-  // 6. Call Workers AI
+  // 6. Resolve which model to call. Admin-supplied modelOverride wins;
+  //    unknown keys fall back to the default inside resolveAuditModel.
+  const modelDef = resolveAuditModel(job.modelOverride);
+  const modelId = modelDef.workersAiId;
+
+  // 7. Call Workers AI
   let result: { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
   try {
     // No response_format — many Workers AI models reject json_schema with
     // "5025: This model doesn't support JSON Schema". The prompt mandates
     // JSON-only output and extractJsonFromResponse() recovers it even if
     // the model wraps it in code fences or adds prose.
-    result = await (bindings.ai as Ai).run(MODEL_ID, {
+    result = await (bindings.ai as Ai).run(modelId as Parameters<Ai["run"]>[0], {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: promptContent },
@@ -391,7 +402,7 @@ export async function processAuditJob(
   await createAuditRecord(bindings.db, {
     versionId,
     status: "complete",
-    model: MODEL_ID,
+    model: modelId,
     promptTokens,
     completionTokens,
     neuronsUsed,
@@ -406,7 +417,7 @@ export async function processAuditJob(
 
   // 11. Log outcome
   console.log(
-    `[audit] plugin=${job.pluginId} version=${job.version} verdict=${parsed.verdict} neurons=${neuronsUsed} duration=${Date.now() - startTime}ms`,
+    `[audit] plugin=${job.pluginId} version=${job.version} model=${modelDef.key} verdict=${parsed.verdict} neurons=${neuronsUsed} duration=${Date.now() - startTime}ms`,
   );
 
   return { verdict: parsed.verdict, status: "complete", neuronsUsed };

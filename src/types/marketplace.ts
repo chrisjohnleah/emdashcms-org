@@ -177,6 +177,14 @@ export interface PluginBundle {
 
 // --- Queue Job ---
 
+/**
+ * Friendly key identifying which AI model to run for an audit. The full
+ * Workers AI model id (e.g. "@cf/meta/llama-3.2-3b-instruct") is resolved
+ * from the AUDIT_MODELS registry in src/lib/audit/prompt.ts. Keys live in
+ * the type layer so AuditJob can carry them without importing audit code.
+ */
+export type AuditModelKey = "llama-3.2-3b" | "gemma-3-12b";
+
 export interface AuditJob {
   pluginId: string;
   version: string;
@@ -189,4 +197,10 @@ export interface AuditJob {
    * Worker's configured mode.
    */
   auditModeOverride?: "manual" | "auto" | "off" | "static-first";
+  /**
+   * Optional per-job override of which AI model runs for this audit.
+   * Only meaningful when the resolved mode is "auto". Falls back to
+   * the default model in AUDIT_MODELS when omitted or unrecognised.
+   */
+  modelOverride?: AuditModelKey;
 }

@@ -8,6 +8,7 @@ import AuditBadge from '../../../../components/AuditBadge.astro';
 import SourceBadge from '../../../../components/SourceBadge.astro';
 import { isSuperAdmin } from '../../../../lib/auth/admin';
 import { getAdminPluginDetail, getAdminPluginVersions } from '../../../../lib/db/admin-queries';
+import { AUDIT_MODELS, DEFAULT_AUDIT_MODEL } from '../../../../lib/audit/prompt';
 
 const author = Astro.locals.author;
 if (!author || !isSuperAdmin(author.githubId)) {
@@ -259,17 +260,20 @@ const severityStyle = (severity: string) => {
                               >
                                 Run static scan
                               </button>
-                              <button
-                                type="button"
-                                data-run-audit
-                                data-mode="ai"
-                                data-plugin-id={encodeURIComponent(plugin.id)}
-                                data-version={v.version}
-                                class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-950/60 transition-colors cursor-pointer"
-                                title="Static + AI audit — uses neuron budget"
-                              >
-                                Run AI audit
-                              </button>
+                              {Object.values(AUDIT_MODELS).map((model) => (
+                                <button
+                                  type="button"
+                                  data-run-audit
+                                  data-mode="ai"
+                                  data-model={model.key}
+                                  data-plugin-id={encodeURIComponent(plugin.id)}
+                                  data-version={v.version}
+                                  class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-950/60 transition-colors cursor-pointer"
+                                  title={`${model.description} (${model.estimatedNeurons} neurons)`}
+                                >
+                                  Run AI: {model.label}{model.key === DEFAULT_AUDIT_MODEL ? ' *' : ''}
+                                </button>
+                              ))}
                               {(v.status === 'published' || v.status === 'flagged') && (
                                 <button
                                   type="button"
@@ -355,16 +359,22 @@ document.querySelectorAll('[data-run-audit]').forEach((btn) => {
     const pluginId = el.dataset.pluginId;
     const version = el.dataset.version;
     const mode = el.dataset.mode as 'static' | 'ai';
+    const model = el.dataset.model;
     if (!pluginId || !version || !mode) return;
-    const label = mode === 'ai' ? 'AI audit (uses neuron budget)' : 'static scan (free)';
+    const label =
+      mode === 'ai'
+        ? `AI audit (${model ?? 'default'}, uses neuron budget)`
+        : 'static scan (free)';
     if (!confirm(`Re-run ${decodeURIComponent(pluginId)}@${version} with ${label}?`)) return;
     const original = el.textContent;
     el.disabled = true;
     el.textContent = 'Queuing...';
+    const payload =
+      mode === 'ai' && model ? { version, mode, model } : { version, mode };
     const res = await fetch(`/api/v1/admin/plugins/${pluginId}/run-audit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ version, mode }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       window.location.reload();

@@ -5,17 +5,74 @@
  * Extracts code files from plugin bundle tarballs using modern-tar.
  */
 import { unpackTar, createGzipDecoder } from "modern-tar";
+import type { AuditModelKey } from "../../types/marketplace";
 
 /**
- * Workers AI model used for code audits.
+ * Metadata for each Workers AI model the audit pipeline can run. Keyed by
+ * the friendly AuditModelKey carried on AuditJob; the consumer resolves
+ * a key to its workersAiId here.
  *
- * llama-3.2-3b-instruct is small (3B params) but capable enough for the
- * lightweight static-leaning audit we run. It is roughly an order of
- * magnitude cheaper per token than the previous 26B gemma. Coupled with
- * the smaller MAX_CODE_CHARS / max_tokens caps below this gets the free
- * tier from ~14 audits/day to ~200+/day.
+ * Adding a new model: append a key to AuditModelKey in
+ * src/types/marketplace.ts, then add an entry here. The admin Run AI
+ * dropdown reads from this registry directly so new models surface in
+ * the UI without further changes.
  */
-export const MODEL_ID = "@cf/meta/llama-3.2-3b-instruct";
+export interface AuditModelDef {
+  key: AuditModelKey;
+  /** Full Workers AI model id passed to ai.run() */
+  workersAiId: string;
+  /** Short label shown on admin buttons */
+  label: string;
+  /** Tooltip / longer description of trade-offs */
+  description: string;
+  /** Approximate neuron cost per audit, for the admin UI */
+  estimatedNeurons: string;
+}
+
+export const AUDIT_MODELS: Record<AuditModelKey, AuditModelDef> = {
+  "llama-3.2-3b": {
+    key: "llama-3.2-3b",
+    workersAiId: "@cf/meta/llama-3.2-3b-instruct",
+    label: "Llama 3.2 3B",
+    description:
+      "Default. Small (3B params) but capable enough for the lightweight audit we run. ~17 neurons/audit, ~588 audits/day on the free tier.",
+    estimatedNeurons: "~17",
+  },
+  "gemma-3-12b": {
+    key: "gemma-3-12b",
+    workersAiId: "@cf/google/gemma-3-12b-it",
+    label: "Gemma 3 12B",
+    description:
+      "Premium. 4x the parameters of llama, sharper findings and better reasoning for borderline plugins. Higher neuron cost — reserve for cases the cheap pass flagged or for spot checks.",
+    estimatedNeurons: "~60-100",
+  },
+};
+
+/**
+ * Default model used when an audit job carries no modelOverride. Keep
+ * this aligned with the cheapest viable model so the upload hot path
+ * doesn't burn through the daily neuron budget.
+ */
+export const DEFAULT_AUDIT_MODEL: AuditModelKey = "llama-3.2-3b";
+
+/**
+ * Backwards-compatible alias for the default model's Workers AI id.
+ * Existing tests and the legacy MODEL_ID import points still resolve
+ * via this constant. New code should resolve through AUDIT_MODELS.
+ */
+export const MODEL_ID = AUDIT_MODELS[DEFAULT_AUDIT_MODEL].workersAiId;
+
+/**
+ * Resolve an AuditModelKey to its Workers AI model id. Unknown or
+ * undefined keys fall back to the default model so a stale enum value
+ * on a queued job never crashes the consumer.
+ */
+export function resolveAuditModel(
+  key: AuditModelKey | undefined,
+): AuditModelDef {
+  if (key && key in AUDIT_MODELS) return AUDIT_MODELS[key];
+  return AUDIT_MODELS[DEFAULT_AUDIT_MODEL];
+}
 
 /** File extensions to extract from bundles for AI analysis */
 export const CODE_EXTENSIONS = new Set([".js", ".ts", ".mjs", ".cjs", ".json"]);
