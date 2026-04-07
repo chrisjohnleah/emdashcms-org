@@ -87,6 +87,64 @@
 - [x] **TEAM-03**: All write endpoints enforce role-based permissions — ownership transfer requires owner role
 - [x] **TEAM-04**: Plugin owner can revoke collaborator access and transfer ownership to another collaborator
 
+## v1.1 Requirements — Signals & Reach
+
+### Publisher Notifications
+
+- [ ] **NOTF-01**: Plugin owner and maintainers are notified when a version's audit completes (pass, warn, fail, error) via every enabled channel
+- [ ] **NOTF-02**: Plugin and theme owners are notified when an abuse or security report is filed against their listing
+- [ ] **NOTF-03**: Plugin and theme owners are notified when a moderator revokes a version or plugin, including any public admin note
+- [ ] **NOTF-04**: Publishers can configure notification channels and outbound webhook URLs from a dashboard settings page, with changes persisted in D1
+- [ ] **NOTF-05**: Notification delivery runs through a Cloudflare Queue with exponential backoff, at-most-once semantics, and dead-lettering after a bounded retry budget
+
+### README Badges
+
+- [ ] **BADG-01**: Public SVG badge endpoints under `/badges/v1/plugin/[id]/[metric].svg` serve correctly typed SVG with long-lived edge cache headers
+- [ ] **BADG-02**: Badge metrics available: installs, latest version, trust tier, audit verdict, and EmDash compatibility
+- [ ] **BADG-03**: Plugin detail and dashboard pages surface a copy-paste "Embed in README" panel with markdown and HTML snippets
+- [ ] **BADG-04**: Badge edge cache is purged on revoke, new version publication, and trust tier changes
+- [ ] **BADG-05**: Badge endpoints enforce per-IP rate limiting, are CSRF-exempt, and require no authentication
+
+### Feeds and Weekly Digest
+
+- [ ] **FEED-01**: `/feeds/plugins/new.xml` serves a valid Atom 1.0 feed of the 50 most recently published plugins
+- [ ] **FEED-02**: `/feeds/plugins/updated.xml` serves a valid Atom 1.0 feed of plugins with recent version updates
+- [ ] **FEED-03**: `/feeds/themes/new.xml` serves a valid Atom 1.0 feed of recently listed themes
+- [ ] **FEED-04**: `/feeds/plugins/category/[category].xml` serves per-category Atom feeds; unknown categories return 404
+- [ ] **FEED-05**: A weekly Cron worker generates ISO-week digest rows every Sunday 00:05 UTC and renders permanent `/digest/YYYY-Www` pages
+- [ ] **FEED-06**: `/digest` lists all archived digests sorted newest first
+- [ ] **FEED-07**: `robots.txt` and the BaseLayout advertise feed URLs for discoverability by readers and crawlers
+
+### Transparency Report and Status Page
+
+- [ ] **TRNS-01**: `/transparency` renders the latest weekly snapshot including versions submitted/published/flagged/rejected/revoked, reports filed and resolved by category, and anonymized Workers AI neuron spend
+- [ ] **TRNS-02**: Weekly Cron computes and persists transparency snapshots in a `transparency_weeks` table, navigable as history on the transparency page
+- [ ] **TRNS-03**: `/status` shows a last-7-day uptime strip for landing, plugins list, plugin detail, bundle download, and publishing API surfaces
+- [ ] **TRNS-04**: A periodic (≤5-minute) Cron writes status samples into a `status_samples` table with enforced rolling 7-day retention
+- [ ] **TRNS-05**: Transparency and status surfaces expose only aggregates — no individual plugin, author, or reporter is identifiable
+
+### AI and Social Discoverability
+
+- [ ] **AIDX-01**: `/llms.txt` at the site root serves a machine-readable marketplace index following the llms.txt convention with a summary per featured plugin
+- [ ] **AIDX-02**: Plugin detail pages embed Schema.org `SoftwareApplication` JSON-LD matching visible content (name, author, version, applicationCategory, softwareRequirements, aggregateRating when reviews exist)
+- [ ] **AIDX-03**: Theme detail pages embed Schema.org `CreativeWork` JSON-LD
+- [ ] **AIDX-04**: Site root embeds Schema.org `Organization` JSON-LD via BaseLayout
+- [ ] **AIDX-05**: `/og/plugin/[id].png` lazily generates a branded Open Graph image, stores it in R2 keyed by plugin id + latest version, and serves cached on subsequent requests
+- [ ] **AIDX-06**: `/og/theme/[id].png` serves the equivalent generated image for themes
+- [ ] **AIDX-07**: BaseLayout emits `og:image` (with width/height) on plugin and theme detail pages pointing at the generated image
+- [ ] **AIDX-08**: `/sitemap.xml` enumerates plugin detail, theme detail, category, hook browse, and digest pages with accurate `<lastmod>`; `robots.txt` references the sitemap
+
+### Deprecation and Unlist Self-Service
+
+- [ ] **DEPR-01**: Authenticated plugin owner can mark their plugin as deprecated via the dashboard with a required reason and optional successor plugin id
+- [ ] **DEPR-02**: Deprecated plugin detail pages render a prominent warning banner with the reason and successor link (when set) visible to anonymous visitors
+- [ ] **DEPR-03**: Deprecated plugins are demoted in the default search sort but still appear in results and remain downloadable
+- [ ] **DEPR-04**: Bundle download endpoints continue to serve deprecated versions so existing installs are unaffected
+- [ ] **DEPR-05**: `POST /api/v1/plugins/:id/installs` response includes a `deprecationWarning` field when the plugin is deprecated
+- [ ] **DEPR-06**: Successor selection rejects any successor that is itself deprecated and prevents cycles via a pre-write check
+- [ ] **DEPR-07**: Owner can un-deprecate a plugin and can separately unlist a plugin (hidden from search and category pages but direct links and downloads continue to work)
+- [ ] **DEPR-08**: Plugin cards and list rows display a visible "Deprecated" chip on deprecated plugins
+
 ## v2 Requirements
 
 ### Ratings & Reviews
@@ -109,11 +167,6 @@
 
 - **ANLT-01**: Publisher dashboard shows install trends over time
 - **ANLT-02**: Geographic distribution of installs
-
-### Notifications
-
-- **NOTF-01**: Email/GitHub notification when audit completes
-- **NOTF-02**: Webhook support for CI/CD integration
 
 ## Out of Scope
 
@@ -180,12 +233,50 @@
 | TEAM-02 | Phase 11 | Complete |
 | TEAM-03 | Phase 11 | Complete |
 | TEAM-04 | Phase 11 | Complete |
+| NOTF-01 | Phase 12 | Planned |
+| NOTF-02 | Phase 12 | Planned |
+| NOTF-03 | Phase 12 | Planned |
+| NOTF-04 | Phase 12 | Planned |
+| NOTF-05 | Phase 12 | Planned |
+| BADG-01 | Phase 13 | Planned |
+| BADG-02 | Phase 13 | Planned |
+| BADG-03 | Phase 13 | Planned |
+| BADG-04 | Phase 13 | Planned |
+| BADG-05 | Phase 13 | Planned |
+| FEED-01 | Phase 14 | Planned |
+| FEED-02 | Phase 14 | Planned |
+| FEED-03 | Phase 14 | Planned |
+| FEED-04 | Phase 14 | Planned |
+| FEED-05 | Phase 14 | Planned |
+| FEED-06 | Phase 14 | Planned |
+| FEED-07 | Phase 14 | Planned |
+| TRNS-01 | Phase 15 | Planned |
+| TRNS-02 | Phase 15 | Planned |
+| TRNS-03 | Phase 15 | Planned |
+| TRNS-04 | Phase 15 | Planned |
+| TRNS-05 | Phase 15 | Planned |
+| AIDX-01 | Phase 16 | Planned |
+| AIDX-02 | Phase 16 | Planned |
+| AIDX-03 | Phase 16 | Planned |
+| AIDX-04 | Phase 16 | Planned |
+| AIDX-05 | Phase 16 | Planned |
+| AIDX-06 | Phase 16 | Planned |
+| AIDX-07 | Phase 16 | Planned |
+| AIDX-08 | Phase 16 | Planned |
+| DEPR-01 | Phase 17 | Planned |
+| DEPR-02 | Phase 17 | Planned |
+| DEPR-03 | Phase 17 | Planned |
+| DEPR-04 | Phase 17 | Planned |
+| DEPR-05 | Phase 17 | Planned |
+| DEPR-06 | Phase 17 | Planned |
+| DEPR-07 | Phase 17 | Planned |
+| DEPR-08 | Phase 17 | Planned |
 
 **Coverage:**
-- v1 requirements: 49 total (41 original + 8 new from Phases 10-11)
-- Mapped to phases: 49
+- v1 requirements: 49 total (41 original + 8 new from Phases 10-11), all mapped
+- v1.1 requirements: 36 total across Phases 12-17, all mapped
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-04*
-*Last updated: 2026-04-04 after roadmap creation*
+*Last updated: 2026-04-06 — added v1.1 "Signals & Reach" milestone requirements*
