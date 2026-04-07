@@ -35,3 +35,6 @@ pnpm-debug.log*
 
 # design artifacts
 .aidesigner/
+
+# design context (local-only — internal direction, not for public repo)
+.impeccable.md

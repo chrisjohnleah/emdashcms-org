@@ -1,70 +1,250 @@
 @import 'tailwindcss';
 
+/*
+ * emdashcms.org design system
+ * --------------------------------------------------------------
+ * Warm, light, editorial. The em-dash is the brand pulse.
+ * Yellow #facc15 borrowed from EmDash CMS upstream is the only
+ * saturated accent. Tokens authored in OKLCH for perceptual
+ * uniformity. See .impeccable.md for the full design context.
+ */
+
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+  /* Type ----------------------------------------------------- */
+  --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+  --font-sans: 'Public Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
-  --animate-float-slow: float 8s ease-in-out infinite;
-  --animate-float-medium: float 6s ease-in-out infinite;
-  --animate-float-fast: float 4s ease-in-out infinite;
+  /* Surface — warm cream paper, never pure white -------------- */
+  --color-paper: oklch(98% 0.012 88);
+  --color-paper-soft: oklch(96.2% 0.014 86);
+  --color-paper-sunk: oklch(94% 0.016 84);
+  --color-paper-deep: oklch(91% 0.018 82);
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-15px); }
+  /* Rules / borders ------------------------------------------ */
+  --color-rule: oklch(89% 0.02 84);
+  --color-rule-strong: oklch(82% 0.024 80);
+
+  /* Ink — warm near-black, brown-tinted.
+     Lightness values tuned for WCAG AA contrast on the cream paper:
+       ink (22%)       ≈ 14:1   AAA
+       ink-muted (40%) ≈ 8:1    AAA
+       ink-soft (50%)  ≈ 5:1    AA normal
+       ink-faint (62%) ≈ 3.4:1  AA large text only — never use for body */
+  --color-ink: oklch(22% 0.025 60);
+  --color-ink-muted: oklch(40% 0.018 65);
+  --color-ink-soft: oklch(50% 0.016 68);
+  --color-ink-faint: oklch(62% 0.012 70);
+
+  /* Accent — EmDash yellow #facc15, the family ring.
+     accent (#facc15) is the fill colour — never used for text on cream.
+     accent-deep (52% L) gives ~4.7:1 contrast for accent text and links. */
+  --color-accent: #facc15;
+  --color-accent-deep: oklch(52% 0.158 76);
+  --color-accent-soft: oklch(96% 0.045 92);
+  --color-accent-ink: oklch(35% 0.12 72);
+
+  /* Status — warm-leaning, never neon ------------------------ */
+  --color-success: oklch(48% 0.13 152);
+  --color-success-soft: oklch(95% 0.035 152);
+  --color-warn: oklch(54% 0.16 70);
+  --color-warn-soft: oklch(95% 0.05 82);
+  --color-danger: oklch(50% 0.19 26);
+  --color-danger-soft: oklch(95% 0.035 26);
+}
+
+/* --------------------------------------------------------------
+ * Base typography and document defaults
+ * ------------------------------------------------------------ */
+
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+/* Display headings get Fraunces with optical sizing */
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: 'opsz' 96;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+h2 {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+h3 {
+  font-weight: 500;
+}
+
+/* Body text never goes below 14px and uses comfortable leading */
+p, li {
+  font-feature-settings: 'ss01';
+}
+
+/* Selection — yellow paper-tape highlight */
+::selection {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
+/* Focus rings — deep yellow, not the pale fill colour */
+:focus-visible {
+  outline: 2px solid var(--color-accent-deep);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Respect users who don't want motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-/*
- * The custom `obsidian`, `carbon`, `tungsten`, `ash`, and `silver` colour
- * tokens were removed — the codebase standardises on Tailwind's `zinc`
- * scale instead. Any legacy class like `text-ash` should map to
- * `text-zinc-400`; `bg-obsidian` → `bg-black`; `bg-carbon` → `bg-zinc-950`;
- * `bg-tungsten` → `bg-zinc-900`; `text-silver` → `text-zinc-100`.
- */
+/* --------------------------------------------------------------
+ * The em-dash divider — the brand pulse
+ *
+ * Replaces every horizontal rule on the site. Use as a section
+ * break, a hero accent, or a metadata separator. Inline-block
+ * variant `.emdash-mark` is for typographic accents inside copy.
+ * ------------------------------------------------------------ */
 
-/* Subtle grid pattern for hero backgrounds */
-.bg-grid-pattern {
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: radial-gradient(circle at center, black, transparent 80%);
+.emdash-divider {
+  display: block;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variation-settings: 'opsz' 144;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  line-height: 1;
+  color: var(--color-accent-deep);
+  margin-block: clamp(3rem, 7vw, 5.5rem);
+  user-select: none;
 }
 
-/* Ambient glow orbs */
-.ambient-glow {
+.emdash-divider::before {
+  content: '—';
+}
+
+.emdash-divider--tight {
+  margin-block: clamp(1.5rem, 4vw, 2.5rem);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.emdash-mark {
+  font-family: var(--font-display);
+  color: var(--color-accent-deep);
+  font-weight: 400;
+}
+
+/* Used inline in metadata strings: Author — 1.2k installs — MIT */
+.emdash-sep {
+  display: inline-block;
+  margin-inline: 0.5em;
+  color: var(--color-ink-faint);
+  font-family: var(--font-display);
+  user-select: none;
+}
+
+.emdash-sep::before {
+  content: '—';
+}
+
+/* --------------------------------------------------------------
+ * Hero em-dash — the giant brand glyph used as the centrepiece
+ * of the homepage hero. Editorial scale, accent colour, hangs
+ * to the right of the heading on wide screens.
+ * ------------------------------------------------------------ */
+
+.hero-emdash {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-variation-settings: 'opsz' 144;
+  font-size: clamp(5rem, 22vw, 18rem);
+  line-height: 0.75;
+  color: var(--color-accent-deep);
+  user-select: none;
+  display: block;
+}
+
+/* --------------------------------------------------------------
+ * Surfaces — cards, panels. Cream-on-cream depth, no shadows.
+ * ------------------------------------------------------------ */
+
+.surface {
+  background: var(--color-paper-soft);
+  border: 1px solid var(--color-rule);
+  border-radius: 0.5rem;
+}
+
+.surface-sunk {
+  background: var(--color-paper-sunk);
+  border: 1px solid var(--color-rule);
+}
+
+/* Container wrappers shared by every page */
+.page {
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.page-narrow {
+  max-width: 48rem;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+/* --------------------------------------------------------------
+ * Skip-link — preserved from the previous build, re-themed.
+ * ------------------------------------------------------------ */
+
+.skip-link {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.15;
-  z-index: -1;
-  pointer-events: none;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 
-/* Gradient border cards */
-.border-gradient {
-  position: relative;
-  border-radius: 1rem;
-  background: #0c0c0c; /* was var(--color-carbon) */
-}
-
-.border-gradient::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.02) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* Glassmorphism cards */
-.glass-card {
-  background: rgba(26, 26, 26, 0.6);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+.skip-link:focus {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  width: auto;
+  height: auto;
+  padding: 0.625rem 1rem;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  z-index: 100;
 }
