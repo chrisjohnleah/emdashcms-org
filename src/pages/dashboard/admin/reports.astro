@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Button from '../../../components/Button.astro';
 import { isSuperAdmin } from '../../../lib/auth/admin';
 import {
   listReports,
@@ -39,41 +40,40 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryStyle: Record<string, string> = {
-  security: 'bg-red-950/40 border-red-800/60 text-red-400',
-  abuse: 'bg-amber-950/40 border-amber-800/60 text-amber-400',
-  broken: 'bg-zinc-900 border-zinc-700 text-zinc-400',
-  license: 'bg-blue-950/40 border-blue-800/60 text-blue-400',
-  other: 'bg-zinc-900 border-zinc-700 text-zinc-400',
+  security: 'bg-danger-soft border-danger/35 text-danger',
+  abuse: 'bg-warn-soft border-warn/35 text-warn',
+  broken: 'bg-paper-soft border-rule-strong text-ink-muted',
+  license: 'bg-info-soft border-info/35 text-info',
+  other: 'bg-paper-soft border-rule-strong text-ink-muted',
 };
 
 const statusStyle: Record<ReportStatus, string> = {
-  open: 'bg-amber-950/40 border-amber-800/60 text-amber-400',
-  investigating: 'bg-blue-950/40 border-blue-800/60 text-blue-400',
-  resolved: 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400',
-  dismissed: 'bg-zinc-900 border-zinc-700 text-zinc-500',
+  open: 'bg-warn-soft border-warn/35 text-warn',
+  investigating: 'bg-info-soft border-info/35 text-info',
+  resolved: 'bg-success-soft border-success/30 text-success',
+  dismissed: 'bg-paper-soft border-rule-strong text-ink-soft',
 };
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 ---
 <BaseLayout title="Reports Queue - Admin - emdashcms.org">
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
-      <nav class="flex items-center gap-2 text-sm text-zinc-500 mb-6" aria-label="Breadcrumb">
-        <a href="/dashboard/admin" class="hover:text-zinc-300 transition-colors">Admin</a>
+      <nav class="flex items-center gap-2 text-sm text-ink-soft mb-6" aria-label="Breadcrumb">
+        <a href="/dashboard/admin" class="hover:text-ink transition-colors">Admin</a>
         <span aria-hidden="true">/</span>
-        <span class="text-zinc-300">Reports</span>
+        <span class="text-ink-muted">Reports</span>
       </nav>
 
       <div class="flex items-center gap-3 mb-8">
-        <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Reports queue</h1>
-        <span class="rounded-full bg-zinc-800/60 border border-zinc-700/60 px-2.5 py-0.5 text-[11px] text-zinc-400 font-medium tabular-nums">
+        <h1 class="text-3xl text-ink">Reports queue</h1>
+        <span class="rounded-full bg-paper-sunk border border-rule-strong px-2.5 py-0.5 text-[11px] text-ink-muted font-medium tabular-nums">
           {reports.length}
         </span>
       </div>
 
-      <div class="flex gap-2 mb-6 border-b border-zinc-800/60">
+      <div class="flex gap-2 mb-6 border-b border-rule">
         {tabs.map((tab) => {
           const href = tab.value ? `?status=${tab.value}` : '?';
           const active = statusFilter === tab.value;
@@ -83,25 +83,25 @@ const formatDate = (iso: string) =>
               class:list={[
                 'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
                 active
-                  ? 'border-zinc-100 text-zinc-100'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300',
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-ink-soft hover:text-ink-muted',
               ]}
             >
               {tab.label}
-              <span class="ml-1.5 text-[11px] text-zinc-500 tabular-nums">({tab.count})</span>
+              <span class="ml-1.5 text-[11px] text-ink-soft tabular-nums">({tab.count})</span>
             </a>
           );
         })}
       </div>
 
       {reports.length === 0 ? (
-        <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-12 text-center">
-          <p class="text-sm text-zinc-400">No reports in this view.</p>
+        <div class="rounded-xl border border-rule bg-paper-soft p-12 text-center">
+          <p class="text-sm text-ink-muted">No reports in this view.</p>
         </div>
       ) : (
         <div class="space-y-3">
           {reports.map((report) => (
-            <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5">
+            <div class="rounded-xl border border-rule bg-paper-soft p-5">
               <div class="flex items-start justify-between gap-4">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
@@ -113,20 +113,20 @@ const formatDate = (iso: string) =>
                     </span>
                     <a
                       href={`/${report.entityType}s/${report.entityId}`}
-                      class="text-sm font-mono text-zinc-300 hover:text-zinc-100 transition-colors"
+                      class="text-sm font-mono text-ink-muted hover:text-ink transition-colors"
                     >
                       {report.entityType}/{report.entityId}
                     </a>
                   </div>
 
-                  <p class="mt-3 text-sm text-zinc-300 whitespace-pre-wrap break-words">
+                  <p class="mt-3 text-sm text-ink-muted whitespace-pre-wrap break-words">
                     {report.description}
                   </p>
 
-                  <div class="mt-3 flex items-center gap-3 text-xs text-zinc-500">
+                  <div class="mt-3 flex items-center gap-3 text-xs text-ink-soft">
                     <span>
                       {report.reporterUsername
-                        ? <>by <span class="text-zinc-400">@{report.reporterUsername}</span></>
+                        ? <>by <span class="text-ink-muted">@{report.reporterUsername}</span></>
                         : 'anonymous'}
                     </span>
                     <span aria-hidden="true">•</span>
@@ -142,27 +142,30 @@ const formatDate = (iso: string) =>
 
                 {(report.status === 'open' || report.status === 'investigating') && (
                   <div class="flex items-center gap-2 shrink-0">
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       data-report-id={report.id}
                       data-action="investigating"
-                      class="rounded-md border border-blue-800/60 bg-blue-950/40 px-2.5 py-1 text-[11px] font-medium text-blue-400 hover:bg-blue-950/60 transition-colors"
                     >
                       Investigating
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
                       data-report-id={report.id}
                       data-action="resolved"
-                      class="rounded-md border border-emerald-800/60 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-950/60 transition-colors"
                     >
                       Resolve
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       data-report-id={report.id}
                       data-action="dismissed"
-                      class="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-zinc-800 transition-colors"
                     >
                       Dismiss
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -171,7 +174,6 @@ const formatDate = (iso: string) =>
         </div>
       )}
 
-    </div>
   </section>
 
   <script>

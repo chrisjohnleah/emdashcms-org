@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import Button from '../../../../components/Button.astro';
 import StatusBadge from '../../../../components/StatusBadge.astro';
 import AuditBadge from '../../../../components/AuditBadge.astro';
 import SourceBadge from '../../../../components/SourceBadge.astro';
@@ -41,73 +42,72 @@ const formatBytes = (bytes: number) => {
 };
 
 const riskColor = (score: number | null) => {
-  if (score === null) return 'text-zinc-500';
-  if (score <= 33) return 'text-emerald-400';
-  if (score <= 66) return 'text-amber-400';
-  return 'text-red-400';
+  if (score === null) return 'text-ink-soft';
+  if (score <= 33) return 'text-success';
+  if (score <= 66) return 'text-warn';
+  return 'text-danger';
 };
 
 const severityStyle = (severity: string) => {
   const s = severity.toLowerCase();
-  if (s === 'critical' || s === 'high') return 'bg-red-950/40 text-red-400';
-  if (s === 'medium') return 'bg-amber-950/40 text-amber-400';
-  return 'bg-zinc-800 text-zinc-400';
+  if (s === 'critical' || s === 'high') return 'bg-danger-soft text-danger';
+  if (s === 'medium') return 'bg-warn-soft text-warn';
+  return 'bg-paper-sunk text-ink-muted';
 };
 ---
 <BaseLayout title={`${plugin.name} - Admin - emdashcms.org`}>
-  <section class="pt-24 pb-16 px-6">
-    <div class="mx-auto max-w-5xl">
+  <section class="page pt-12 pb-16 md:pt-16">
 
       <!-- Breadcrumb -->
-      <nav class="mb-6 flex items-center gap-2 text-sm text-zinc-500">
-        <a href="/dashboard/admin" class="hover:text-zinc-300 transition-colors">Admin</a>
+      <nav class="mb-6 flex items-center gap-2 text-sm text-ink-soft">
+        <a href="/dashboard/admin" class="hover:text-ink transition-colors">Admin</a>
         <span>/</span>
-        <a href="/dashboard/admin" class="hover:text-zinc-300 transition-colors">Plugins</a>
+        <a href="/dashboard/admin" class="hover:text-ink transition-colors">Plugins</a>
         <span>/</span>
-        <span class="text-zinc-300">{plugin.name}</span>
+        <span class="text-ink-muted">{plugin.name}</span>
       </nav>
 
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <div class="flex items-center gap-3">
-            <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">{plugin.name}</h1>
+            <h1 class="text-3xl text-ink">{plugin.name}</h1>
             {plugin.status === 'active' ? (
-              <span class="inline-flex items-center rounded-full bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 text-[11px] text-emerald-400 font-medium">Active</span>
+              <span class="inline-flex items-center rounded-full bg-success-soft border border-success/30 px-2 py-0.5 text-[11px] text-success font-medium">Active</span>
             ) : (
-              <span class="inline-flex items-center rounded-full bg-red-950/50 border border-red-800/40 px-2 py-0.5 text-[11px] text-red-400 font-medium">Revoked</span>
+              <span class="inline-flex items-center rounded-full bg-danger-soft border border-danger/35 px-2 py-0.5 text-[11px] text-danger font-medium">Revoked</span>
             )}
           </div>
-          <p class="text-xs text-zinc-500 font-mono mt-1">{plugin.id}</p>
+          <p class="text-xs text-ink-soft font-mono mt-1">{plugin.id}</p>
         </div>
         <div class="flex items-center gap-2">
           {plugin.status === 'active' ? (
             <form method="POST" data-admin-action="revoke" data-plugin-id={encodeURIComponent(plugin.id)}>
-              <button type="submit" class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-4 py-2 text-sm font-medium text-amber-400 hover:bg-amber-950/60 transition-colors">Revoke</button>
+              <Button type="submit" variant="secondary" size="md">Revoke</Button>
             </form>
           ) : (
             <form method="POST" data-admin-action="restore" data-plugin-id={encodeURIComponent(plugin.id)}>
-              <button type="submit" class="rounded-lg border border-emerald-800/60 bg-emerald-950/40 px-4 py-2 text-sm font-medium text-emerald-400 hover:bg-emerald-950/60 transition-colors">Restore</button>
+              <Button type="submit" variant="primary" size="md">Restore</Button>
             </form>
           )}
           <form method="POST" data-admin-action="delete" data-plugin-id={encodeURIComponent(plugin.id)}>
-            <button type="submit" class="rounded-lg border border-red-800/60 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-950/60 transition-colors">Delete</button>
+            <Button type="submit" variant="destructive" size="md">Delete</Button>
           </form>
         </div>
       </div>
 
       <!-- Info Card -->
-      <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 mb-10">
+      <div class="rounded-xl border border-rule bg-paper-soft p-6 mb-10">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
 
           <!-- Author -->
           <div>
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Author</p>
-            <a href={`/dashboard/admin/authors/${plugin.authorId}`} class="inline-flex items-center gap-2 text-zinc-100 hover:text-white transition-colors">
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Author</p>
+            <a href={`/dashboard/admin/authors/${plugin.authorId}`} class="inline-flex items-center gap-2 text-ink hover:underline transition-colors">
               {plugin.authorAvatarUrl ? (
                 <img src={plugin.authorAvatarUrl} alt={plugin.authorUsername} class="w-5 h-5 rounded-full" />
               ) : (
-                <div class="w-5 h-5 rounded-full bg-zinc-700" />
+                <div class="w-5 h-5 rounded-full bg-paper-deep" />
               )}
               <span class="font-medium">{plugin.authorUsername}</span>
             </a>
@@ -115,35 +115,35 @@ const severityStyle = (severity: string) => {
 
           <!-- Category -->
           <div>
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Category</p>
-            <p class="text-zinc-400">{plugin.category ?? 'Uncategorized'}</p>
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Category</p>
+            <p class="text-ink-muted">{plugin.category ?? 'Uncategorized'}</p>
           </div>
 
           <!-- Description -->
           <div class="md:col-span-2">
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Description</p>
-            <p class="text-zinc-400">{plugin.description ?? 'No description provided.'}</p>
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Description</p>
+            <p class="text-ink-muted">{plugin.description ?? 'No description provided.'}</p>
           </div>
 
           <!-- License -->
           <div>
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">License</p>
-            <p class="text-zinc-400">{plugin.license ?? 'Not specified'}</p>
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">License</p>
+            <p class="text-ink-muted">{plugin.license ?? 'Not specified'}</p>
           </div>
 
           <!-- Install Count -->
           <div>
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Installs</p>
-            <p class="text-zinc-400">{plugin.installCount.toLocaleString()}</p>
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Installs</p>
+            <p class="text-ink-muted">{plugin.installCount.toLocaleString()}</p>
           </div>
 
           <!-- Capabilities -->
           {plugin.capabilities.length > 0 && (
             <div class="md:col-span-2">
-              <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-2">Capabilities</p>
+              <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-2">Capabilities</p>
               <div class="flex flex-wrap gap-1.5">
                 {plugin.capabilities.map(cap => (
-                  <span class="inline-flex items-center rounded-full bg-zinc-800/60 border border-zinc-700/60 px-2.5 py-0.5 text-xs font-medium text-zinc-300">{cap}</span>
+                  <span class="inline-flex items-center rounded-full bg-paper-sunk border border-rule-strong px-2.5 py-0.5 text-xs font-medium text-ink-muted">{cap}</span>
                 ))}
               </div>
             </div>
@@ -152,36 +152,36 @@ const severityStyle = (severity: string) => {
           <!-- Repository URL -->
           {plugin.repositoryUrl && (
             <div>
-              <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Repository</p>
-              <a href={plugin.repositoryUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-white transition-colors break-all">{plugin.repositoryUrl}</a>
+              <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Repository</p>
+              <a href={plugin.repositoryUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{plugin.repositoryUrl}</a>
             </div>
           )}
 
           <!-- Homepage URL -->
           {plugin.homepageUrl && (
             <div>
-              <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Homepage</p>
-              <a href={plugin.homepageUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-zinc-400 hover:text-white transition-colors break-all">{plugin.homepageUrl}</a>
+              <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Homepage</p>
+              <a href={plugin.homepageUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{plugin.homepageUrl}</a>
             </div>
           )}
 
           <!-- GitHub Link Info -->
           {plugin.githubRepoFullName && (
-            <div class="md:col-span-2 rounded-lg border border-zinc-800/40 bg-zinc-950/40 p-4 mt-2">
-              <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-3">GitHub Link</p>
+            <div class="md:col-span-2 rounded-lg border border-rule bg-paper-sunk p-4 mt-2">
+              <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-3">GitHub Link</p>
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p class="text-zinc-500 text-xs mb-0.5">Repository</p>
-                  <a href={`https://github.com/${plugin.githubRepoFullName}`} target="_blank" rel="noopener noreferrer" class="text-zinc-300 hover:text-white font-mono text-xs transition-colors">{plugin.githubRepoFullName}</a>
+                  <p class="text-ink-soft text-xs mb-0.5">Repository</p>
+                  <a href={`https://github.com/${plugin.githubRepoFullName}`} target="_blank" rel="noopener noreferrer" class="text-ink-muted hover:text-ink font-mono text-xs transition-colors">{plugin.githubRepoFullName}</a>
                 </div>
                 <div>
-                  <p class="text-zinc-500 text-xs mb-0.5">Auto Submit</p>
-                  <p class="text-zinc-300 text-xs">{plugin.githubAutoSubmit ? 'Yes' : 'No'}</p>
+                  <p class="text-ink-soft text-xs mb-0.5">Auto Submit</p>
+                  <p class="text-ink-muted text-xs">{plugin.githubAutoSubmit ? 'Yes' : 'No'}</p>
                 </div>
                 {plugin.githubTagPattern && (
                   <div>
-                    <p class="text-zinc-500 text-xs mb-0.5">Tag Pattern</p>
-                    <p class="text-zinc-300 font-mono text-xs">{plugin.githubTagPattern}</p>
+                    <p class="text-ink-soft text-xs mb-0.5">Tag Pattern</p>
+                    <p class="text-ink-muted font-mono text-xs">{plugin.githubTagPattern}</p>
                   </div>
                 )}
               </div>
@@ -190,12 +190,12 @@ const severityStyle = (severity: string) => {
 
           <!-- Dates -->
           <div>
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Created</p>
-            <p class="text-zinc-400">{formatDate(plugin.createdAt)}</p>
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Created</p>
+            <p class="text-ink-muted">{formatDate(plugin.createdAt)}</p>
           </div>
           <div>
-            <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-1">Updated</p>
-            <p class="text-zinc-400">{formatDate(plugin.updatedAt)}</p>
+            <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Updated</p>
+            <p class="text-ink-muted">{formatDate(plugin.updatedAt)}</p>
           </div>
 
         </div>
@@ -203,88 +203,88 @@ const severityStyle = (severity: string) => {
 
       <!-- Versions -->
       <div>
-        <h2 class="text-xl font-semibold text-zinc-100 mb-4">Versions ({versions.length})</h2>
+        <h2 class="text-xl text-ink mb-4">Versions ({versions.length})</h2>
         {versions.length === 0 ? (
-          <p class="text-sm text-zinc-400">No versions submitted yet.</p>
+          <p class="text-sm text-ink-muted">No versions submitted yet.</p>
         ) : (
-          <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 overflow-x-auto">
+          <div class="rounded-xl border border-rule bg-paper-soft overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
-                <tr class="border-b border-zinc-800 text-left">
-                  <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Version</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Verdict</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Risk Score</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Source</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Retries</th>
-                  <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Date</th>
+                <tr class="border-b border-rule text-left">
+                  <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Version</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Status</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Verdict</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Risk Score</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Source</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Retries</th>
+                  <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Date</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-zinc-800/60">
+              <tbody class="divide-y divide-rule">
                 {versions.map(v => (
                   <tr class="group">
                     <td colspan="7" class="p-0">
                       <details class="w-full">
-                        <summary class="cursor-pointer list-none hover:bg-zinc-900/30 transition-colors">
+                        <summary class="cursor-pointer list-none hover:bg-paper-sunk transition-colors">
                           <div class="grid grid-cols-7 items-center w-full">
-                            <div class="py-3 pl-6 pr-4 font-mono text-zinc-100">{v.version}</div>
+                            <div class="py-3 pl-6 pr-4 font-mono text-ink">{v.version}</div>
                             <div class="py-3 px-4"><StatusBadge status={v.status} /></div>
                             <div class="py-3 px-4"><AuditBadge verdict={v.verdict} /></div>
                             <div class:list={['py-3 px-4 font-mono font-medium', riskColor(v.riskScore)]}>
                               {v.riskScore !== null ? v.riskScore : '--'}
                             </div>
                             <div class="py-3 px-4">
-                              {v.source ? <SourceBadge source={v.source as 'github' | 'upload'} /> : <span class="text-zinc-500 text-xs">--</span>}
+                              {v.source ? <SourceBadge source={v.source as 'github' | 'upload'} /> : <span class="text-ink-soft text-xs">--</span>}
                             </div>
-                            <div class="py-3 px-4 text-zinc-500 font-mono">{v.retryCount}</div>
-                            <div class="py-3 pl-4 pr-6 text-zinc-500">{formatDate(v.createdAt)}</div>
+                            <div class="py-3 px-4 text-ink-soft font-mono">{v.retryCount}</div>
+                            <div class="py-3 pl-4 pr-6 text-ink-soft">{formatDate(v.createdAt)}</div>
                           </div>
                         </summary>
 
-                        <div class="border-t border-zinc-800/40 bg-zinc-950/30 px-6 py-5">
+                        <div class="border-t border-rule bg-paper-sunk px-6 py-5">
                           <div class="flex items-center justify-between mb-4">
-                            <p class="text-xs text-zinc-500">
-                              Size: <span class="text-zinc-400">{formatBytes(v.compressedSize)}</span>
-                              <span class="mx-2 text-zinc-700">|</span>
-                              ID: <span class="text-zinc-400 font-mono">{v.id}</span>
+                            <p class="text-xs text-ink-soft">
+                              Size: <span class="text-ink-muted">{formatBytes(v.compressedSize)}</span>
+                              <span class="mx-2 text-rule-strong">|</span>
+                              ID: <span class="text-ink-muted font-mono">{v.id}</span>
                             </p>
                             <div class="flex items-center gap-2">
-                              <button
-                                type="button"
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 data-run-audit
                                 data-mode="static"
                                 data-plugin-id={encodeURIComponent(plugin.id)}
                                 data-version={v.version}
-                                class="rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800/80 transition-colors cursor-pointer"
                                 title="Static scan only — free, no AI call"
                               >
                                 Run static scan
-                              </button>
+                              </Button>
                               {Object.values(AUDIT_MODELS).map((model) => (
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
                                   data-run-audit
                                   data-mode="ai"
                                   data-model={model.key}
                                   data-plugin-id={encodeURIComponent(plugin.id)}
                                   data-version={v.version}
-                                  class="rounded-lg border border-amber-800/60 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-950/60 transition-colors cursor-pointer"
                                   title={`${model.description} (${model.estimatedNeurons} neurons)`}
                                 >
                                   Run AI: {model.label}{model.key === DEFAULT_AUDIT_MODEL ? ' *' : ''}
-                                </button>
+                                </Button>
                               ))}
                               {(v.status === 'published' || v.status === 'flagged') && (
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
                                   data-revoke-version
                                   data-plugin-id={encodeURIComponent(plugin.id)}
                                   data-version={v.version}
-                                  class="rounded-lg border border-red-800/80 bg-red-950/60 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-950/80 transition-colors cursor-pointer"
                                   title="Revoke this version — blocks downloads and surfaces a public tombstone"
                                 >
                                   Revoke version
-                                </button>
+                                </Button>
                               )}
                             </div>
                           </div>
@@ -292,23 +292,23 @@ const severityStyle = (severity: string) => {
                           <!-- Findings -->
                           {v.findings.length > 0 ? (
                             <div class="mb-4">
-                              <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-3">
+                              <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-3">
                                 Findings ({v.findings.length})
                               </p>
                               <div class="space-y-2">
                                 {v.findings.map(f => (
-                                  <div class="rounded-lg border border-zinc-800/40 bg-zinc-900/30 p-3">
+                                  <div class="rounded-lg border border-rule bg-paper-soft p-3">
                                     <div class="flex items-start gap-2">
                                       <span class:list={['inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium uppercase', severityStyle(f.severity)]}>
                                         {f.severity}
                                       </span>
                                       <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-zinc-200">{f.title}</p>
-                                        <p class="text-xs text-zinc-400 mt-0.5">{f.description}</p>
+                                        <p class="text-sm font-medium text-ink">{f.title}</p>
+                                        <p class="text-xs text-ink-muted mt-0.5">{f.description}</p>
                                         <div class="flex items-center gap-2 mt-1.5">
-                                          <span class="inline-flex items-center rounded bg-zinc-800/60 px-1.5 py-0.5 text-[10px] text-zinc-500 font-mono">{f.category}</span>
+                                          <span class="inline-flex items-center rounded bg-paper-sunk px-1.5 py-0.5 text-[10px] text-ink-soft font-mono">{f.category}</span>
                                           {f.location && (
-                                            <span class="text-[10px] text-zinc-600 font-mono">{f.location}</span>
+                                            <span class="text-[10px] text-ink-soft font-mono">{f.location}</span>
                                           )}
                                         </div>
                                       </div>
@@ -318,24 +318,24 @@ const severityStyle = (severity: string) => {
                               </div>
                             </div>
                           ) : (
-                            <p class="text-xs text-zinc-500 mb-4">No findings recorded.</p>
+                            <p class="text-xs text-ink-soft mb-4">No findings recorded.</p>
                           )}
 
                           <!-- Raw AI Response -->
                           {v.rawResponse && (
                             <div class="mb-4">
-                              <p class="text-xs text-zinc-500 uppercase tracking-wide font-semibold mb-2">Raw AI Response</p>
-                              <pre class="mt-4 p-4 rounded-lg bg-zinc-950 text-xs text-zinc-400 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap">{v.rawResponse}</pre>
+                              <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-2">Raw AI Response</p>
+                              <pre class="mt-4 p-4 rounded-lg bg-paper-deep text-xs text-ink-muted overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap">{v.rawResponse}</pre>
                             </div>
                           )}
 
                           <!-- Audit Metadata -->
                           {(v.model || v.promptTokens !== null || v.completionTokens !== null || v.neuronsUsed !== null) && (
-                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-600">
-                              {v.model && <span>Model: <span class="text-zinc-500">{v.model}</span></span>}
-                              {v.promptTokens !== null && <span>Prompt tokens: <span class="text-zinc-500">{v.promptTokens.toLocaleString()}</span></span>}
-                              {v.completionTokens !== null && <span>Completion tokens: <span class="text-zinc-500">{v.completionTokens.toLocaleString()}</span></span>}
-                              {v.neuronsUsed !== null && <span>Neurons: <span class="text-zinc-500">{v.neuronsUsed.toLocaleString()}</span></span>}
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-soft">
+                              {v.model && <span>Model: <span class="text-ink-muted">{v.model}</span></span>}
+                              {v.promptTokens !== null && <span>Prompt tokens: <span class="text-ink-muted">{v.promptTokens.toLocaleString()}</span></span>}
+                              {v.completionTokens !== null && <span>Completion tokens: <span class="text-ink-muted">{v.completionTokens.toLocaleString()}</span></span>}
+                              {v.neuronsUsed !== null && <span>Neurons: <span class="text-ink-muted">{v.neuronsUsed.toLocaleString()}</span></span>}
                             </div>
                           )}
                         </div>
@@ -349,7 +349,6 @@ const severityStyle = (severity: string) => {
         )}
       </div>
 
-    </div>
   </section>
 
   <script>
