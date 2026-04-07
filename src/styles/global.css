@@ -51,6 +51,8 @@
   --color-warn-soft: oklch(95% 0.05 82);
   --color-danger: oklch(50% 0.19 26);
   --color-danger-soft: oklch(95% 0.035 26);
+  --color-info: oklch(48% 0.12 250);
+  --color-info-soft: oklch(95% 0.025 250);
 }
 
 /* --------------------------------------------------------------
