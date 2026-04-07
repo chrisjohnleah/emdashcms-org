@@ -2,41 +2,42 @@
 export const prerender = false;
 
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Button from '../../components/Button.astro';
 
 const title = 'Contributor Guide - emdashcms.org';
 const description = 'Everything you need to know to publish a plugin or theme on the emdashcms.org community marketplace.';
 ---
 <BaseLayout title={title} description={description}>
-  <section class="pt-32 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
 
       <div class="mb-12">
-        <h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+        <h1 class="text-4xl md:text-5xl text-ink mb-4" style="font-weight: 500; letter-spacing: -0.02em;">
           Contributor Guide
         </h1>
-        <p class="text-lg text-zinc-400 font-light leading-relaxed">
+        <p class="text-lg text-ink-muted leading-relaxed max-w-prose">
           Publish a plugin or theme for EmDash CMS. From signup to first live version, here's everything you need.
         </p>
       </div>
 
       <!-- Quick start -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">Quick start</h2>
-        <ol class="space-y-4 text-zinc-300 leading-relaxed">
+        <h2 class="text-2xl text-ink mt-12 mb-4">Quick start</h2>
+        <ol class="space-y-4 text-ink-muted leading-relaxed max-w-prose">
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">1</span>
-            <span>Sign in with GitHub at <a href="/dashboard" class="text-white underline hover:opacity-80">/dashboard</a>. Your GitHub account is your marketplace identity.</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">1</span>
+            <span>Sign in with GitHub at <a href="/dashboard" class="text-ink underline hover:opacity-80">/dashboard</a>. Your GitHub account is your marketplace identity.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">2</span>
-            <span>Click "Register Plugin" (or "Register Theme"), fill out the metadata form, and upload a <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-xs font-mono">.tgz</code> bundle.</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">2</span>
+            <span>Click "Register Plugin" (or "Register Theme"), fill out the metadata form, and upload a <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">.tgz</code> bundle.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">3</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">3</span>
             <span>Our static scanner reviews your bundle in seconds. If it passes, your plugin is published immediately with a "Scanned" trust tier. If the scanner flags soft findings, it's published as "Scanned — Caution". If blocking findings, it's rejected and you can see exactly why.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">4</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">4</span>
             <span>Iterate, upload new versions, and link a GitHub repo to auto-publish on tagged releases.</span>
           </li>
         </ol>
@@ -44,11 +45,11 @@ const description = 'Everything you need to know to publish a plugin or theme on
 
       <!-- manifest.json -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">manifest.json schema</h2>
-        <p class="text-zinc-400 mb-4">
-          Every plugin bundle must contain a <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-xs font-mono">manifest.json</code> at its root. The schema mirrors the EmDash CMS core contract so plugins work upstream too.
+        <h2 class="text-2xl text-ink mt-12 mb-4">manifest.json schema</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">
+          Every plugin bundle must contain a <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">manifest.json</code> at its root. The schema mirrors the EmDash CMS core contract so plugins work upstream too.
         </p>
-        <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs text-zinc-300 overflow-x-auto whitespace-pre">{`{
+        <div class="rounded-lg border border-rule bg-paper-sunk p-4 font-mono text-xs text-ink overflow-x-auto whitespace-pre">{`{
   "id": "my-plugin",
   "version": "1.0.0",
   "capabilities": ["read:content", "network:fetch"],
@@ -62,56 +63,56 @@ const description = 'Everything you need to know to publish a plugin or theme on
   }
 }`}</div>
 
-        <div class="mt-6 space-y-3 text-sm text-zinc-400">
-          <p><strong class="text-zinc-100 font-medium">id</strong> — lowercase slug, alphanumeric + hyphens. Must match your registered plugin id.</p>
-          <p><strong class="text-zinc-100 font-medium">version</strong> — strict semver (<code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">X.Y.Z</code>). No pre-release suffixes in webhook submissions.</p>
-          <p><strong class="text-zinc-100 font-medium">capabilities</strong> — from the fixed list of 11: <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">network:fetch</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">network:fetch:any</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">read:content</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">write:content</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">read:media</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">write:media</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">read:users</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">email:send</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">email:provide</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">email:intercept</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">page:inject</code>. Declare the minimum you need.</p>
-          <p><strong class="text-zinc-100 font-medium">allowedHosts</strong> — every external domain your plugin calls. The scanner cross-checks this against every URL in your code.</p>
-          <p><strong class="text-zinc-100 font-medium">hooks</strong> — only the 20 canonical EmDash hook names are accepted.</p>
+        <div class="mt-6 space-y-3 text-sm text-ink-muted max-w-prose">
+          <p><strong class="text-ink font-medium">id</strong> — lowercase slug, alphanumeric + hyphens. Must match your registered plugin id.</p>
+          <p><strong class="text-ink font-medium">version</strong> — strict semver (<code class="text-ink bg-paper-sunk px-1 rounded">X.Y.Z</code>). No pre-release suffixes in webhook submissions.</p>
+          <p><strong class="text-ink font-medium">capabilities</strong> — from the fixed list of 11: <code class="text-ink bg-paper-sunk px-1 rounded">network:fetch</code>, <code class="text-ink bg-paper-sunk px-1 rounded">network:fetch:any</code>, <code class="text-ink bg-paper-sunk px-1 rounded">read:content</code>, <code class="text-ink bg-paper-sunk px-1 rounded">write:content</code>, <code class="text-ink bg-paper-sunk px-1 rounded">read:media</code>, <code class="text-ink bg-paper-sunk px-1 rounded">write:media</code>, <code class="text-ink bg-paper-sunk px-1 rounded">read:users</code>, <code class="text-ink bg-paper-sunk px-1 rounded">email:send</code>, <code class="text-ink bg-paper-sunk px-1 rounded">email:provide</code>, <code class="text-ink bg-paper-sunk px-1 rounded">email:intercept</code>, <code class="text-ink bg-paper-sunk px-1 rounded">page:inject</code>. Declare the minimum you need.</p>
+          <p><strong class="text-ink font-medium">allowedHosts</strong> — every external domain your plugin calls. The scanner cross-checks this against every URL in your code.</p>
+          <p><strong class="text-ink font-medium">hooks</strong> — only the 20 canonical EmDash hook names are accepted.</p>
         </div>
       </section>
 
       <!-- Bundle layout -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">Bundle layout and limits</h2>
-        <p class="text-zinc-400 mb-4">
-          Your <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-xs font-mono">.tgz</code> archive must contain:
+        <h2 class="text-2xl text-ink mt-12 mb-4">Bundle layout and limits</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">
+          Your <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">.tgz</code> archive must contain:
         </p>
-        <ul class="list-disc pl-6 space-y-1.5 text-sm text-zinc-400">
-          <li><code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">manifest.json</code> at the root.</li>
+        <ul class="list-disc pl-6 space-y-1.5 text-sm text-ink-muted max-w-prose">
+          <li><code class="text-ink bg-paper-sunk px-1 rounded">manifest.json</code> at the root.</li>
           <li>All source files (JavaScript/TypeScript, HTML, JSON) that your plugin needs at runtime.</li>
           <li>No symlinks, hardlinks, or device files. These are hard-rejected by the bundle validator.</li>
           <li>No path traversal or absolute paths.</li>
         </ul>
-        <p class="text-zinc-400 mt-4 mb-2">Hard limits:</p>
-        <ul class="list-disc pl-6 space-y-1.5 text-sm text-zinc-400">
-          <li><strong class="text-zinc-100">10 MB</strong> compressed tarball size.</li>
-          <li><strong class="text-zinc-100">50 MB</strong> decompressed total.</li>
-          <li><strong class="text-zinc-100">5 MB</strong> per individual file.</li>
-          <li><strong class="text-zinc-100">200</strong> files maximum.</li>
+        <p class="text-ink-muted mt-4 mb-2 max-w-prose">Hard limits:</p>
+        <ul class="list-disc pl-6 space-y-1.5 text-sm text-ink-muted max-w-prose">
+          <li><strong class="text-ink">10 MB</strong> compressed tarball size.</li>
+          <li><strong class="text-ink">50 MB</strong> decompressed total.</li>
+          <li><strong class="text-ink">5 MB</strong> per individual file.</li>
+          <li><strong class="text-ink">200</strong> files maximum.</li>
         </ul>
       </section>
 
       <!-- Review pipeline -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">How review works</h2>
-        <p class="text-zinc-400 mb-4">
+        <h2 class="text-2xl text-ink mt-12 mb-4">How review works</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">
           Every version goes through three gates. All three are automated — you do not wait on a human unless the scanner flags something ambiguous.
         </p>
-        <ol class="space-y-4 text-zinc-300">
+        <ol class="space-y-4 text-ink-muted max-w-prose">
           <li>
-            <strong class="text-zinc-100 font-medium">1. Bundle validation.</strong>
-            <p class="mt-1 text-sm text-zinc-400">Size limits, path safety, symlink rejection, manifest schema validation, checksum computation. Takes under a second.</p>
+            <strong class="text-ink font-medium">1. Bundle validation.</strong>
+            <p class="mt-1 text-sm text-ink-muted">Size limits, path safety, symlink rejection, manifest schema validation, checksum computation. Takes under a second.</p>
           </li>
           <li>
-            <strong class="text-zinc-100 font-medium">2. Static scan.</strong>
-            <p class="mt-1 text-sm text-zinc-400">
-              Deterministic pattern matching for dangerous primitives and host declarations. Blocking findings (eval, new Function, child_process, process.binding, Worker-from-blob) reject the version. Soft findings (require, fs, undeclared hosts, browser-only APIs) publish with a "Caution" tier. Full ruleset at <a href="/docs/security" class="text-white underline hover:opacity-80">/docs/security</a>.
+            <strong class="text-ink font-medium">2. Static scan.</strong>
+            <p class="mt-1 text-sm text-ink-muted">
+              Deterministic pattern matching for dangerous primitives and host declarations. Blocking findings (eval, new Function, child_process, process.binding, Worker-from-blob) reject the version. Soft findings (require, fs, undeclared hosts, browser-only APIs) publish with a "Caution" tier. Full ruleset at <a href="/docs/security" class="text-ink underline hover:opacity-80">/docs/security</a>.
             </p>
           </li>
           <li>
-            <strong class="text-zinc-100 font-medium">3. AI review (when available).</strong>
-            <p class="mt-1 text-sm text-zinc-400">
+            <strong class="text-ink font-medium">3. AI review (when available).</strong>
+            <p class="mt-1 text-sm text-ink-muted">
               Workers AI runs a second-pass review of clean bundles. Currently triggered by moderators on demand — as the marketplace scales this will move onto the upload hot path.
             </p>
           </li>
@@ -120,38 +121,38 @@ const description = 'Everything you need to know to publish a plugin or theme on
 
       <!-- Trust tiers -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">Trust tiers</h2>
-        <p class="text-zinc-400 mb-4">Every published version carries a tier. Users see it on cards and detail pages.</p>
+        <h2 class="text-2xl text-ink mt-12 mb-4">Trust tiers</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">Every published version carries a tier. Users see it on cards and detail pages.</p>
         <div class="space-y-2 text-sm">
-          <div class="rounded-lg border border-emerald-800/60 bg-emerald-950/40 p-3 text-emerald-300"><strong class="font-medium">Scanned</strong> — passed all static checks, no findings. Safe to install.</div>
-          <div class="rounded-lg border border-emerald-800/60 bg-emerald-950/40 p-3 text-emerald-300"><strong class="font-medium">✦ AI-reviewed</strong> — scanned + AI audit both clean. Highest tier currently.</div>
-          <div class="rounded-lg border border-amber-800/60 bg-amber-950/40 p-3 text-amber-300"><strong class="font-medium">Scanned — Caution</strong> — published with soft findings. Review the accordion before installing.</div>
-          <div class="rounded-lg border border-amber-800/60 bg-amber-950/40 p-3 text-amber-300"><strong class="font-medium">✦ AI-reviewed — Caution</strong> — AI surfaced concerns worth knowing.</div>
-          <div class="rounded-lg border border-red-800/60 bg-red-950/40 p-3 text-red-300"><strong class="font-medium">Rejected / Revoked</strong> — not installable. Findings and admin notes visible on the detail page.</div>
+          <div class="rounded-lg border border-success/30 bg-success-soft p-3 text-success"><strong class="font-medium">Scanned</strong> — passed all static checks, no findings. Safe to install.</div>
+          <div class="rounded-lg border border-success/30 bg-success-soft p-3 text-success"><strong class="font-medium">✦ AI-reviewed</strong> — scanned + AI audit both clean. Highest tier currently.</div>
+          <div class="rounded-lg border border-warn/35 bg-warn-soft p-3 text-warn"><strong class="font-medium">Scanned — Caution</strong> — published with soft findings. Review the accordion before installing.</div>
+          <div class="rounded-lg border border-warn/35 bg-warn-soft p-3 text-warn"><strong class="font-medium">✦ AI-reviewed — Caution</strong> — AI surfaced concerns worth knowing.</div>
+          <div class="rounded-lg border border-danger/35 bg-danger-soft p-3 text-danger"><strong class="font-medium">Rejected / Revoked</strong> — not installable. Findings and admin notes visible on the detail page.</div>
         </div>
       </section>
 
       <!-- Common rejection reasons -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">Common rejection reasons</h2>
-        <ul class="list-disc pl-6 space-y-2 text-sm text-zinc-400">
-          <li><strong class="text-zinc-100">Use of eval() or new Function().</strong> Arbitrary code execution is a hard rejection. Refactor to use explicit imports.</li>
-          <li><strong class="text-zinc-100">child_process or process.binding.</strong> Node-only APIs — not available in the EmDash runtime. Remove any bundled Node-targeted code.</li>
-          <li><strong class="text-zinc-100">Undeclared hosts.</strong> If your code calls <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">fetch("https://x.com/...")</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">x.com</code> must be in <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">manifest.allowedHosts</code>.</li>
-          <li><strong class="text-zinc-100">Missing manifest.json.</strong> Every bundle needs one at the root, with a valid schema.</li>
-          <li><strong class="text-zinc-100">Manifest id mismatch.</strong> The id in <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">manifest.json</code> must match your registered plugin id.</li>
-          <li><strong class="text-zinc-100">Broad capabilities.</strong> <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">network:fetch:any</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">read:users</code>, and <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">email:intercept</code> add a caution signal — only declare them if your plugin genuinely needs them.</li>
+        <h2 class="text-2xl text-ink mt-12 mb-4">Common rejection reasons</h2>
+        <ul class="list-disc pl-6 space-y-2 text-sm text-ink-muted max-w-prose">
+          <li><strong class="text-ink">Use of eval() or new Function().</strong> Arbitrary code execution is a hard rejection. Refactor to use explicit imports.</li>
+          <li><strong class="text-ink">child_process or process.binding.</strong> Node-only APIs — not available in the EmDash runtime. Remove any bundled Node-targeted code.</li>
+          <li><strong class="text-ink">Undeclared hosts.</strong> If your code calls <code class="text-ink bg-paper-sunk px-1 rounded">fetch("https://x.com/...")</code>, <code class="text-ink bg-paper-sunk px-1 rounded">x.com</code> must be in <code class="text-ink bg-paper-sunk px-1 rounded">manifest.allowedHosts</code>.</li>
+          <li><strong class="text-ink">Missing manifest.json.</strong> Every bundle needs one at the root, with a valid schema.</li>
+          <li><strong class="text-ink">Manifest id mismatch.</strong> The id in <code class="text-ink bg-paper-sunk px-1 rounded">manifest.json</code> must match your registered plugin id.</li>
+          <li><strong class="text-ink">Broad capabilities.</strong> <code class="text-ink bg-paper-sunk px-1 rounded">network:fetch:any</code>, <code class="text-ink bg-paper-sunk px-1 rounded">read:users</code>, and <code class="text-ink bg-paper-sunk px-1 rounded">email:intercept</code> add a caution signal — only declare them if your plugin genuinely needs them.</li>
         </ul>
       </section>
 
       <!-- GitHub auto-submit -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">GitHub auto-submit</h2>
-        <p class="text-zinc-400 mb-4">
+        <h2 class="text-2xl text-ink mt-12 mb-4">GitHub auto-submit</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">
           Instead of manually uploading bundles, install the emdashcms.org GitHub App on your repo and link it to your plugin from the dashboard. Every time you publish a GitHub Release whose tag matches your plugin's version, we'll download the tarball, scan it, and publish automatically. Webhook-sourced versions also capture a link back to the GitHub release page as build provenance.
         </p>
-        <ul class="list-disc pl-6 space-y-1.5 text-sm text-zinc-400">
-          <li>Tag pattern defaults to <code class="text-zinc-300 bg-zinc-800/60 px-1 rounded">*</code> — every release. Customise from the dashboard.</li>
+        <ul class="list-disc pl-6 space-y-1.5 text-sm text-ink-muted max-w-prose">
+          <li>Tag pattern defaults to <code class="text-ink bg-paper-sunk px-1 rounded">*</code> — every release. Customise from the dashboard.</li>
           <li>Draft releases and pre-releases are ignored.</li>
           <li>The plugin id in the uploaded manifest must match your registered id.</li>
         </ul>
@@ -159,39 +160,39 @@ const description = 'Everything you need to know to publish a plugin or theme on
 
       <!-- Version management -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">Version management</h2>
-        <ul class="list-disc pl-6 space-y-2 text-sm text-zinc-400">
-          <li><strong class="text-zinc-100">5 versions/day</strong> upload rate limit per author.</li>
-          <li><strong class="text-zinc-100">10 audit runs/day</strong> for AI-bound retries.</li>
-          <li><strong class="text-zinc-100">3 retries</strong> maximum per rejected version. After that, upload a new version with the fix.</li>
-          <li><strong class="text-zinc-100">Static-scanner rejections cannot be retried</strong> — the scan is deterministic, so the same bundle will always produce the same result. Upload a corrected bundle instead.</li>
-          <li><strong class="text-zinc-100">Revocation</strong> by an admin is reserved for cases where a published version needs to be blocked after the fact. Revoked versions are not downloadable and carry a public notice on the detail page.</li>
+        <h2 class="text-2xl text-ink mt-12 mb-4">Version management</h2>
+        <ul class="list-disc pl-6 space-y-2 text-sm text-ink-muted max-w-prose">
+          <li><strong class="text-ink">5 versions/day</strong> upload rate limit per author.</li>
+          <li><strong class="text-ink">10 audit runs/day</strong> for AI-bound retries.</li>
+          <li><strong class="text-ink">3 retries</strong> maximum per rejected version. After that, upload a new version with the fix.</li>
+          <li><strong class="text-ink">Static-scanner rejections cannot be retried</strong> — the scan is deterministic, so the same bundle will always produce the same result. Upload a corrected bundle instead.</li>
+          <li><strong class="text-ink">Revocation</strong> by an admin is reserved for cases where a published version needs to be blocked after the fact. Revoked versions are not downloadable and carry a public notice on the detail page.</li>
         </ul>
       </section>
 
       <!-- Community -->
       <section class="mb-16">
-        <h2 class="text-2xl font-semibold tracking-tight text-white mb-4">Community standards</h2>
-        <p class="text-zinc-400 mb-4">
+        <h2 class="text-2xl text-ink mt-12 mb-4">Community standards</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">
           By publishing here you agree to the
-          <a href="/code-of-conduct" class="text-white underline hover:opacity-80">Code of Conduct</a>,
+          <a href="/code-of-conduct" class="text-ink underline hover:opacity-80">Code of Conduct</a>,
           the
-          <a href="/terms" class="text-white underline hover:opacity-80">Terms of Use</a>, and the
-          <a href="/docs/security" class="text-white underline hover:opacity-80">security review policy</a>.
+          <a href="/terms" class="text-ink underline hover:opacity-80">Terms of Use</a>, and the
+          <a href="/docs/security" class="text-ink underline hover:opacity-80">security review policy</a>.
           Be kind, write clear descriptions, respond to support requests, and fix security issues promptly when reported.
         </p>
       </section>
 
       <!-- Next steps -->
-      <section class="border-t border-zinc-800/60 pt-8 mt-12">
-        <h3 class="text-sm font-semibold text-white">Ready to publish?</h3>
+      <section class="border-t border-rule pt-8 mt-12">
+        <h3 class="text-sm font-semibold text-ink">Ready to publish?</h3>
         <div class="mt-4 flex flex-wrap gap-3">
-          <a href="/dashboard" class="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors">
+          <Button href="/dashboard" variant="primary">
             Go to Dashboard
-          </a>
-          <a href="/docs/security" class="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors">
+          </Button>
+          <Button href="/docs/security" variant="secondary">
             Read the security policy
-          </a>
+          </Button>
         </div>
       </section>
 

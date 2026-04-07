@@ -2,21 +2,22 @@
 export const prerender = false;
 
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
 
 const title = "Installation Guide - emdashcms.org";
 const description = "How to install plugins and themes from the EmDash community marketplace";
 ---
 <BaseLayout title={title} description={description}>
 
-  <section class="pt-32 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
 
       <!-- Page header -->
       <div class="mb-16">
-        <h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+        <h1 class="text-4xl md:text-5xl text-ink mb-4" style="font-weight: 500; letter-spacing: -0.02em;">
           Installation Guide
         </h1>
-        <p class="text-lg text-zinc-400 font-light leading-relaxed">
+        <p class="text-lg text-ink-muted leading-relaxed max-w-prose">
           Two ways to install plugins from the community marketplace.
         </p>
       </div>
@@ -24,60 +25,60 @@ const description = "How to install plugins and themes from the EmDash community
       <!-- Section 1: Download & Manual Install -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">Download &amp; Manual Install</h2>
+          <h2 class="text-2xl text-ink">Download &amp; Manual Install</h2>
         </div>
 
-        <ol class="space-y-6 text-zinc-100/80 leading-relaxed">
+        <ol class="space-y-6 text-ink-muted leading-relaxed max-w-prose">
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">1</span>
-            <span>Find a plugin on the marketplace and click <strong class="text-white font-medium">"Download"</strong>.</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">1</span>
+            <span>Find a plugin on the marketplace and click <strong class="text-ink font-medium">"Download"</strong>.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">2</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">2</span>
             <div>
-              <span>Extract the <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">.tgz</code> archive to your EmDash plugins directory:</span>
-              <div class="mt-3 bg-zinc-950 rounded-lg p-4 font-mono text-sm text-zinc-300 overflow-x-auto border border-white/5">
+              <span>Extract the <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">.tgz</code> archive to your EmDash plugins directory:</span>
+              <div class="mt-3 bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule">
                 tar -xzf plugin-name-1.0.0.tgz -C ./plugins/
               </div>
             </div>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">3</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">3</span>
             <span>Restart your EmDash instance.</span>
           </li>
         </ol>
 
-        <p class="mt-6 text-sm text-zinc-400 leading-relaxed pl-11">
+        <p class="mt-6 text-sm text-ink-muted leading-relaxed pl-11 max-w-prose">
           Only published versions that pass our AI security audit are available for download.
         </p>
       </section>
 
-      <div class="border-t border-zinc-800"></div>
+      <div class="border-t border-rule"></div>
 
       <!-- Section 2: Use as Your Plugin Registry -->
       <section class="my-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">Use as Your Plugin Registry</h2>
+          <h2 class="text-2xl text-ink">Use as Your Plugin Registry</h2>
         </div>
 
-        <p class="text-zinc-100/80 leading-relaxed mb-6">
+        <p class="text-ink-muted leading-relaxed mb-6 max-w-prose">
           Point your EmDash CMS instance at this marketplace to browse and install plugins directly from the CLI.
         </p>
 
-        <p class="text-sm text-zinc-400 mb-2">
+        <p class="text-sm text-ink-muted mb-2 max-w-prose">
           Add the marketplace URL to your EmDash configuration:
         </p>
-        <div class="bg-zinc-950 rounded-lg p-4 font-mono text-sm text-zinc-300 overflow-x-auto border border-white/5 mb-6">
+        <div class="bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule mb-6">
           <pre>{`{
   "marketplace": {
     "url": "https://emdashcms.org/api/v1"
@@ -85,62 +86,62 @@ const description = "How to install plugins and themes from the EmDash community
 }`}</pre>
         </div>
 
-        <p class="text-sm text-zinc-400 mb-2">
+        <p class="text-sm text-ink-muted mb-2 max-w-prose">
           Then install plugins via the CLI:
         </p>
-        <div class="bg-zinc-950 rounded-lg p-4 font-mono text-sm text-zinc-300 overflow-x-auto border border-white/5 mb-6">
+        <div class="bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule mb-6">
           emdash plugin install @scope/plugin-name
         </div>
 
-        <div class="border-l-4 border-amber-800/60 bg-amber-950/20 p-4 rounded-r-lg">
-          <p class="text-sm text-amber-200/80 leading-relaxed">
-            The <code class="font-mono text-amber-300/90 bg-amber-950/40 px-1 py-0.5 rounded text-xs">emdash</code> CLI ships with EmDash CMS &mdash; it is not provided by this marketplace. Check the <a href="https://emdashcms.com" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-amber-100 transition-colors">EmDash CMS documentation</a> for setup instructions.
+        <div class="border-l-4 border-warn/35 bg-warn-soft p-4 rounded-r-lg">
+          <p class="text-sm text-warn leading-relaxed max-w-prose">
+            The <code class="font-mono text-warn bg-warn-soft px-1 py-0.5 rounded text-xs">emdash</code> CLI ships with EmDash CMS &mdash; it is not provided by this marketplace. Check the <a href="https://emdashcms.com" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-ink transition-colors">EmDash CMS documentation</a> for setup instructions.
           </p>
         </div>
       </section>
 
-      <div class="border-t border-zinc-800"></div>
+      <div class="border-t border-rule"></div>
 
       <!-- Section 3: For Plugin Authors -->
       <section class="my-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">For Plugin Authors</h2>
+          <h2 class="text-2xl text-ink">For Plugin Authors</h2>
         </div>
 
-        <ol class="space-y-6 text-zinc-100/80 leading-relaxed">
+        <ol class="space-y-6 text-ink-muted leading-relaxed max-w-prose">
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">1</span>
-            <span><a href="/dashboard" class="text-white underline underline-offset-2 hover:text-zinc-100 transition-colors font-medium">Sign in with GitHub</a> to access your publisher dashboard.</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">1</span>
+            <span><a href="/dashboard" class="text-ink underline underline-offset-2 hover:text-ink transition-colors font-medium">Sign in with GitHub</a> to access your publisher dashboard.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">2</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">2</span>
             <span>Register your plugin with a unique ID.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">3</span>
-            <span>Upload a version &mdash; either a manual <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">.tgz</code> upload or connect a GitHub repository for automatic releases.</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">3</span>
+            <span>Upload a version &mdash; either a manual <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">.tgz</code> upload or connect a GitHub repository for automatic releases.</span>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">4</span>
+            <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">4</span>
             <div>
               <span>Every version is run through an AI security audit:</span>
-              <ul class="mt-3 space-y-2 text-sm text-zinc-400">
+              <ul class="mt-3 space-y-2 text-sm text-ink-muted">
                 <li class="flex items-start gap-2">
-                  <svg class="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                  <span><strong class="text-zinc-100/80 font-medium">Passed</strong> versions are published automatically.</span>
+                  <svg class="w-4 h-4 text-success mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                  <span><strong class="text-ink-muted font-medium">Passed</strong> versions are published automatically.</span>
                 </li>
                 <li class="flex items-start gap-2">
-                  <svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
-                  <span><strong class="text-zinc-100/80 font-medium">Flagged</strong> versions are published with warnings.</span>
+                  <svg class="w-4 h-4 text-warn mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                  <span><strong class="text-ink-muted font-medium">Flagged</strong> versions are published with warnings.</span>
                 </li>
                 <li class="flex items-start gap-2">
-                  <svg class="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                  <span><strong class="text-zinc-100/80 font-medium">Failed</strong> versions are rejected.</span>
+                  <svg class="w-4 h-4 text-danger mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                  <span><strong class="text-ink-muted font-medium">Failed</strong> versions are rejected.</span>
                 </li>
               </ul>
             </div>
@@ -148,66 +149,65 @@ const description = "How to install plugins and themes from the EmDash community
         </ol>
 
         <div class="mt-10">
-          <a href="/dashboard"
-             class="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-medium hover:bg-zinc-200 transition-all text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+          <Button href="/dashboard" variant="primary">
             Get Started
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
-          </a>
+          </Button>
         </div>
       </section>
 
-      <div class="border-t border-zinc-800"></div>
+      <div class="border-t border-rule"></div>
 
       <!-- Section 4: API Reference -->
       <section class="mt-16 mb-8">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">API Reference</h2>
+          <h2 class="text-2xl text-ink">API Reference</h2>
         </div>
 
-        <p class="text-zinc-100/80 leading-relaxed mb-6">
-          The marketplace API is available at <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">https://emdashcms.org/api/v1</code>
+        <p class="text-ink-muted leading-relaxed mb-6 max-w-prose">
+          The marketplace API is available at <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">https://emdashcms.org/api/v1</code>
         </p>
 
-        <div class="bg-zinc-950 rounded-lg border border-white/5 overflow-hidden">
-          <div class="divide-y divide-white/5">
+        <div class="bg-paper-sunk rounded-lg border border-rule overflow-hidden">
+          <div class="divide-y divide-rule">
             <div class="px-4 py-3 flex items-start gap-3">
-              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/30 px-2 py-0.5 rounded">GET</span>
+              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-success bg-success-soft border border-success/30 px-2 py-0.5 rounded">GET</span>
               <div>
-                <code class="font-mono text-sm text-zinc-300">/plugins</code>
-                <p class="text-xs text-zinc-400 mt-1">Search and browse plugins</p>
+                <code class="font-mono text-sm text-ink">/plugins</code>
+                <p class="text-xs text-ink-muted mt-1">Search and browse plugins</p>
               </div>
             </div>
             <div class="px-4 py-3 flex items-start gap-3">
-              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/30 px-2 py-0.5 rounded">GET</span>
+              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-success bg-success-soft border border-success/30 px-2 py-0.5 rounded">GET</span>
               <div>
-                <code class="font-mono text-sm text-zinc-300">/plugins/{`{id}`}</code>
-                <p class="text-xs text-zinc-400 mt-1">Plugin details</p>
+                <code class="font-mono text-sm text-ink">/plugins/{`{id}`}</code>
+                <p class="text-xs text-ink-muted mt-1">Plugin details</p>
               </div>
             </div>
             <div class="px-4 py-3 flex items-start gap-3">
-              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/30 px-2 py-0.5 rounded">GET</span>
+              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-success bg-success-soft border border-success/30 px-2 py-0.5 rounded">GET</span>
               <div>
-                <code class="font-mono text-sm text-zinc-300">/plugins/{`{id}`}/versions/{`{version}`}/bundle</code>
-                <p class="text-xs text-zinc-400 mt-1">Download bundle</p>
+                <code class="font-mono text-sm text-ink">/plugins/{`{id}`}/versions/{`{version}`}/bundle</code>
+                <p class="text-xs text-ink-muted mt-1">Download bundle</p>
               </div>
             </div>
             <div class="px-4 py-3 flex items-start gap-3">
-              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-blue-400 bg-blue-950/40 border border-blue-800/30 px-2 py-0.5 rounded">POST</span>
+              <span class="shrink-0 mt-0.5 font-mono text-xs font-medium text-info bg-info-soft border border-info/35 px-2 py-0.5 rounded">POST</span>
               <div>
-                <code class="font-mono text-sm text-zinc-300">/plugins/{`{id}`}/installs</code>
-                <p class="text-xs text-zinc-400 mt-1">Track installations</p>
+                <code class="font-mono text-sm text-ink">/plugins/{`{id}`}/installs</code>
+                <p class="text-xs text-ink-muted mt-1">Track installations</p>
               </div>
             </div>
           </div>
         </div>
 
-        <p class="mt-6 text-sm text-zinc-400 leading-relaxed">
-          The API is compatible with the EmDash CMS <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-xs font-mono">MarketplaceClient</code> interface.
+        <p class="mt-6 text-sm text-ink-muted leading-relaxed max-w-prose">
+          The API is compatible with the EmDash CMS <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">MarketplaceClient</code> interface.
         </p>
       </section>
 

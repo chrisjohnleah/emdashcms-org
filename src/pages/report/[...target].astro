@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Button from '../../components/Button.astro';
 import TurnstileWidget from '../../components/TurnstileWidget.astro';
 import {
   createReport,
@@ -105,61 +106,61 @@ const title = notFound || invalidPath
   : `Report ${entityName} — emdashcms.org`;
 ---
 <BaseLayout title={title} description="Report a plugin or theme to the emdashcms.org moderators.">
-  <section class="pt-32 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
 
       {invalidPath || notFound ? (
         <>
-          <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Nothing to report here</h1>
-          <p class="mt-4 text-sm text-zinc-400">
+          <h1 class="text-3xl text-ink" style="font-weight: 500; letter-spacing: -0.02em;">Nothing to report here</h1>
+          <p class="mt-4 text-sm text-ink-muted max-w-prose">
             The entity you're trying to report doesn't exist. Go back to
-            <a href="/plugins" class="underline hover:text-zinc-100">Plugins</a> or
-            <a href="/themes" class="underline hover:text-zinc-100">Themes</a> and try again from the detail page.
+            <a href="/plugins" class="underline hover:text-ink">Plugins</a> or
+            <a href="/themes" class="underline hover:text-ink">Themes</a> and try again from the detail page.
           </p>
         </>
       ) : success ? (
         <>
-          <h1 class="text-3xl font-semibold tracking-tight text-zinc-100">Report received</h1>
-          <p class="mt-4 text-sm text-zinc-400">
+          <h1 class="text-3xl text-ink" style="font-weight: 500; letter-spacing: -0.02em;">Report received</h1>
+          <p class="mt-4 text-sm text-ink-muted max-w-prose">
             Thanks — a moderator will review your report. If the issue is a security vulnerability, we may
             restrict downloads of the affected version while we investigate.
           </p>
           <div class="mt-6">
-            <a href={`/${entityType}s/${entityId}`} class="inline-flex items-center gap-2 text-sm text-zinc-300 hover:text-zinc-100">
+            <a href={`/${entityType}s/${entityId}`} class="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink">
               ← Back to {entityName}
             </a>
           </div>
         </>
       ) : (
         <>
-          <a href={`/${entityType}s/${entityId}`} class="text-sm text-zinc-400 hover:text-zinc-100 transition-colors">
+          <a href={`/${entityType}s/${entityId}`} class="text-sm text-ink-muted hover:text-ink transition-colors">
             ← Back to {entityName}
           </a>
 
-          <h1 class="mt-4 text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+          <h1 class="mt-4 text-3xl text-ink leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">
             Report a problem
           </h1>
-          <p class="mt-2 text-sm text-zinc-400">
-            Reporting <strong class="text-zinc-100">{entityName}</strong> (<code class="font-mono text-zinc-300">{entityId}</code>).
-            See our <a href="/docs/security" class="underline hover:text-zinc-100">review policy</a> for what we check.
+          <p class="mt-2 text-sm text-ink-muted max-w-prose">
+            Reporting <strong class="text-ink">{entityName}</strong> (<code class="font-mono text-ink">{entityId}</code>).
+            See our <a href="/docs/security" class="underline hover:text-ink">review policy</a> for what we check.
           </p>
 
           {errorMessage && (
-            <div class="mt-6 rounded-lg border border-red-800/60 bg-red-950/40 p-4">
-              <p class="text-sm text-red-300">{errorMessage}</p>
+            <div class="mt-6 rounded-lg border border-danger/35 bg-danger-soft p-4">
+              <p class="text-sm text-danger">{errorMessage}</p>
             </div>
           )}
 
           <form method="POST" class="mt-8 space-y-6">
             <fieldset>
-              <legend class="text-sm font-semibold text-zinc-100">Reason</legend>
+              <legend class="text-sm font-semibold text-ink">Reason</legend>
               <div class="mt-3 space-y-2">
                 {categories.map((c) => (
-                  <label class="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 cursor-pointer hover:border-zinc-700 transition-colors">
-                    <input type="radio" name="category" value={c.value} required class="mt-1 accent-zinc-100" />
+                  <label class="flex items-start gap-3 rounded-lg border border-rule bg-paper-soft p-4 cursor-pointer hover:border-rule-strong transition-colors">
+                    <input type="radio" name="category" value={c.value} required class="mt-1 accent-ink" />
                     <div>
-                      <div class="text-sm font-medium text-zinc-100">{c.label}</div>
-                      <div class="text-xs text-zinc-500">{c.hint}</div>
+                      <div class="text-sm font-medium text-ink">{c.label}</div>
+                      <div class="text-xs text-ink-soft">{c.hint}</div>
                     </div>
                   </label>
                 ))}
@@ -167,8 +168,8 @@ const title = notFound || invalidPath
             </fieldset>
 
             <div>
-              <label for="description" class="block text-sm font-semibold text-zinc-100">
-                What did you observe? <span class="text-zinc-500 font-normal">(required, 10–2000 chars)</span>
+              <label for="description" class="block text-sm font-semibold text-ink">
+                What did you observe? <span class="text-ink-soft font-normal">(required, 10–2000 chars)</span>
               </label>
               <textarea
                 id="description"
@@ -177,30 +178,27 @@ const title = notFound || invalidPath
                 minlength="10"
                 maxlength="2000"
                 rows="6"
-                class="mt-2 w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                class="mt-2 w-full bg-paper-soft border border-rule text-ink rounded-lg px-3 py-2 text-sm focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
                 placeholder="Describe what you saw, any steps to reproduce, and the version number if relevant. Include links to evidence where possible."
               ></textarea>
             </div>
 
             {!Astro.locals.author && (
               <div>
-                <p class="text-xs text-zinc-500 mb-2">You're reporting anonymously — please complete this check:</p>
+                <p class="text-xs text-ink-soft mb-2">You're reporting anonymously — please complete this check:</p>
                 <TurnstileWidget />
               </div>
             )}
 
             <div class="flex items-center justify-between">
-              <p class="text-xs text-zinc-500">
+              <p class="text-xs text-ink-soft">
                 {Astro.locals.author
                   ? `Reporting as @${Astro.locals.author.username}`
                   : 'Reporting anonymously'}
               </p>
-              <button
-                type="submit"
-                class="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-semibold text-zinc-950 hover:bg-white transition-colors"
-              >
+              <Button type="submit" variant="primary">
                 Submit report
-              </button>
+              </Button>
             </div>
           </form>
         </>

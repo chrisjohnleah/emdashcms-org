@@ -2,6 +2,7 @@
 export const prerender = false;
 
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Button from '../../components/Button.astro';
 
 const title = "Security & Review Policy - emdashcms.org";
 const description = "How we check plugins before they go live, what each trust tier means, and the full public ruleset for our static scanner.";
@@ -83,65 +84,65 @@ const flaggingRules = [
 const trustTiers = [
   {
     label: "Scanned",
-    colour: "bg-emerald-950/40 border-emerald-800/60 text-emerald-400",
+    colour: "bg-success-soft border-success/30 text-success",
     meaning: "Passed every static check with no findings. Published immediately. Safe to install.",
   },
   {
     label: "Scanned — Caution",
-    colour: "bg-amber-950/40 border-amber-800/60 text-amber-400",
+    colour: "bg-warn-soft border-warn/35 text-warn",
     meaning: "Published but the scanner flagged soft findings (e.g. bundled CJS require, undeclared hosts). Review the findings on the plugin page before installing.",
   },
   {
     label: "AI-reviewed",
-    colour: "bg-emerald-950/40 border-emerald-800/60 text-emerald-400",
+    colour: "bg-success-soft border-success/30 text-success",
     meaning: "Scanned AND reviewed by an AI auditor. Highest tier currently available. Visual indicator: ✦",
   },
   {
     label: "AI-reviewed — Caution",
-    colour: "bg-amber-950/40 border-amber-800/60 text-amber-400",
+    colour: "bg-warn-soft border-warn/35 text-warn",
     meaning: "AI review flagged something worth knowing. Published with the findings visible on the plugin detail page.",
   },
   {
     label: "Unreviewed",
-    colour: "bg-zinc-900 border-zinc-700 text-zinc-400",
+    colour: "bg-paper-soft border-rule-strong text-ink-muted",
     meaning: "Legacy version that predates the trust tier system, or a version currently waiting on human moderation.",
   },
   {
     label: "Rejected",
-    colour: "bg-red-950/40 border-red-800/60 text-red-400",
+    colour: "bg-danger-soft border-danger/35 text-danger",
     meaning: "Did not pass review. Not installable. The author sees the exact findings and can upload a corrected version.",
   },
 ];
 ---
 <BaseLayout title={title} description={description}>
 
-  <section class="pt-32 pb-16 px-6">
-    <div class="mx-auto max-w-3xl">
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
 
       <!-- Page header -->
       <div class="mb-16">
-        <h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+        <h1 class="text-4xl md:text-5xl text-ink mb-4" style="font-weight: 500; letter-spacing: -0.02em;">
           Security &amp; Review Policy
         </h1>
-        <p class="text-lg text-zinc-400 font-light leading-relaxed">
+        <p class="text-lg text-ink-muted leading-relaxed max-w-prose">
           How we check plugins before they go live. Our ruleset is fully
           public — you can read every check below, or straight from
-          <a href={SCANNER_SOURCE_URL} target="_blank" rel="noopener noreferrer" class="text-white underline decoration-ash/40 hover:decoration-white transition-colors">the source on GitHub</a>.
+          <a href={SCANNER_SOURCE_URL} target="_blank" rel="noopener noreferrer" class="text-ink underline hover:opacity-80 transition-colors">the source on GitHub</a>.
         </p>
       </div>
 
       <!-- Section: How we check plugins -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">How we check plugins</h2>
+          <h2 class="text-2xl text-ink">How we check plugins</h2>
         </div>
 
-        <div class="text-zinc-100/80 leading-relaxed space-y-4">
+        <div class="text-ink-muted leading-relaxed space-y-4 max-w-prose">
           <p>
             Every version uploaded to emdashcms.org goes through three gates
             before a user can install it. All three run automatically — you
@@ -149,20 +150,20 @@ const trustTiers = [
           </p>
           <ol class="space-y-4 mt-6">
             <li class="flex gap-4">
-              <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">1</span>
-              <span><strong class="text-white font-medium">Bundle validation.</strong> We enforce size limits (10 MB compressed, 50 MB decompressed, 200 files max), reject path traversal attempts, reject symlinks and hardlinks, require a valid <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">manifest.json</code> with a matching plugin id, and compute a SHA-256 checksum for tamper detection.</span>
+              <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">1</span>
+              <span><strong class="text-ink font-medium">Bundle validation.</strong> We enforce size limits (10 MB compressed, 50 MB decompressed, 200 files max), reject path traversal attempts, reject symlinks and hardlinks, require a valid <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">manifest.json</code> with a matching plugin id, and compute a SHA-256 checksum for tamper detection.</span>
             </li>
             <li class="flex gap-4">
-              <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">2</span>
-              <span><strong class="text-white font-medium">Static code scan.</strong> We look for dangerous primitives (listed below), obfuscation signals, and mismatches between declared network hosts and hosts actually referenced in the code. Some findings are <em class="text-white">blocking</em> — the version is rejected outright. Others are <em class="text-white">flagging</em> — the version is published but carries a Caution badge.</span>
+              <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">2</span>
+              <span><strong class="text-ink font-medium">Static code scan.</strong> We look for dangerous primitives (listed below), obfuscation signals, and mismatches between declared network hosts and hosts actually referenced in the code. Some findings are <em class="text-ink">blocking</em> — the version is rejected outright. Others are <em class="text-ink">flagging</em> — the version is published but carries a Caution badge.</span>
             </li>
             <li class="flex gap-4">
-              <span class="shrink-0 w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-mono text-zinc-400">3</span>
-              <span><strong class="text-white font-medium">AI review (when available).</strong> Clean plugins can optionally be re-reviewed by a Workers AI model for subtler issues a regex scan will miss. Budget-bound and currently triggered by a moderator. Plugins that pass AI review earn the <strong class="text-white">AI-reviewed</strong> badge.</span>
+              <span class="shrink-0 w-7 h-7 rounded-full bg-paper-soft border border-rule flex items-center justify-center text-xs font-mono text-ink-muted">3</span>
+              <span><strong class="text-ink font-medium">AI review (when available).</strong> Clean plugins can optionally be re-reviewed by a Workers AI model for subtler issues a regex scan will miss. Budget-bound and currently triggered by a moderator. Plugins that pass AI review earn the <strong class="text-ink">AI-reviewed</strong> badge.</span>
             </li>
           </ol>
           <p class="mt-6">
-            The scanner's rules are <strong class="text-white font-medium">fully public</strong>. If you can read the source, you can write a plugin that passes — and we think that's the right tradeoff. Security through obscurity doesn't scale; documented expectations do.
+            The scanner's rules are <strong class="text-ink font-medium">fully public</strong>. If you can read the source, you can write a plugin that passes — and we think that's the right tradeoff. Security through obscurity doesn't scale; documented expectations do.
           </p>
         </div>
       </section>
@@ -170,25 +171,25 @@ const trustTiers = [
       <!-- Section: Trust tiers -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">What each trust tier means</h2>
+          <h2 class="text-2xl text-ink">What each trust tier means</h2>
         </div>
 
-        <p class="text-zinc-100/80 leading-relaxed mb-6">
+        <p class="text-ink-muted leading-relaxed mb-6 max-w-prose">
           Every version carries a visible trust tier. You'll see it on the plugin detail page and (for caution states) on the plugin cards in search results.
         </p>
 
         <div class="space-y-3">
           {trustTiers.map((tier) => (
-            <div class="rounded-lg border border-white/5 bg-white/[0.02] p-4 flex items-start gap-4">
+            <div class="rounded-lg border border-rule bg-paper-soft p-4 flex items-start gap-4">
               <span class:list={["shrink-0 inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide", tier.colour]}>
                 {tier.label}
               </span>
-              <p class="text-sm text-zinc-100/80 leading-relaxed">{tier.meaning}</p>
+              <p class="text-sm text-ink-muted leading-relaxed">{tier.meaning}</p>
             </div>
           ))}
         </div>
@@ -197,27 +198,27 @@ const trustTiers = [
       <!-- Section: Blocking rules -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-red-950/40 border border-red-800/40 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-danger-soft border border-danger/35 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-danger" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">Blocking findings — reject the version</h2>
+          <h2 class="text-2xl text-ink">Blocking findings — reject the version</h2>
         </div>
 
-        <p class="text-zinc-100/80 leading-relaxed mb-6">
+        <p class="text-ink-muted leading-relaxed mb-6 max-w-prose">
           These patterns are hard rejections. If any of them appear in the bundle, the version is not published and the author sees the exact finding with a file reference.
         </p>
 
         <div class="space-y-4">
           {blockingRules.map((rule) => (
-            <div class="rounded-lg border border-white/5 bg-white/[0.02] p-5">
-              <h3 class="text-sm font-mono text-red-400 mb-2">{rule.name}</h3>
-              <p class="text-sm text-zinc-100/80 leading-relaxed mb-2">
-                <strong class="text-white font-medium">What we look for:</strong> {rule.what}
+            <div class="rounded-lg border border-rule bg-paper-soft p-5">
+              <h3 class="text-sm font-mono text-danger mb-2">{rule.name}</h3>
+              <p class="text-sm text-ink-muted leading-relaxed mb-2">
+                <strong class="text-ink font-medium">What we look for:</strong> {rule.what}
               </p>
-              <p class="text-sm text-zinc-100/80 leading-relaxed">
-                <strong class="text-white font-medium">Why:</strong> {rule.why}
+              <p class="text-sm text-ink-muted leading-relaxed">
+                <strong class="text-ink font-medium">Why:</strong> {rule.why}
               </p>
             </div>
           ))}
@@ -227,27 +228,27 @@ const trustTiers = [
       <!-- Section: Flagging rules -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-amber-950/40 border border-amber-800/40 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-warn-soft border border-warn/35 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-warn" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">Flagging findings — publish with a Caution badge</h2>
+          <h2 class="text-2xl text-ink">Flagging findings — publish with a Caution badge</h2>
         </div>
 
-        <p class="text-zinc-100/80 leading-relaxed mb-6">
+        <p class="text-ink-muted leading-relaxed mb-6 max-w-prose">
           These findings don't block a version from going live, but they're surfaced to installers via the Caution tier so you can review before deciding to install.
         </p>
 
         <div class="space-y-4">
           {flaggingRules.map((rule) => (
-            <div class="rounded-lg border border-white/5 bg-white/[0.02] p-5">
-              <h3 class="text-sm font-mono text-amber-400 mb-2">{rule.name}</h3>
-              <p class="text-sm text-zinc-100/80 leading-relaxed mb-2">
-                <strong class="text-white font-medium">What we look for:</strong> {rule.what}
+            <div class="rounded-lg border border-rule bg-paper-soft p-5">
+              <h3 class="text-sm font-mono text-warn mb-2">{rule.name}</h3>
+              <p class="text-sm text-ink-muted leading-relaxed mb-2">
+                <strong class="text-ink font-medium">What we look for:</strong> {rule.what}
               </p>
-              <p class="text-sm text-zinc-100/80 leading-relaxed">
-                <strong class="text-white font-medium">Why:</strong> {rule.why}
+              <p class="text-sm text-ink-muted leading-relaxed">
+                <strong class="text-ink font-medium">Why:</strong> {rule.why}
               </p>
             </div>
           ))}
@@ -257,20 +258,20 @@ const trustTiers = [
       <!-- Section: AI review -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.456-2.456L14.25 6l1.035-.259a3.375 3.375 0 0 0 2.456-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">How AI review works</h2>
+          <h2 class="text-2xl text-ink">How AI review works</h2>
         </div>
 
-        <div class="text-zinc-100/80 leading-relaxed space-y-4">
+        <div class="text-ink-muted leading-relaxed space-y-4 max-w-prose">
           <p>
-            We use Cloudflare Workers AI to run a second-pass review over plugin bundles that already passed the static scan. The model reads the manifest and source files, looks for subtler issues a regex scan misses, and returns a structured verdict: <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">pass</code>, <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">warn</code>, or <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">fail</code> with a risk score and findings.
+            We use Cloudflare Workers AI to run a second-pass review over plugin bundles that already passed the static scan. The model reads the manifest and source files, looks for subtler issues a regex scan misses, and returns a structured verdict: <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">pass</code>, <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">warn</code>, or <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">fail</code> with a risk score and findings.
           </p>
           <p>
-            AI review is <strong class="text-white font-medium">fail-closed</strong> — if the model errors or returns malformed output, the version is rejected, never silently published. It's also budget-bound to protect the marketplace's free-tier costs.
+            AI review is <strong class="text-ink font-medium">fail-closed</strong> — if the model errors or returns malformed output, the version is rejected, never silently published. It's also budget-bound to protect the marketplace's free-tier costs.
           </p>
           <p>
             Today, AI review is triggered by a moderator from the queue rather than on every upload. As the marketplace grows we plan to move it onto the upload hot path so every scanned version gets AI-reviewed as quickly as the budget allows.
@@ -281,16 +282,16 @@ const trustTiers = [
       <!-- Section: Public rejection history -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">Public rejection history</h2>
+          <h2 class="text-2xl text-ink">Public rejection history</h2>
         </div>
 
-        <div class="text-zinc-100/80 leading-relaxed space-y-4">
+        <div class="text-ink-muted leading-relaxed space-y-4 max-w-prose">
           <p>
             When a version is rejected or revoked, the scanner findings and (optionally) the moderator's reason are
             visible on the plugin detail page for anyone to read. Hiding rejections only helps bad actors — the
@@ -298,21 +299,21 @@ const trustTiers = [
             of that policy.
           </p>
           <p>
-            <strong class="text-white font-medium">What we always show publicly:</strong> the version number, its
+            <strong class="text-ink font-medium">What we always show publicly:</strong> the version number, its
             status, and the full list of scanner findings (title, severity, description, file location). These are
             deterministic and reproducible from the open-source scanner.
           </p>
           <p>
-            <strong class="text-white font-medium">What's opt-in:</strong> the moderator's free-text reason. When a
+            <strong class="text-ink font-medium">What's opt-in:</strong> the moderator's free-text reason. When a
             moderator rejects or revokes a version, they see a "Post this note publicly" checkbox that defaults to
-            <em class="text-white">on</em>. Notes that reference out-of-band context (e.g. a conversation with the
+            <em class="text-ink">on</em>. Notes that reference out-of-band context (e.g. a conversation with the
             author on Discord) can be kept private — they stay in the audit record but don't appear on the public
             page. Scanner findings remain public either way.
           </p>
           <p>
-            <strong class="text-white font-medium">Revoked plugins.</strong> If an entire plugin is revoked, the
+            <strong class="text-ink font-medium">Revoked plugins.</strong> If an entire plugin is revoked, the
             listing stays reachable at its direct URL with a prominent "This plugin has been revoked" banner. It
-            disappears from search and carries a <code class="text-zinc-300 bg-zinc-800/60 px-1.5 py-0.5 rounded text-sm font-mono">noindex</code>
+            disappears from search and carries a <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-sm font-mono">noindex</code>
             meta so search engines stop serving it. History and findings remain visible so inbound links don't
             404 and the record is honest.
           </p>
@@ -322,15 +323,15 @@ const trustTiers = [
       <!-- Section: Report a problem -->
       <section class="mb-16">
         <div class="flex items-center gap-3 mb-6">
-          <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-            <svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <div class="w-10 h-10 rounded-lg bg-paper-soft border border-rule flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-ink-muted" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" />
             </svg>
           </div>
-          <h2 class="text-2xl font-semibold tracking-tight text-white">Found a problem? Report it.</h2>
+          <h2 class="text-2xl text-ink">Found a problem? Report it.</h2>
         </div>
 
-        <div class="text-zinc-100/80 leading-relaxed space-y-4">
+        <div class="text-ink-muted leading-relaxed space-y-4 max-w-prose">
           <p>
             If you believe a published plugin is malicious, broken, or violates the review rules above, please file a security issue on our GitHub repository. Include the plugin id, the version, and what you observed.
           </p>
@@ -338,24 +339,24 @@ const trustTiers = [
             We take vulnerability reports seriously. Plugins with confirmed security issues are closed immediately while we investigate, and the author is notified. If the finding is severe, the plugin is revoked and the author's ability to publish new plugins is suspended pending review.
           </p>
           <div class="mt-6">
-            <a href={REPORT_ISSUE_URL} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-lg bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-zinc-200 transition-colors">
+            <Button href={REPORT_ISSUE_URL} variant="primary" target="_blank" rel="noopener noreferrer">
               Report a security issue
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
               </svg>
-            </a>
+            </Button>
           </div>
-          <p class="text-xs text-zinc-400 mt-4">
+          <p class="text-xs text-ink-muted mt-4">
             A dedicated in-app report flow is on the roadmap. Until then, GitHub Issues is the fastest way to reach us.
           </p>
         </div>
       </section>
 
       <!-- Footer callout: source link -->
-      <section class="mt-20 pt-10 border-t border-white/5">
-        <p class="text-sm text-zinc-400">
+      <section class="mt-20 pt-10 border-t border-rule">
+        <p class="text-sm text-ink-muted max-w-prose">
           Our complete scanner implementation is open source. Read it, audit it, or propose improvements via pull request:
-          <a href={SCANNER_SOURCE_URL} target="_blank" rel="noopener noreferrer" class="text-white underline decoration-ash/40 hover:decoration-white transition-colors font-mono text-xs">
+          <a href={SCANNER_SOURCE_URL} target="_blank" rel="noopener noreferrer" class="text-ink underline hover:opacity-80 transition-colors font-mono text-xs">
             src/lib/audit/static-scanner.ts
           </a>
         </p>
