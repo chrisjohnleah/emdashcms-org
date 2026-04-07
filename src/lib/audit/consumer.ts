@@ -324,21 +324,40 @@ export async function processAuditJob(
   const modelDef = resolveAuditModel(job.modelOverride);
   const modelId = modelDef.workersAiId;
 
-  // 7. Call Workers AI
-  let result: { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
+  // 7. Call Workers AI.
+  // Two response shapes are observed across Workers AI text-gen models:
+  //   a) Standard:   { response: string,                 usage: {...} }
+  //   b) OpenAI-compat (e.g. gemma-4-26b-a4b-it):
+  //      { choices: [{ message: { content: string } }],  usage: {...} }
+  // Below we send both `max_tokens` and `max_completion_tokens` so each
+  // model receives the parameter it expects (Workers AI ignores the
+  // unrecognised one). The shape is normalised after the call by
+  // extractAiResponseText() so the rest of the pipeline only sees a
+  // single { response, usage } envelope regardless of the model.
+  type AiResponseEnvelope = {
+    response?: string;
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+  };
+  let raw: AiResponseEnvelope;
   try {
     // No response_format — many Workers AI models reject json_schema with
     // "5025: This model doesn't support JSON Schema". The prompt mandates
     // JSON-only output and extractJsonFromResponse() recovers it even if
     // the model wraps it in code fences or adds prose.
-    result = await (bindings.ai as Ai).run(modelId as Parameters<Ai["run"]>[0], {
+    raw = await (bindings.ai as Ai).run(modelId as Parameters<Ai["run"]>[0], {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: promptContent },
       ],
       max_tokens: 1024,
+      max_completion_tokens: 1024,
       temperature: 0.1,
-    }) as unknown as { response?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } };
+    }) as unknown as AiResponseEnvelope;
   } catch (err) {
     if (isTransientAiError(err)) {
       throw new TransientError(
@@ -351,11 +370,19 @@ export async function processAuditJob(
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
-  // 7. Parse and validate response. The model may add prose, markdown
+  // 7. Normalise the response shape. Standard Workers AI models put the
+  // text on `result.response`; OpenAI-compatible models (gemma-4-26b-a4b)
+  // put it on `result.choices[0].message.content`. Either way the
+  // downstream parser only sees a single string.
+  const responseText =
+    raw.response ??
+    raw.choices?.[0]?.message?.content ??
+    "";
+
+  // 8. Parse and validate response. The model may add prose, markdown
   // fences, or trailing chatter — extractJsonFromResponse handles all of
   // those and returns null only if no parseable JSON object exists.
   let parsed: { verdict: "pass" | "warn" | "fail"; riskScore: number; findings: unknown[] };
-  const responseText = result.response ?? "";
 
   if (!responseText.trim()) {
     throw new TransientError("AI returned empty response");
@@ -383,15 +410,16 @@ export async function processAuditJob(
   }
   parsed = extracted;
 
-  // 8. Calculate neurons
-  const promptTokens = result.usage?.prompt_tokens ?? 0;
-  const completionTokens = result.usage?.completion_tokens ?? 0;
-  if (!result.usage) {
+  // 9. Calculate neurons (usage shape is identical across both response
+  // envelopes — same prompt_tokens / completion_tokens field names).
+  const promptTokens = raw.usage?.prompt_tokens ?? 0;
+  const completionTokens = raw.usage?.completion_tokens ?? 0;
+  if (!raw.usage) {
     console.warn(`[audit] WARNING: No usage data from AI response`);
   }
   const neuronsUsed = tokensToNeurons(promptTokens, completionTokens);
 
-  // 9. Store audit record (atomically updates version status).
+  // 10. Store audit record (atomically updates version status).
   // Merge static-scan findings with AI findings — the static signals stay
   // useful even when AI passes the verdict.
   const aiFindings = parsed.findings as MarketplaceAuditFinding[];
@@ -406,7 +434,7 @@ export async function processAuditJob(
     promptTokens,
     completionTokens,
     neuronsUsed,
-    rawResponse: result.response ?? "",
+    rawResponse: responseText,
     verdict: parsed.verdict,
     riskScore: parsed.riskScore,
     findings: mergedFindings,

@@ -38,13 +38,13 @@ export const AUDIT_MODELS: Record<AuditModelKey, AuditModelDef> = {
       "Default. Small (3B params) but capable enough for the lightweight audit we run. ~17 neurons/audit, ~588 audits/day on the free tier.",
     estimatedNeurons: "~17",
   },
-  "gemma-3-12b": {
-    key: "gemma-3-12b",
-    workersAiId: "@cf/google/gemma-3-12b-it",
-    label: "Gemma 3 12B",
+  "gemma-4-26b-a4b": {
+    key: "gemma-4-26b-a4b",
+    workersAiId: "@cf/google/gemma-4-26b-a4b-it",
+    label: "Gemma 4 26B-A4B",
     description:
-      "Premium. 4x the parameters of llama, sharper findings and better reasoning for borderline plugins. Higher neuron cost — reserve for cases the cheap pass flagged or for spot checks.",
-    estimatedNeurons: "~60-100",
+      "Premium. Mixture-of-experts (26B total / ~4B active params) with 256k context, vision, function calling, and reasoning. Sharper findings on borderline plugins. Higher neuron cost — reserve for spot checks or when the cheap pass flagged.",
+    estimatedNeurons: "~80-150",
   },
 };
 
