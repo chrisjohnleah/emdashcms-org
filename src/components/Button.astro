@@ -4,15 +4,15 @@
  * implementations across the site into one type-safe surface.
  *
  * Variants:
- *   - primary       → bg-zinc-100 text-zinc-950 hover:bg-white
- *                     Dashboard + form CTAs. The site's dominant pattern.
- *   - secondary     → bg-zinc-900 border border-zinc-800 text-zinc-300
+ *   - primary       → bg-ink text-paper hover:bg-accent-deep
+ *                     Dashboard + form CTAs. Yellow on hover is the brand moment.
+ *   - secondary     → bg-paper-soft border-rule text-ink hover:bg-paper-sunk
  *                     Subordinate actions, outlines, cancel-ish buttons.
- *   - destructive   → bg-red-950/40 border border-red-800/60 text-red-300
+ *   - destructive   → bg-danger-soft border-danger/40 text-danger
  *                     Destructive actions (delete, reject, revoke, ban).
- *   - ghost         → transparent, text-zinc-400 hover:text-zinc-100
+ *   - ghost         → transparent, text-ink-muted hover:text-ink
  *                     Text-only subdued actions.
- *   - hero          → bg-white text-black hover:bg-zinc-200
+ *   - hero          → bg-ink text-paper px-8 py-3.5, hover:bg-accent-deep
  *                     Large marketing CTAs on the homepage and docs.
  *
  * Sizes:
@@ -22,6 +22,9 @@
  *
  * The `hero` variant always renders at `lg` with `py-3.5` regardless of the
  * requested size, because that's the size the marketing CTAs actually need.
+ *
+ * Focus rings come from the global `:focus-visible` outline rule in
+ * global.css — no per-component ring styles.
  *
  * When `href` is provided, renders as `<a>`. Otherwise renders as `<button>`
  * with a configurable `type` (default 'button'). `fullWidth` spans the
@@ -64,15 +67,15 @@ const {
 
 const variantClass: Record<Variant, string> = {
   primary:
-    'bg-zinc-100 text-zinc-950 hover:bg-white focus-visible:ring-zinc-200',
+    'bg-ink text-paper hover:bg-accent-deep border border-ink hover:border-accent-deep',
   secondary:
-    'bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:ring-zinc-700',
+    'bg-paper-soft border border-rule-strong text-ink hover:bg-paper-sunk hover:border-ink',
   destructive:
-    'bg-red-950/40 border border-red-800/60 text-red-300 hover:bg-red-950/60 hover:text-red-200 focus-visible:ring-red-800',
+    'bg-danger-soft border border-danger/40 text-danger hover:bg-danger-soft hover:border-danger',
   ghost:
-    'text-zinc-400 hover:text-zinc-100 focus-visible:ring-zinc-700',
+    'text-ink-muted hover:text-ink border border-transparent',
   hero:
-    'bg-white text-black hover:bg-zinc-200 focus-visible:ring-white',
+    'bg-ink text-paper hover:bg-accent-deep border border-ink hover:border-accent-deep',
 };
 
 const sizeClass: Record<Size, string> = {
@@ -82,11 +85,10 @@ const sizeClass: Record<Size, string> = {
 };
 
 // Hero variant forces lg + taller padding regardless of requested size.
-const finalSizeClass = variant === 'hero' ? 'px-8 py-3.5 text-sm font-semibold' : sizeClass[size];
+const finalSizeClass = variant === 'hero' ? 'px-7 py-3.5 text-sm font-semibold' : sizeClass[size];
 
 const baseClass = [
-  'inline-flex items-center justify-center gap-2 rounded-lg transition-colors',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black',
+  'inline-flex items-center justify-center gap-2 rounded transition-colors',
   disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
   fullWidth ? 'w-full' : '',
   variantClass[variant],

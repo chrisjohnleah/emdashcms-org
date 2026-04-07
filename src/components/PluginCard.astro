@@ -5,9 +5,10 @@ import TrustTierBadge from './TrustTierBadge.astro';
 
 interface Props {
   plugin: MarketplacePluginSummary;
+  featured?: boolean;
 }
 
-const { plugin } = Astro.props;
+const { plugin, featured = false } = Astro.props;
 
 // Show the trust tier badge only when it carries signal — clean
 // "Scanned" / "AI-reviewed" tiers don't need visual noise on every card.
@@ -15,30 +16,51 @@ const showCautionTier =
   plugin.latestVersion?.status === 'flagged' ||
   (plugin.latestVersion?.status === 'published' &&
     plugin.latestVersion.audit?.verdict === 'warn');
+
+const description = plugin.shortDescription ?? plugin.description;
+const installs = plugin.installCount.toLocaleString();
 ---
-<a href={`/plugins/${plugin.id}`} class="block rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 hover:border-zinc-700/60 hover:bg-zinc-900/60 transition-colors">
-  <div class="flex items-center gap-2">
+<a
+  href={`/plugins/${plugin.id}`}
+  class:list={[
+    'group block bg-paper-soft border border-rule rounded-md transition-colors',
+    'hover:bg-paper-sunk hover:border-rule-strong',
+    featured ? 'p-7 md:p-9' : 'p-6',
+  ]}
+>
+  <div class="flex items-center gap-2 text-xs text-ink-soft">
     {plugin.iconUrl ? (
-      <img src={plugin.iconUrl} alt="" class="w-4 h-4 rounded" />
+      <img src={plugin.iconUrl} alt="" class="w-4 h-4 rounded" loading="lazy" />
     ) : plugin.author.avatarUrl ? (
-      <img src={plugin.author.avatarUrl} alt={plugin.author.name} class="w-4 h-4 rounded-full" />
+      <img src={plugin.author.avatarUrl} alt="" class="w-4 h-4 rounded-full" loading="lazy" />
     ) : (
-      <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-      </svg>
+      <span class="w-4 h-4 rounded-full bg-paper-deep" aria-hidden="true"></span>
     )}
-    <span class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-      {plugin.author.name}
-    </span>
+    <span>{plugin.author.name}</span>
   </div>
 
-  <h3 class="mt-3 text-sm font-semibold text-zinc-100">{plugin.name}</h3>
+  <h3
+    class:list={[
+      'font-display text-ink mt-3 leading-tight tracking-tight group-hover:text-accent-deep transition-colors',
+      featured ? 'text-2xl md:text-3xl' : 'text-xl',
+    ]}
+    style="font-weight: 500;"
+  >
+    {plugin.name}
+  </h3>
 
-  {(plugin.shortDescription || plugin.description) && (
-    <p class="mt-1 text-sm text-zinc-400 leading-relaxed line-clamp-2">{plugin.shortDescription ?? plugin.description}</p>
+  {description && (
+    <p
+      class:list={[
+        'mt-2 text-ink-muted leading-relaxed',
+        featured ? 'text-base line-clamp-3 max-w-prose' : 'text-sm line-clamp-2',
+      ]}
+    >
+      {description}
+    </p>
   )}
 
-  <div class="mt-4 flex items-center gap-2 flex-wrap">
+  <div class="mt-5 flex items-center gap-2 flex-wrap text-xs text-ink-soft">
     {showCautionTier && plugin.latestVersion && (
       <TrustTierBadge
         status={plugin.latestVersion.status}
@@ -51,15 +73,21 @@ const showCautionTier =
       <AuditBadge verdict={plugin.latestVersion.audit.verdict} />
     )}
 
-    <span class="inline-flex items-center gap-1 text-xs text-zinc-500">
-      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+    <span class="inline-flex items-center gap-1">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
       </svg>
-      {plugin.installCount.toLocaleString()}
+      {installs}
+      <span class="sr-only">installs</span>
     </span>
 
-    {plugin.capabilities.map((cap) => (
-      <span class="rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-400">{cap}</span>
+    {plugin.capabilities.slice(0, featured ? 4 : 3).map((cap) => (
+      <span class="rounded-full bg-paper-sunk border border-rule px-2 py-0.5 text-[11px] text-ink-muted">
+        {cap}
+      </span>
     ))}
+    {plugin.capabilities.length > (featured ? 4 : 3) && (
+      <span class="text-[11px] text-ink-soft">+{plugin.capabilities.length - (featured ? 4 : 3)}</span>
+    )}
   </div>
 </a>

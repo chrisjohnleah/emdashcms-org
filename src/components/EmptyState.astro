@@ -10,11 +10,12 @@ interface Props {
 
 const { heading, body, linkHref, linkText } = Astro.props;
 ---
-<div class="text-center py-16">
-  <h2 class="text-xl font-semibold text-zinc-100">{heading}</h2>
-  <p class="mt-2 text-sm text-zinc-400">{body}</p>
+<div class="text-center py-20">
+  <span class="emdash-mark text-3xl block mb-4" aria-hidden="true">—</span>
+  <h2 class="font-display text-2xl text-ink">{heading}</h2>
+  <p class="mt-3 text-sm text-ink-muted max-w-md mx-auto leading-relaxed">{body}</p>
   {linkHref && linkText && (
-    <div class="mt-6 inline-block">
+    <div class="mt-7 inline-block">
       <Button href={linkHref} variant="primary" size="lg">{linkText}</Button>
     </div>
   )}
