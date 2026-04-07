@@ -43,10 +43,15 @@ export function getCallbackUrl(): string {
 /**
  * Exchange an authorization code for a GitHub access token (web flow step 2).
  * Returns the access token string, or null if the exchange fails.
+ *
+ * On failure, logs the GitHub error response (status, error code, description,
+ * and the redirect_uri we sent) so the actual root cause is visible in the
+ * Workers log instead of being swallowed into a generic 502.
  */
 export async function exchangeCodeForToken(
   code: string,
 ): Promise<string | null> {
+  const redirectUri = getCallbackUrl();
   const response = await fetch(
     "https://github.com/login/oauth/access_token",
     {
@@ -59,7 +64,7 @@ export async function exchangeCodeForToken(
         client_id: env.GITHUB_CLIENT_ID,
         client_secret: env.GITHUB_CLIENT_SECRET,
         code,
-        redirect_uri: getCallbackUrl(),
+        redirect_uri: redirectUri,
       }),
     },
   );
@@ -67,8 +72,21 @@ export async function exchangeCodeForToken(
   const data = (await response.json()) as {
     access_token?: string;
     error?: string;
+    error_description?: string;
+    error_uri?: string;
   };
-  return data.access_token ?? null;
+
+  if (!data.access_token) {
+    const clientIdPrefix = env.GITHUB_CLIENT_ID
+      ? `${env.GITHUB_CLIENT_ID.slice(0, 8)}...`
+      : "missing";
+    console.error(
+      `[auth] GitHub code exchange failed: status=${response.status} error=${data.error ?? "unknown"} description=${data.error_description ?? "none"} uri=${data.error_uri ?? "none"} sent_redirect_uri=${redirectUri} client_id_prefix=${clientIdPrefix}`,
+    );
+    return null;
+  }
+
+  return data.access_token;
 }
 
 /**
