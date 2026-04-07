@@ -1,0 +1,90 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ThemeCard from '../../../components/ThemeCard.astro';
+import EmptyState from '../../../components/EmptyState.astro';
+import SearchBar from '../../../components/SearchBar.astro';
+import Pagination from '../../../components/Pagination.astro';
+import { searchThemes } from '../../../lib/db/queries';
+
+const { slug } = Astro.params;
+const category = (slug ?? '').toLowerCase();
+
+const url = new URL(Astro.request.url);
+const query = url.searchParams.get('q') ?? '';
+const cursor = url.searchParams.get('cursor');
+const sort = url.searchParams.get('sort') ?? 'created';
+const LIMIT = 12;
+
+const result = category
+  ? await searchThemes(env.DB, {
+      query,
+      category,
+      keyword: null,
+      sort,
+      cursor,
+      limit: LIMIT,
+    })
+  : { items: [], nextCursor: null };
+
+const titleCategory = category
+  .split('-')
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ');
+
+const title = `${titleCategory} themes - emdashcms.org`;
+const description = `Browse ${titleCategory} themes on the emdashcms.org community marketplace for EmDash CMS.`;
+---
+<BaseLayout title={title} description={description}>
+  <section class="pt-24 pb-16 px-6">
+    <div class="mx-auto max-w-5xl">
+
+      <nav class="flex items-center gap-2 text-sm text-zinc-500 mb-6" aria-label="Breadcrumb">
+        <a href="/themes" class="hover:text-zinc-300 transition-colors">Themes</a>
+        <span class="text-zinc-700">/</span>
+        <span class="text-zinc-300">{titleCategory}</span>
+      </nav>
+
+      <h1 class="text-3xl font-semibold tracking-tight leading-[1.15] text-zinc-100">
+        {titleCategory}
+      </h1>
+      <p class="mt-1 text-sm text-zinc-400">
+        Themes in the {titleCategory.toLowerCase()} category.
+      </p>
+
+      <div class="mt-6">
+        <SearchBar
+          action={`/themes/category/${category}`}
+          placeholder={`Search ${titleCategory.toLowerCase()} themes...`}
+          value={query}
+        />
+      </div>
+
+      {result.items.length === 0 ? (
+        <EmptyState
+          heading="No themes in this category yet"
+          body="Be the first to publish one — or browse other categories."
+          linkHref="/themes"
+          linkText="Browse all themes"
+        />
+      ) : (
+        <div class="mt-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {result.items.map((theme) => (
+              <ThemeCard theme={theme} />
+            ))}
+          </div>
+          <Pagination
+            nextCursor={result.nextCursor}
+            count={result.items.length}
+            label="themes"
+            baseUrl={`/themes/category/${category}`}
+          />
+        </div>
+      )}
+
+    </div>
+  </section>
+</BaseLayout>
