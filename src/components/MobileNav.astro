@@ -22,28 +22,32 @@ const { links, currentPath } = Astro.props;
 ---
 <div
   id="mobile-nav"
-  class="fixed top-16 inset-x-0 z-40 bg-black/95 backdrop-blur-md border-b border-white/5 hidden md:hidden"
+  class="fixed top-16 inset-x-0 z-40 bg-paper border-b border-rule hidden md:hidden"
   data-mobile-nav
 >
-  <nav class="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-1" aria-label="Mobile navigation">
-    {links.map((link) => (
-      <a
-        href={link.href}
-        class:list={[
-          'px-3 py-2 rounded-lg text-base font-medium transition-colors',
-          currentPath.startsWith(link.href)
-            ? 'bg-white/5 text-white'
-            : 'text-zinc-400 hover:bg-white/5 hover:text-white',
-        ]}
-      >
-        {link.label}
-      </a>
-    ))}
+  <nav class="page py-5 flex flex-col gap-1" aria-label="Mobile navigation">
+    {links.map((link) => {
+      const active = currentPath === link.href || (link.href !== '/' && currentPath.startsWith(link.href));
+      return (
+        <a
+          href={link.href}
+          class:list={[
+            'px-3 py-2.5 rounded text-base transition-colors',
+            active
+              ? 'bg-paper-soft text-ink font-medium'
+              : 'text-ink-muted hover:bg-paper-soft hover:text-ink',
+          ]}
+          aria-current={active ? 'page' : undefined}
+        >
+          {link.label}
+        </a>
+      );
+    })}
     <a
       href="https://github.com/chrisjohnleah/emdashcms-org"
       target="_blank"
       rel="noopener noreferrer"
-      class="mt-2 px-3 py-2 rounded-lg text-base font-medium text-zinc-400 hover:bg-white/5 hover:text-white transition-colors"
+      class="mt-2 px-3 py-2.5 rounded text-base text-ink-muted hover:bg-paper-soft hover:text-ink transition-colors"
     >
       GitHub
     </a>
