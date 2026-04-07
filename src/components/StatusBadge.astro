@@ -7,33 +7,33 @@ const { status } = Astro.props;
 
 const variants: Record<string, { bg: string; text: string; border: string; label: string }> = {
   published: {
-    bg: 'bg-emerald-950/40',
-    text: 'text-emerald-400',
-    border: 'border-emerald-800/60',
+    bg: 'bg-success-soft',
+    text: 'text-success',
+    border: 'border-success/30',
     label: 'Published',
   },
   flagged: {
-    bg: 'bg-amber-950/40',
-    text: 'text-amber-400',
-    border: 'border-amber-800/60',
+    bg: 'bg-warn-soft',
+    text: 'text-warn',
+    border: 'border-warn/35',
     label: 'Flagged',
   },
   pending: {
-    bg: 'bg-zinc-800/40',
-    text: 'text-zinc-400',
-    border: 'border-zinc-700/60',
+    bg: 'bg-paper-sunk',
+    text: 'text-ink-muted',
+    border: 'border-rule',
     label: 'Pending',
   },
   rejected: {
-    bg: 'bg-red-950/40',
-    text: 'text-red-400',
-    border: 'border-red-800/60',
+    bg: 'bg-danger-soft',
+    text: 'text-danger',
+    border: 'border-danger/35',
     label: 'Rejected',
   },
   revoked: {
-    bg: 'bg-red-950/60',
-    text: 'text-red-300',
-    border: 'border-red-800/80',
+    bg: 'bg-danger-soft',
+    text: 'text-danger',
+    border: 'border-danger/40',
     label: 'Revoked',
   },
 };
@@ -41,7 +41,7 @@ const variants: Record<string, { bg: string; text: string; border: string; label
 const v = variants[status] || variants.pending;
 ---
 <span
-  class:list={['inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border', v.bg, v.text, v.border]}
+  class:list={['inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium border', v.bg, v.text, v.border]}
 >
   {v.label}
 </span>

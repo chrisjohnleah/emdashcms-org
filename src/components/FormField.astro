@@ -10,9 +10,9 @@
  *   <FormField label="Category" name="category" type="select" options={[...]} />
  *
  * The base input class is stable across all variants so the visual
- * language stays unified. Error state adds `border-red-700` and surfaces
- * the error message under the field. Hint text renders in small muted
- * type below the input.
+ * language stays unified. Error state surfaces a danger border and the
+ * error message under the field. Hint text renders in small muted type
+ * below the input.
  */
 
 type InputType = 'text' | 'url' | 'email' | 'password' | 'textarea' | 'select';
@@ -61,20 +61,20 @@ const {
 } = Astro.props;
 
 const baseInputClass = [
-  'w-full bg-zinc-900 border text-zinc-100 rounded-lg px-3 py-2 text-sm',
-  'placeholder:text-zinc-500',
-  'focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500',
-  error ? 'border-red-700' : 'border-zinc-800',
+  'w-full bg-paper-soft border text-ink rounded-md px-3 py-2 text-sm',
+  'placeholder:text-ink-soft',
+  'focus:border-accent-deep focus:outline-none',
+  error ? 'border-danger/60' : 'border-rule-strong',
   disabled ? 'opacity-60 cursor-not-allowed' : '',
 ]
   .filter(Boolean)
   .join(' ');
 ---
 <div>
-  <label for={id} class="block text-sm font-semibold text-zinc-100">
+  <label for={id} class="block text-sm font-medium text-ink">
     {label}
-    {!required && <span class="ml-1 text-zinc-500 font-normal">(optional)</span>}
-    {labelHint && <span class="ml-2 text-xs font-normal text-zinc-500">{labelHint}</span>}
+    {!required && <span class="ml-1 text-ink-soft font-normal">(optional)</span>}
+    {labelHint && <span class="ml-2 text-xs font-normal text-ink-soft">{labelHint}</span>}
   </label>
 
   <div class="mt-2">
@@ -122,9 +122,9 @@ const baseInputClass = [
   </div>
 
   {error && (
-    <p class="mt-1.5 text-xs text-red-400">{error}</p>
+    <p class="mt-1.5 text-xs text-danger">{error}</p>
   )}
   {!error && hint && (
-    <p class="mt-1.5 text-xs text-zinc-500">{hint}</p>
+    <p class="mt-1.5 text-xs text-ink-soft">{hint}</p>
   )}
 </div>

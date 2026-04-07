@@ -18,12 +18,12 @@ function buildLoadMoreHref(): string {
   return qs ? `${baseUrl}?${qs}` : baseUrl;
 }
 ---
-<div class="flex flex-col items-center gap-4 pt-8">
-  <p class="text-sm text-zinc-500">Showing {count} {label}</p>
+<div class="flex flex-col items-center gap-4 pt-10">
+  <p class="text-sm text-ink-soft">Showing {count} {label}</p>
   {nextCursor && (
     <a
       href={buildLoadMoreHref()}
-      class="inline-flex items-center rounded-lg border border-zinc-800 bg-zinc-900 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors min-h-[44px]"
+      class="inline-flex items-center rounded-md border border-rule-strong bg-paper-soft px-5 py-2.5 text-sm font-medium text-ink hover:bg-paper-sunk hover:border-ink transition-colors min-h-[44px]"
     >
       Load more {label}
     </a>

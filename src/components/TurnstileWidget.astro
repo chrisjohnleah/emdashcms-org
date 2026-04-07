@@ -3,5 +3,5 @@ import { env } from 'cloudflare:workers';
 const siteKey = env.TURNSTILE_SITE_KEY;
 ---
 {siteKey && (
-  <div class="cf-turnstile" data-sitekey={siteKey} data-theme="dark"></div>
+  <div class="cf-turnstile" data-sitekey={siteKey} data-theme="light"></div>
 )}

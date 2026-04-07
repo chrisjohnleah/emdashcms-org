@@ -1,6 +1,6 @@
 ---
 /**
- * Shared breadcrumb navigation. Consistent separator colour and spacing
+ * Shared breadcrumb navigation. Consistent separator and spacing
  * across dashboard and admin pages.
  *
  * Items can be link objects ({ label, href }) or plain strings. The last
@@ -22,19 +22,19 @@ const { items, class: extraClass } = Astro.props;
 ---
 <nav
   aria-label="Breadcrumb"
-  class:list={['flex items-center gap-2 text-sm text-zinc-500', extraClass]}
+  class:list={['flex items-center gap-2 text-sm text-ink-soft', extraClass]}
 >
   {items.map((item, i) => {
     const isLast = i === items.length - 1;
     return (
       <>
-        {i > 0 && <span aria-hidden="true" class="text-zinc-700">/</span>}
+        {i > 0 && <span aria-hidden="true" class="text-ink-faint font-display">/</span>}
         {isLast || !item.href ? (
-          <span class="text-zinc-300" aria-current={isLast ? 'page' : undefined}>
+          <span class="text-ink" aria-current={isLast ? 'page' : undefined}>
             {item.label}
           </span>
         ) : (
-          <a href={item.href} class="hover:text-zinc-300 transition-colors">
+          <a href={item.href} class="hover:text-ink transition-colors">
             {item.label}
           </a>
         )}
