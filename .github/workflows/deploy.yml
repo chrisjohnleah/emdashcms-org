@@ -1,0 +1,87 @@
+name: Deploy
+
+# Production deploy pipeline. Runs on every push to main and on
+# manual dispatch from the Actions tab. The pipeline gates the
+# deploy on tests passing, the build succeeding, AND the D1
+# migrations applying cleanly against the remote database — so a
+# schema change that hasn't been migrated cannot land in front of
+# a live worker that expects it.
+#
+# Required GitHub repository secrets (configure in Settings → Secrets):
+#   - CLOUDFLARE_API_TOKEN  scoped to: Workers Scripts:Edit, D1:Edit,
+#                           Account Settings:Read, Workers KV Storage:Edit,
+#                           Workers R2 Storage:Edit
+#   - CLOUDFLARE_ACCOUNT_ID the account ID hosting the worker
+#
+# See docs/deployment.md for the full setup walkthrough.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Only one production deploy at a time. New pushes queue rather than
+# cancel the in-flight deploy — safer for migrations that may be
+# halfway through.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://emdashcms.org
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build (types + astro check + astro build)
+        run: npm run build
+
+      - name: List pending D1 migrations
+        # Visibility step. Prints the applied/pending migration table
+        # into the workflow log so anyone reviewing this run can see
+        # exactly what's about to be applied to production.
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations list emdashcms-org --remote
+
+      - name: Apply D1 migrations
+        # If this step fails the job halts here and the deploy step
+        # never runs — the live worker keeps serving the previous
+        # version against the previous schema. Recover per
+        # docs/database.md.
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply emdashcms-org --remote
+
+      - name: Deploy worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
