@@ -1,0 +1,45 @@
+name: CI
+
+# Runs on every pull request and every push to a non-main branch.
+# Validates types, build, and tests without touching any Cloudflare
+# resources, so forks and contributors can run this without needing
+# any secrets configured. The deploy workflow takes over for `main`.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]
+
+# Cancel in-progress runs on the same branch when a new push lands.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate types, build, and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build (types + astro check + astro build)
+        run: npm run build
