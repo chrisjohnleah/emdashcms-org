@@ -1,0 +1,389 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Button from '../../components/Button.astro';
+import DashboardBanner from '../../components/DashboardBanner.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import {
+  getPreferencesForAuthor,
+  type NotificationPreferences,
+} from '../../lib/notifications/preference-queries';
+import { listDeliveriesForAuthor } from '../../lib/notifications/delivery-queries';
+import {
+  handleSavePreferences,
+  handleSaveEmail,
+  handleClearEmailOverride,
+  handleTestSend,
+  type BannerResult,
+} from '../../lib/notifications/settings-handlers';
+import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
+
+// Auth gate — the middleware already redirects unauthenticated users
+// away from /dashboard/*, but we belt-and-brace here so the rest of the
+// page can treat `author` as non-null.
+const author = Astro.locals.author;
+if (!author) {
+  return Astro.redirect('/api/v1/auth/github');
+}
+
+const authorId = await resolveAuthorId(env.DB, author.githubId);
+if (!authorId) {
+  return Astro.redirect('/api/v1/auth/github');
+}
+
+// ---------------------------------------------------------------------------
+// Load identity context (email + bounce state) for the page header.
+// ---------------------------------------------------------------------------
+
+const authorRow = await env.DB
+  .prepare('SELECT email, email_bounced_at FROM authors WHERE id = ?')
+  .bind(authorId)
+  .first<{ email: string | null; email_bounced_at: string | null }>();
+const authorEmail = authorRow?.email ?? null;
+const emailBouncedAt = authorRow?.email_bounced_at ?? null;
+
+// ---------------------------------------------------------------------------
+// POST dispatch — form actions share a single endpoint and dispatch on
+// the hidden `_action` field. This rides on the CSRF middleware that
+// already covers `/dashboard/*` mutations.
+// ---------------------------------------------------------------------------
+
+let banner: BannerResult | null = null;
+
+if (Astro.request.method === 'POST') {
+  const data = await Astro.request.formData();
+  const action = String(data.get('_action') ?? '');
+  try {
+    if (action === 'save-preferences') {
+      banner = await handleSavePreferences(env.DB, authorId, data);
+    } else if (action === 'save-email') {
+      banner = await handleSaveEmail(env.DB, authorId, data);
+    } else if (action === 'clear-email-override') {
+      banner = await handleClearEmailOverride(env.DB, authorId);
+    } else if (action === 'test-send') {
+      banner = await handleTestSend(env.DB, authorId, {
+        unosendApiKey: (env as unknown as { UNOSEND_API_KEY: string }).UNOSEND_API_KEY,
+      });
+    } else {
+      banner = { type: 'error', message: 'Unknown action.' };
+    }
+  } catch (err) {
+    console.error('[dashboard/settings] POST handler error:', err);
+    banner = { type: 'error', message: 'Unexpected error. Try again.' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reload state for the render pass AFTER any mutation has settled.
+// ---------------------------------------------------------------------------
+
+const preferences = await getPreferencesForAuthor(env.DB, authorId);
+const history = await listDeliveriesForAuthor(env.DB, authorId, 50);
+
+interface EventRow {
+  key: 'auditFail' | 'auditError' | 'auditWarn' | 'auditPass' | 'revokeVersion' | 'revokePlugin' | 'reportFiled';
+  label: string;
+  description: string;
+  optIn: boolean;
+}
+
+const EVENT_ROWS: EventRow[] = [
+  {
+    key: 'auditFail',
+    label: 'Audit failed',
+    description: "AI audit rejected a version you shipped.",
+    optIn: false,
+  },
+  {
+    key: 'auditError',
+    label: 'Audit errored',
+    description: 'AI audit could not complete — version held for review.',
+    optIn: false,
+  },
+  {
+    key: 'auditWarn',
+    label: 'Audit warning',
+    description: 'Version published but flagged with a caution badge.',
+    optIn: false,
+  },
+  {
+    key: 'auditPass',
+    label: 'Audit passed',
+    description: 'Clean audit — your version is live.',
+    optIn: true,
+  },
+  {
+    key: 'revokeVersion',
+    label: 'Version revoked',
+    description: 'A version of your plugin or theme has been pulled.',
+    optIn: false,
+  },
+  {
+    key: 'revokePlugin',
+    label: 'Plugin revoked',
+    description: 'The entire listing has been pulled.',
+    optIn: false,
+  },
+  {
+    key: 'reportFiled',
+    label: 'Report filed',
+    description: 'Someone reported your plugin or theme for review.',
+    optIn: true,
+  },
+];
+
+// Delivery-status styling shared by the history table. Local to this
+// page so we don't need to extend the shared StatusBadge component (its
+// existing variants are version-status-shaped, not delivery-shaped).
+const DELIVERY_STATUS_STYLE: Record<string, { label: string; classes: string }> = {
+  sent: {
+    label: 'Sent',
+    classes: 'bg-success-soft border-success/30 text-success',
+  },
+  queued: {
+    label: 'Queued',
+    classes: 'bg-paper-sunk border-rule text-ink-muted',
+  },
+  bounced: {
+    label: 'Bounced',
+    classes: 'bg-danger-soft border-danger/40 text-danger',
+  },
+  failed: {
+    label: 'Failed',
+    classes: 'bg-danger-soft border-danger/35 text-danger',
+  },
+  skipped: {
+    label: 'Skipped',
+    classes: 'bg-warn-soft border-warn/35 text-warn',
+  },
+};
+
+function deliveryStyle(status: string): { label: string; classes: string } {
+  return (
+    DELIVERY_STATUS_STYLE[status] ?? {
+      label: status,
+      classes: 'bg-paper-sunk border-rule text-ink-muted',
+    }
+  );
+}
+
+function formatTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  });
+}
+---
+<BaseLayout title="Notification settings - emdashcms.org" noindex>
+  <section class="page pt-12 pb-16 md:pt-16">
+
+    <header class="mb-10">
+      <h1 class="text-3xl text-ink">Notification settings</h1>
+      <p class="mt-3 text-sm text-ink-muted max-w-2xl">
+        Choose which events EmDash tells you about and where the emails land. Daily digests are delivered at 09:05 UTC.
+      </p>
+    </header>
+
+    {banner && (
+      <div class="mb-6">
+        <DashboardBanner type={banner.type} message={banner.message} />
+      </div>
+    )}
+
+    {emailBouncedAt && (
+      <div class="mb-6">
+        <DashboardBanner
+          type="warn"
+          message="Your notification email is bouncing. Update your manual override below to resume delivery."
+        />
+      </div>
+    )}
+
+    {/* 1. EMAIL ADDRESS SECTION */}
+    <section class="rounded-xl border border-rule bg-paper-soft p-6 mb-6">
+      <h2 class="text-xl text-ink mb-1">Email address</h2>
+      <p class="text-sm text-ink-muted mb-5">
+        We send notifications to your GitHub-verified primary email by default. Override it here if you want delivery to a different inbox.
+      </p>
+
+      <dl class="mb-5">
+        <dt class="text-xs font-semibold uppercase tracking-wide text-ink-soft">Synced from GitHub</dt>
+        <dd class="mt-1 text-sm text-ink">
+          {authorEmail ? (
+            <span>{authorEmail}</span>
+          ) : (
+            <span class="text-ink-muted">No verified email on your GitHub account — set a manual override below.</span>
+          )}
+        </dd>
+      </dl>
+
+      <form method="POST" class="space-y-3">
+        <input type="hidden" name="_action" value="save-email" />
+        <label class="block">
+          <span class="block text-xs font-semibold uppercase tracking-wide text-ink-soft mb-2">Manual override (optional)</span>
+          <input
+            type="email"
+            name="email_override"
+            value={preferences.emailOverride ?? ''}
+            placeholder="you@example.com"
+            maxlength="320"
+            class="w-full rounded-md border border-rule-strong bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-soft focus:border-accent-deep focus:outline-none"
+          />
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <Button type="submit" variant="primary" size="md">Save override</Button>
+        </div>
+      </form>
+
+      {preferences.emailOverride && (
+        <form method="POST" class="mt-3">
+          <input type="hidden" name="_action" value="clear-email-override" />
+          <Button type="submit" variant="ghost" size="sm">Clear override and resync from GitHub</Button>
+        </form>
+      )}
+    </section>
+
+    {/* 2 + 3. PREFERENCES (master toggle + per-event table) */}
+    <form method="POST" class="rounded-xl border border-rule bg-paper-soft p-6 mb-6">
+      <input type="hidden" name="_action" value="save-preferences" />
+
+      <h2 class="text-xl text-ink mb-1">Preferences</h2>
+      <p class="text-sm text-ink-muted mb-5">
+        The master switch is a hard kill for every event type. Per-event toggles let you pick delivery mode.
+      </p>
+
+      <label class="flex items-start gap-3 pb-6 mb-6 border-b border-rule">
+        <input
+          type="checkbox"
+          name="masterEnabled"
+          checked={preferences.masterEnabled}
+          class="mt-0.5 h-4 w-4 rounded border-rule-strong text-ink"
+        />
+        <span class="flex-1">
+          <span class="block text-sm text-ink font-medium">Receive notifications</span>
+          <span class="block text-xs text-ink-muted mt-0.5">Master switch — uncheck to pause every event type at once.</span>
+        </span>
+      </label>
+
+      <div class="space-y-3">
+        {EVENT_ROWS.map((row) => {
+          const enabledField = `${row.key}Enabled` as keyof NotificationPreferences;
+          const modeField = `${row.key}Mode` as keyof NotificationPreferences;
+          const enabled = Boolean(preferences[enabledField]);
+          const mode = String(preferences[modeField] ?? 'immediate');
+          return (
+            <div class="rounded-lg border border-rule bg-paper-sunk p-4 flex flex-col md:flex-row md:items-center gap-4">
+              <label class="flex items-start gap-3 flex-1">
+                <input
+                  type="checkbox"
+                  name={enabledField}
+                  checked={enabled}
+                  class="mt-0.5 h-4 w-4 rounded border-rule-strong text-ink"
+                />
+                <span class="flex-1">
+                  <span class="block text-sm text-ink font-medium">{row.label}</span>
+                  <span class="block text-xs text-ink-muted mt-0.5">
+                    {row.description}
+                    {row.optIn && <span class="ml-1 text-ink-soft">(opt-in)</span>}
+                  </span>
+                </span>
+              </label>
+              <fieldset class="flex items-center gap-4 md:justify-end md:w-64" aria-label={`${row.label} delivery mode`}>
+                <legend class="sr-only">{row.label} delivery mode</legend>
+                <label class="inline-flex items-center gap-2 text-xs text-ink-muted">
+                  <input
+                    type="radio"
+                    name={modeField}
+                    value="immediate"
+                    checked={mode === 'immediate'}
+                    class="h-3.5 w-3.5 border-rule-strong text-ink"
+                  />
+                  <span>Immediate</span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-xs text-ink-muted">
+                  <input
+                    type="radio"
+                    name={modeField}
+                    value="daily_digest"
+                    checked={mode === 'daily_digest'}
+                    class="h-3.5 w-3.5 border-rule-strong text-ink"
+                  />
+                  <span>Daily digest</span>
+                </label>
+              </fieldset>
+            </div>
+          );
+        })}
+      </div>
+
+      <div class="mt-6">
+        <Button type="submit" variant="primary" size="md">Save preferences</Button>
+      </div>
+    </form>
+
+    {/* 4. TEST SEND */}
+    <section class="rounded-xl border border-rule bg-paper-soft p-6 mb-6">
+      <h2 class="text-xl text-ink mb-1">Test delivery</h2>
+      <p class="text-sm text-ink-muted mb-5">
+        Send a synthetic test email to your effective address. Limited to one per minute to protect the provider quota.
+      </p>
+      <form method="POST">
+        <input type="hidden" name="_action" value="test-send" />
+        <Button type="submit" variant="secondary" size="md">Send test email</Button>
+      </form>
+    </section>
+
+    {/* 5. HISTORY */}
+    <section class="rounded-xl border border-rule bg-paper-soft p-6">
+      <h2 class="text-xl text-ink mb-1">Recent deliveries</h2>
+      <p class="text-sm text-ink-muted mb-5">
+        Last 50 notification attempts for your account, newest first.
+      </p>
+      {history.length === 0 ? (
+        <EmptyState
+          heading="No deliveries yet"
+          body="Once EmDash sends you a notification, you will see it listed here."
+        />
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-rule text-left">
+                <th class="pb-3 pr-4 pt-1 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Event</th>
+                <th class="pb-3 px-4 pt-1 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Entity</th>
+                <th class="pb-3 px-4 pt-1 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Status</th>
+                <th class="pb-3 pl-4 pt-1 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">When (UTC)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-rule">
+              {history.map((row) => {
+                const style = deliveryStyle(row.status);
+                return (
+                  <tr class="hover:bg-paper-sunk transition-colors">
+                    <td class="py-3 pr-4 text-ink">{row.eventType}</td>
+                    <td class="py-3 px-4 text-ink-muted font-mono text-xs">
+                      {row.entityType === 'none' ? '\u2014' : `${row.entityType}/${row.entityId ?? '\u2014'}`}
+                    </td>
+                    <td class="py-3 px-4">
+                      <span class:list={['inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium border', style.classes]}>
+                        {style.label}
+                      </span>
+                    </td>
+                    <td class="py-3 pl-4 text-ink-muted text-xs">{formatTimestamp(row.createdAt)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+
+  </section>
+</BaseLayout>

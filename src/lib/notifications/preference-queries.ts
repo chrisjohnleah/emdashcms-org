@@ -224,6 +224,17 @@ export async function upsertPreferences(
 
   if (setFragments.length === 0) return;
 
+  // Lazy insert so first-write semantics match first-read: an author's
+  // row may not exist yet (the migration intentionally does not backfill
+  // — see the comment on `getPreferencesForAuthor`). Without this the
+  // subsequent UPDATE would silently no-op.
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO notification_preferences (author_id) VALUES (?)`,
+    )
+    .bind(authorId)
+    .run();
+
   // Always bump updated_at
   setFragments.push("updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')");
   bindValues.push(authorId);

@@ -1,6 +1,6 @@
 ---
 interface Props {
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warn';
   message: string;
 }
 
@@ -9,11 +9,12 @@ const { type, message } = Astro.props;
 const styles = {
   success: 'bg-success-soft border-success/30 text-success',
   error: 'bg-danger-soft border-danger/35 text-danger',
+  warn: 'bg-warn-soft border-warn/35 text-warn',
 };
 ---
 <div
   role="alert"
   class:list={['rounded-md border px-4 py-3 text-sm', styles[type]]}
 >
-  {message}
+  <slot>{message}</slot>
 </div>

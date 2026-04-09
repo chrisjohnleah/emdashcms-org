@@ -1,8 +1,12 @@
 ---
 export const prerender = false;
 
+import { env } from 'cloudflare:workers';
 import '../styles/global.css';
 import MobileNav from '../components/MobileNav.astro';
+import DashboardBanner from '../components/DashboardBanner.astro';
+import { hasAuthorBounced } from '../lib/notifications/settings-handlers';
+import { resolveAuthorId } from '../lib/publishing/plugin-queries';
 
 interface Props {
   title: string;
@@ -20,6 +24,28 @@ const navLinks = [
   { label: 'Publish', href: '/dashboard' },
   { label: 'Guide', href: '/guide' },
 ];
+
+// Global notification-bounce banner (Plan 12-03, D-22).
+//
+// When an authenticated publisher is on a /dashboard/* page and their
+// `authors.email_bounced_at` is set, surface a persistent warn banner
+// with a link to the settings page where they can fix the override.
+//
+// Restrict the extra D1 read to authenticated dashboard paths only so
+// public listings stay free-tier cheap. One indexed single-column
+// SELECT per dashboard page load is comfortably within budget.
+let showBounceBanner = false;
+try {
+  if (Astro.locals.author && currentPath.startsWith('/dashboard')) {
+    const authorId = await resolveAuthorId(env.DB, Astro.locals.author.githubId);
+    if (authorId) {
+      showBounceBanner = await hasAuthorBounced(env.DB, authorId);
+    }
+  }
+} catch (err) {
+  // Banner is cosmetic — a transient D1 error should never 500 the page.
+  console.error('[BaseLayout] bounce banner lookup failed:', err);
+}
 ---
 <html lang="en">
   <head>
@@ -122,6 +148,14 @@ const navLinks = [
     <MobileNav links={navLinks} currentPath={currentPath} />
 
     <main id="main" class="flex-grow">
+      {showBounceBanner && (
+        <div class="page pt-4">
+          <DashboardBanner
+            type="warn"
+            message="Your notification email is bouncing. Update it in your notification settings at /dashboard/settings to resume delivery."
+          />
+        </div>
+      )}
       <slot />
     </main>
 
