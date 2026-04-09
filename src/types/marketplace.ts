@@ -204,3 +204,56 @@ export interface AuditJob {
    */
   modelOverride?: AuditModelKey;
 }
+
+// --- Notification Pipeline (Phase 12 — NOTF-01/02/03/04/05) ---
+
+/**
+ * Every notification event type recognised by the pipeline. The first
+ * seven are user-configurable per-event preferences (D-08); `test_send`
+ * and `digest` are internal types used by the "Send test email" button
+ * and the daily digest cron respectively.
+ */
+export type NotificationEventType =
+  | "audit_fail"
+  | "audit_error"
+  | "audit_warn"
+  | "audit_pass"
+  | "revoke_version"
+  | "revoke_plugin"
+  | "report_filed"
+  | "test_send"
+  | "digest";
+
+/**
+ * Entity the notification refers to. `none` is reserved for test_send
+ * and future account-level notifications that don't target a plugin
+ * or theme.
+ */
+export type NotificationEntityType = "plugin" | "theme" | "none";
+
+/**
+ * How the notification should be delivered. `immediate` means enqueue a
+ * NOTIF_QUEUE job to send right away; `daily_digest` means the delivery
+ * row is written but the send is deferred to the daily digest cron.
+ */
+export type NotificationDeliveryMode = "immediate" | "daily_digest";
+
+/**
+ * Payload for NOTIF_QUEUE messages. Well under the 128KB queue message
+ * limit — payloads typically under 1KB. Rendering templates, recipient
+ * resolution, and preference checks happen at emit time, not in the
+ * consumer, so the consumer only needs this narrow shape.
+ */
+export interface NotificationJob {
+  eventType: NotificationEventType;
+  /** Stable UUID from the source record (audit id / report id / synthetic for test). */
+  eventId: string;
+  entityType: NotificationEntityType;
+  /** Plugin or theme id; null for test_send and account-level events. */
+  entityId: string | null;
+  /** Resolved recipient (owner/maintainer) — fan-out happens before enqueue. */
+  recipientAuthorId: string;
+  deliveryMode: NotificationDeliveryMode;
+  /** Event-specific data for template rendering. Shape varies by eventType. */
+  payload: Record<string, unknown>;
+}
