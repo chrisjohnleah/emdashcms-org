@@ -21,6 +21,9 @@ export default defineConfig({
           GITHUB_WEBHOOK_SECRET: "test-webhook-secret-at-least-32-characters",
           GITHUB_APP_PRIVATE_KEY: "test-placeholder",
           GITHUB_APP_ID: "12345",
+          UNOSEND_API_KEY: "un_test_api_key_for_vitest",
+          UNOSEND_WEBHOOK_SECRET:
+            "test-unosend-webhook-secret-at-least-32-chars",
         },
       },
     }),
