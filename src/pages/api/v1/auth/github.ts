@@ -19,7 +19,10 @@ export const GET: APIRoute = async ({ cookies, redirect }) => {
     client_id: env.GITHUB_CLIENT_ID,
     redirect_uri: getCallbackUrl(),
     state,
-    scope: "read:user",
+    // Phase 12 NOTF-04: request user:email so the callback can pull the
+    // primary verified email via /user/emails. Additive to read:user;
+    // existing JWT sessions remain valid.
+    scope: "read:user user:email",
   });
 
   return redirect(`https://github.com/login/oauth/authorize?${params}`, 302);

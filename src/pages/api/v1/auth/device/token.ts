@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import {
   exchangeDeviceCode,
   fetchGitHubUser,
+  fetchPrimaryEmail,
   upsertAuthor,
 } from "../../../../../lib/auth/github";
 import { createSessionToken } from "../../../../../lib/auth/jwt";
@@ -36,7 +37,10 @@ export const POST: APIRoute = async ({ request }) => {
       return errorResponse(502, "Failed to fetch GitHub user profile");
     }
 
-    const authorId = await upsertAuthor(githubUser);
+    // Phase 12 NOTF-04: pull primary verified email (noreply filtered inside).
+    const email = await fetchPrimaryEmail(response.access_token);
+
+    const authorId = await upsertAuthor(githubUser, email);
     const jwt = await createSessionToken(authorId, githubUser.id, githubUser.login);
 
     return jsonResponse({

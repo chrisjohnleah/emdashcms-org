@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import {
   exchangeCodeForToken,
   fetchGitHubUser,
+  fetchPrimaryEmail,
   upsertAuthor,
   isAuthorBanned,
 } from "../../../../lib/auth/github";
@@ -46,8 +47,14 @@ export const GET: APIRoute = async ({ request, cookies, redirect }) => {
     return errorResponse(502, "Failed to fetch GitHub user profile");
   }
 
-  // Create/update author record
-  const authorId = await upsertAuthor(githubUser);
+  // Phase 12 NOTF-04: pull the primary verified email so the author row
+  // can carry a delivery address for publisher notifications. Noreply
+  // addresses are filtered inside fetchPrimaryEmail → null.
+  const email = await fetchPrimaryEmail(accessToken);
+
+  // Create/update author record (email may be null — e.g. user declined
+  // the user:email scope or has no verified public address).
+  const authorId = await upsertAuthor(githubUser, email);
 
   // Ban check — do this BEFORE issuing a session. Banned authors get
   // redirected to the homepage with a banner and no cookie.

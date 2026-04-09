@@ -117,6 +117,12 @@ export async function fetchGitHubUser(
 /**
  * Request a device code from GitHub for the device flow (CLI auth step 1).
  * Returns the device code response, or null on failure.
+ *
+ * Scope is `read:user user:email` (Phase 12 NOTF-04): `user:email` is
+ * additive to `read:user` — per GitHub's docs, `read:user` does NOT include
+ * the private email address, so we must request both. Existing sessions
+ * stay valid because this project discards the GitHub access token
+ * immediately and runs its own JWT session.
  */
 export async function requestDeviceCode(): Promise<DeviceCodeResponse | null> {
   const response = await fetch("https://github.com/login/device/code", {
@@ -127,13 +133,66 @@ export async function requestDeviceCode(): Promise<DeviceCodeResponse | null> {
     },
     body: JSON.stringify({
       client_id: env.GITHUB_CLIENT_ID,
-      scope: "read:user",
+      scope: "read:user user:email",
     }),
   });
 
   if (!response.ok) return null;
 
   return (await response.json()) as DeviceCodeResponse;
+}
+
+/**
+ * Single entry from `GET /user/emails`.
+ */
+export interface GitHubEmail {
+  email: string;
+  primary: boolean;
+  verified: boolean;
+  visibility: string | null;
+}
+
+/**
+ * Pick the first verified primary email from a `/user/emails` response,
+ * filtering out `@users.noreply.github.com` (Pitfall 4 in 12-RESEARCH.md).
+ *
+ * Noreply addresses look valid to the API but are undeliverable for
+ * inbound mail — sending to them triggers an instant hard bounce that
+ * would leave a new publisher stranded on their very first notification.
+ */
+export function pickPublishableEmail(
+  emails: GitHubEmail[],
+): string | null {
+  const primary = emails.find((e) => e.primary && e.verified);
+  if (!primary) return null;
+  if (primary.email.endsWith("@users.noreply.github.com")) return null;
+  return primary.email;
+}
+
+/**
+ * Fetch the primary verified email for the authenticated user via
+ * `GET /user/emails`. Requires the `user:email` OAuth scope.
+ *
+ * Returns `null` when:
+ *   - the API returns non-OK (permission denied, rate limited, etc.)
+ *   - no primary verified email is present
+ *   - the primary is a noreply address (filtered by `pickPublishableEmail`)
+ */
+export async function fetchPrimaryEmail(
+  accessToken: string,
+): Promise<string | null> {
+  const response = await fetch("https://api.github.com/user/emails", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "emdashcms-org",
+    },
+  });
+
+  if (!response.ok) return null;
+
+  const emails = (await response.json()) as GitHubEmail[];
+  return pickPublishableEmail(emails);
 }
 
 /**
@@ -165,31 +224,59 @@ export async function exchangeDeviceCode(
 
 /**
  * Create or update an author record in D1 after GitHub OAuth.
- * On first login: creates with crypto.randomUUID(), verified=0.
- * On subsequent logins: updates github_username, avatar_url, updated_at.
- * Returns the author's internal UUID.
+ *
+ * On first login: creates with `crypto.randomUUID()`, verified=0,
+ * and the pulled email (or null if unavailable / noreply-filtered).
+ *
+ * On subsequent logins: always refreshes `github_username` and
+ * `avatar_url`. The email column is only touched when we have a new
+ * non-null value AND it differs from the stored one — in which case
+ * we ALSO clear `email_bounced_at` (a fresh re-sync from GitHub is
+ * user intent to reset the bounce flag).
+ *
+ * The `email` parameter defaults to `null` so pre-Phase-12 callers
+ * (existing tests, admin seeding, etc.) continue to work unchanged —
+ * they upsert with NULL email, which is the correct "no GitHub email
+ * available" state.
  */
-export async function upsertAuthor(user: GitHubUser): Promise<string> {
+export async function upsertAuthor(
+  user: GitHubUser,
+  email: string | null = null,
+): Promise<string> {
   const existing = await env.DB.prepare(
-    "SELECT id FROM authors WHERE github_id = ?",
+    "SELECT id, email FROM authors WHERE github_id = ?",
   )
     .bind(user.id)
-    .first<{ id: string }>();
+    .first<{ id: string; email: string | null }>();
 
   if (existing) {
-    await env.DB.prepare(
-      "UPDATE authors SET github_username = ?, avatar_url = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE github_id = ?",
-    )
-      .bind(user.login, user.avatar_url, user.id)
-      .run();
+    // Only overwrite stored email when we received a new non-null value
+    // that differs from what's on file. Don't clobber a good address
+    // because a later login failed to pull a fresh one.
+    if (email && email !== existing.email) {
+      await env.DB.prepare(
+        `UPDATE authors
+         SET github_username = ?, avatar_url = ?, email = ?, email_bounced_at = NULL,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE github_id = ?`,
+      )
+        .bind(user.login, user.avatar_url, email, user.id)
+        .run();
+    } else {
+      await env.DB.prepare(
+        "UPDATE authors SET github_username = ?, avatar_url = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE github_id = ?",
+      )
+        .bind(user.login, user.avatar_url, user.id)
+        .run();
+    }
     return existing.id;
   }
 
   const id = crypto.randomUUID();
   await env.DB.prepare(
-    "INSERT INTO authors (id, github_id, github_username, avatar_url) VALUES (?, ?, ?, ?)",
+    "INSERT INTO authors (id, github_id, github_username, avatar_url, email) VALUES (?, ?, ?, ?, ?)",
   )
-    .bind(id, user.id, user.login, user.avatar_url)
+    .bind(id, user.id, user.login, user.avatar_url, email)
     .run();
   return id;
 }
