@@ -11,6 +11,9 @@ export default defineConfig({
     cloudflareTest({
       main: "./test/worker-test-entry.ts",
       wrangler: { configPath: "./wrangler.jsonc" },
+      // Disable remote bindings — tests mock all external services (AI,
+      // fetch, etc.) so the pool doesn't need to dial Cloudflare's edge.
+      remoteBindings: false,
       miniflare: {
         bindings: {
           TEST_MIGRATIONS: migrations,

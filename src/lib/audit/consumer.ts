@@ -237,7 +237,7 @@ export async function processAuditJob(
       console.log(
         `[audit] static-first REJECT plugin=${job.pluginId} version=${job.version} blocking=${blockingFindings.length} (${blockingTitles})`,
       );
-      await createAuditRecord(bindings.db, {
+      const auditId = await createAuditRecord(bindings.db, {
         versionId,
         status: "complete",
         model: "static-only",
@@ -250,6 +250,7 @@ export async function processAuditJob(
         findings: staticFindings.map(staticFindingToMarketplace),
         versionStatusOverride: "rejected",
       });
+      void auditId;
       return { verdict: null, status: "complete", neuronsUsed: 0 };
     }
 
@@ -257,7 +258,7 @@ export async function processAuditJob(
     console.log(
       `[audit] static-first ${targetStatus.toUpperCase()} plugin=${job.pluginId} version=${job.version} findings=${staticFindings.length}`,
     );
-    await createAuditRecord(bindings.db, {
+    const auditId = await createAuditRecord(bindings.db, {
       versionId,
       status: "complete",
       model: "static-only",
@@ -270,6 +271,7 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: targetStatus,
     });
+    void auditId;
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
 
@@ -278,7 +280,7 @@ export async function processAuditJob(
     console.log(
       `[audit] mode=${mode} — skipping AI, plugin=${job.pluginId} version=${job.version} stays pending with ${staticFindings.length} static findings`,
     );
-    await createAuditRecord(bindings.db, {
+    const auditId = await createAuditRecord(bindings.db, {
       versionId,
       status: "complete",
       model: "static-only",
@@ -291,6 +293,7 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: "pending",
     });
+    void auditId;
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
 
@@ -301,7 +304,7 @@ export async function processAuditJob(
     console.warn(
       `[audit] Daily neuron budget exhausted (${budget.used}) — falling back to static-only for plugin=${job.pluginId} version=${job.version}`,
     );
-    await createAuditRecord(bindings.db, {
+    const auditId = await createAuditRecord(bindings.db, {
       versionId,
       status: "complete",
       model: "static-only",
@@ -314,6 +317,7 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: "pending",
     });
+    void auditId;
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
 
@@ -427,7 +431,7 @@ export async function processAuditJob(
     ...staticFindings.map(staticFindingToMarketplace),
     ...aiFindings,
   ];
-  await createAuditRecord(bindings.db, {
+  const auditId = await createAuditRecord(bindings.db, {
     versionId,
     status: "complete",
     model: modelId,
@@ -439,6 +443,7 @@ export async function processAuditJob(
     riskScore: parsed.riskScore,
     findings: mergedFindings,
   });
+  void auditId;
 
   // 10. Update neuron budget
   await recordNeuronUsage(bindings.db, neuronsUsed);

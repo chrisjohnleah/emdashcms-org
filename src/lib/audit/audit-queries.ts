@@ -70,11 +70,15 @@ export function verdictToStatus(
  *
  * When verdict is null (error case), the version is always rejected (fail-closed).
  * When status is "published", published_at is set to the current timestamp.
+ *
+ * Returns the generated `auditId` so callers (e.g. notification emitters)
+ * can derive deterministic idempotency keys against the audit row that was
+ * just written.
  */
 export async function createAuditRecord(
   db: D1Database,
   params: CreateAuditParams,
-): Promise<void> {
+): Promise<string> {
   const auditId = crypto.randomUUID();
 
   // Determine version status:
@@ -117,6 +121,8 @@ export async function createAuditRecord(
       )
       .bind(versionStatus, versionStatus, params.versionId),
   ]);
+
+  return auditId;
 }
 
 // --- Error Rejection ---
