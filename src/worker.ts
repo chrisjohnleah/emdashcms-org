@@ -1,6 +1,7 @@
 // Custom Cloudflare Worker entry point
 // - fetch: delegates to Astro's handler for SSR pages + API endpoints
-// - queue: processes audit jobs via the audit consumer pipeline
+// - queue: dispatches batches to the audit OR notifications consumer
+//   based on `batch.queue` (parallel handler pattern, D-27)
 import { handle } from "@astrojs/cloudflare/handler";
 import {
   processAuditJob,
@@ -8,8 +9,9 @@ import {
   TransientError,
 } from "./lib/audit/consumer";
 import { rejectVersion } from "./lib/audit/audit-queries";
+import { processNotificationBatch } from "./lib/notifications/consumer";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
-import type { AuditJob } from "./types/marketplace";
+import type { AuditJob, NotificationJob } from "./types/marketplace";
 
 export default {
   async fetch(request, env, ctx) {
@@ -30,6 +32,27 @@ export default {
   },
 
   async queue(batch, env, _ctx) {
+    // Dispatch on the originating queue name. Both queues share this
+    // single handler so we don't need a second worker entry point (D-27).
+    if (batch.queue === "emdashcms-notifications") {
+      await processNotificationBatch(
+        batch as unknown as Parameters<typeof processNotificationBatch>[0],
+        {
+          db: env.DB,
+          unosendApiKey: env.UNOSEND_API_KEY,
+        },
+      );
+      return;
+    }
+
+    if (batch.queue !== "emdashcms-audit") {
+      console.error(
+        `[queue] Unknown queue '${batch.queue}' — acking ${batch.messages.length} message(s)`,
+      );
+      for (const message of batch.messages) message.ack();
+      return;
+    }
+
     // AUDIT_MODE: 'static-first' | 'auto' | 'manual' | 'off' — see wrangler.jsonc.
     // Default remains 'manual' for now (shadow deploy of static-first);
     // the wrangler.jsonc var will flip to 'static-first' after smoke testing.
@@ -48,6 +71,7 @@ export default {
           ai: env.AI,
           artifacts: env.ARTIFACTS,
           auditMode,
+          notifQueue: env.NOTIF_QUEUE,
         });
         message.ack();
       } catch (err) {
@@ -95,3 +119,7 @@ export default {
     }
   },
 } satisfies ExportedHandler<Env>;
+
+// Type-only re-export so the NotificationJob import is consumed in
+// `tsc --noEmit` strict mode.
+export type _NotificationJobRef = NotificationJob;

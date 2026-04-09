@@ -27,5 +27,13 @@ export default defineConfig({
   ],
   test: {
     setupFiles: ["./test/setup.ts"],
+    // Exclude nested git worktrees (`.claude/worktrees/*`) and the
+    // standard noisy paths so vitest only picks up THIS worktree's tests.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.{idea,git,cache,output,temp}/**",
+      ".claude/**",
+    ],
   },
 });

@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { isSuperAdmin } from "../../../../../../lib/auth/admin";
 import { jsonResponse, errorResponse } from "../../../../../../lib/api/response";
 import { createAuditRecord } from "../../../../../../lib/audit/audit-queries";
+import { emitRevokeNotification } from "../../../../../../lib/notifications/emitter";
 
 export const prerender = false;
 
@@ -66,7 +67,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
     // Write an admin-action audit record AND flip the version status in
     // one atomic batch via createAuditRecord's versionStatusOverride.
-    await createAuditRecord(env.DB, {
+    // The returned auditId is reused as the notification eventId so a
+    // queue retry of the notification job dedupes against the audit row.
+    const auditId = await createAuditRecord(env.DB, {
       versionId: row.id,
       status: "complete",
       model: "admin-action",
@@ -80,6 +83,32 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       versionStatusOverride: "revoked",
       publicNote,
     });
+
+    // Emit the revoke notification. Wrapped in try/catch so a broken
+    // notification pipeline cannot break the revoke flow — the version
+    // is already revoked at this point and the response must succeed.
+    try {
+      const nameRow = await env.DB.prepare(
+        "SELECT name FROM plugins WHERE id = ?",
+      )
+        .bind(pluginId)
+        .first<{ name: string }>();
+      await emitRevokeNotification(env.DB, env.NOTIF_QUEUE, {
+        eventId: auditId,
+        scope: "version",
+        entityType: "plugin",
+        entityId: pluginId,
+        entityName: nameRow?.name ?? pluginId,
+        version,
+        reason,
+        // Per D-16: include the reason as the public note only when the
+        // admin asked for the note to be public. Otherwise the email body
+        // omits the note paragraph entirely.
+        publicNote: publicNote ? reason : null,
+      });
+    } catch (notifyErr) {
+      console.error("[notifications] revoke-version emit failed:", notifyErr);
+    }
 
     return jsonResponse(
       {

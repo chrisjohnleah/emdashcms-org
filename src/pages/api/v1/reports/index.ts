@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/db/report-queries";
 import { verifyTurnstile } from "../../../../lib/turnstile/verify";
 import { resolveAuthorId } from "../../../../lib/publishing/plugin-queries";
+import { emitReportNotification } from "../../../../lib/notifications/emitter";
 
 export const prerender = false;
 
@@ -101,6 +102,33 @@ export const POST: APIRoute = async ({ request, locals }) => {
       reasonCategory: category as ReportCategory,
       description: description.trim(),
     });
+
+    // Notification emission is best-effort: a broken notifications
+    // pipeline must NOT cause the report POST to fail. The emitter
+    // already wraps every external call in try/catch, but we belt-and-
+    // brace here as well so a truly unexpected throw can't break the
+    // 202 response contract.
+    try {
+      const entityTable = entityType === "plugin" ? "plugins" : "themes";
+      const nameRow = await env.DB.prepare(
+        `SELECT name FROM ${entityTable} WHERE id = ?`,
+      )
+        .bind(entityId)
+        .first<{ name: string }>();
+      const entityName = nameRow?.name ?? entityId;
+      const excerpt = description.trim().slice(0, 200);
+      await emitReportNotification(env.DB, env.NOTIF_QUEUE, {
+        reportId: id,
+        entityType: entityType as "plugin" | "theme",
+        entityId,
+        entityName,
+        category,
+        descriptionExcerpt: excerpt,
+      });
+    } catch (notifyErr) {
+      console.error("[notifications] report emit failed:", notifyErr);
+    }
+
     return jsonResponse({ id, status: "open" }, 202);
   } catch (err) {
     console.error("[api] Report creation error:", err);

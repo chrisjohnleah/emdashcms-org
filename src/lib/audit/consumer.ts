@@ -17,6 +17,7 @@ import {
 import { createAuditRecord, rejectVersion } from "./audit-queries";
 import { runStaticScan, type StaticFinding } from "./static-scanner";
 import { manifestSchema } from "../publishing/manifest-schema";
+import { emitAuditNotification } from "../notifications/emitter";
 
 // --- Bindings ---
 
@@ -37,6 +38,98 @@ export interface AuditBindings {
    * - 'off': same as manual — skip AI, leave pending. Legacy.
    */
   auditMode?: "manual" | "auto" | "off" | "static-first";
+  /**
+   * Optional NOTIF_QUEUE producer. When provided, terminal-state audits
+   * (pass/warn/fail/error) emit notification jobs after the audit row is
+   * written. Optional so existing tests that pre-date Phase 12 still
+   * construct an `AuditBindings` without a queue.
+   */
+  notifQueue?: Queue;
+}
+
+/**
+ * Internal helper: emit an audit notification, swallowing every error.
+ *
+ * The audit pipeline is the source of truth for the version's lifecycle —
+ * if the notifications subsystem breaks for any reason (queue down, fan-out
+ * query throws, plugin row missing), the audit MUST still complete.
+ */
+async function tryEmitAuditNotification(
+  bindings: AuditBindings,
+  job: AuditJob,
+  auditId: string,
+  verdict: "pass" | "warn" | "fail" | null,
+  riskScore: number,
+  findingCount: number,
+  errorMessage?: string,
+): Promise<void> {
+  if (!bindings.notifQueue) return;
+  try {
+    const nameRow = await bindings.db
+      .prepare("SELECT name FROM plugins WHERE id = ?")
+      .bind(job.pluginId)
+      .first<{ name: string }>();
+    await emitAuditNotification(bindings.db, bindings.notifQueue, {
+      auditId,
+      pluginId: job.pluginId,
+      pluginName: nameRow?.name ?? job.pluginId,
+      version: job.version,
+      verdict,
+      riskScore,
+      findingCount,
+      errorMessage,
+    });
+  } catch (err) {
+    console.error(
+      `[notifications] audit emit failed plugin=${job.pluginId} version=${job.version}:`,
+      err,
+    );
+  }
+}
+
+/**
+ * Reject a version (records an error audit row + flips the version
+ * status) AND emit an `audit_error` notification. Used by every AI-mode
+ * error branch so the publisher learns their version was rejected even
+ * when no human verdict exists.
+ *
+ * Notification emission is best-effort — if the emit step fails the
+ * version is still rejected and the function still returns.
+ */
+async function rejectAndNotify(
+  bindings: AuditBindings,
+  job: AuditJob,
+  versionId: string,
+  errorMessage: string,
+): Promise<void> {
+  await rejectVersion(bindings.db, versionId, errorMessage);
+  if (!bindings.notifQueue) return;
+  try {
+    // Look up the audit row we just wrote (the most recent one for this
+    // version) so the emit hook has a stable eventId for idempotency.
+    const auditRow = await bindings.db
+      .prepare(
+        `SELECT id FROM plugin_audits WHERE plugin_version_id = ?
+         ORDER BY created_at DESC LIMIT 1`,
+      )
+      .bind(versionId)
+      .first<{ id: string }>();
+    if (!auditRow?.id) return;
+    await tryEmitAuditNotification(
+      bindings,
+      job,
+      auditRow.id,
+      null,
+      0,
+      0,
+      errorMessage,
+    );
+  } catch (err) {
+    console.error(
+      `[notifications] error-emit lookup failed plugin=${job.pluginId} version=${job.version}:`,
+      err,
+    );
+  }
 }
 
 // --- Result ---
@@ -175,7 +268,7 @@ export async function processAuditJob(
   // 2. Fetch bundle from R2 (needed for static scan AND any AI path)
   const r2Object = await bindings.artifacts.get(job.bundleKey);
   if (!r2Object) {
-    await rejectVersion(bindings.db, versionId, "Bundle not found in R2");
+    await rejectAndNotify(bindings, job, versionId, "Bundle not found in R2");
     console.error(`[audit] Bundle not found: key=${job.bundleKey}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
@@ -186,13 +279,18 @@ export async function processAuditJob(
     codeFiles = await extractCodeFiles(await r2Object.arrayBuffer());
   } catch (err) {
     const msg = `Failed to extract bundle: ${err instanceof Error ? err.message : String(err)}`;
-    await rejectVersion(bindings.db, versionId, msg);
+    await rejectAndNotify(bindings, job, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
   if (codeFiles.size === 0) {
-    await rejectVersion(bindings.db, versionId, "No code files found in bundle");
+    await rejectAndNotify(
+      bindings,
+      job,
+      versionId,
+      "No code files found in bundle",
+    );
     console.error(`[audit] No code files in bundle: plugin=${job.pluginId} version=${job.version}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
@@ -250,7 +348,17 @@ export async function processAuditJob(
         findings: staticFindings.map(staticFindingToMarketplace),
         versionStatusOverride: "rejected",
       });
-      void auditId;
+      // Static-first reject is a terminal `rejected` transition — surface
+      // it as an `audit_fail` so the publisher gets the same treatment as
+      // a real AI fail verdict.
+      await tryEmitAuditNotification(
+        bindings,
+        job,
+        auditId,
+        "fail",
+        staticScore,
+        staticFindings.length,
+      );
       return { verdict: null, status: "complete", neuronsUsed: 0 };
     }
 
@@ -271,7 +379,17 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: targetStatus,
     });
-    void auditId;
+    // Static-first publish is a terminal transition — synthesize a
+    // verdict so the right event type fires (warn for soft findings,
+    // pass for a clean scan).
+    await tryEmitAuditNotification(
+      bindings,
+      job,
+      auditId,
+      hasSoftFindings ? "warn" : "pass",
+      staticScore,
+      staticFindings.length,
+    );
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
 
@@ -293,6 +411,10 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: "pending",
     });
+    // Manual/off mode leaves the version `pending` — NOT a terminal
+    // state, so do not emit a notification. The publisher will hear
+    // about the version when an admin runs the audit and the version
+    // transitions to a terminal state.
     void auditId;
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
@@ -369,7 +491,7 @@ export async function processAuditJob(
       );
     }
     const msg = `AI inference error: ${err instanceof Error ? err.message : String(err)}`;
-    await rejectVersion(bindings.db, versionId, msg);
+    await rejectAndNotify(bindings, job, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
@@ -401,14 +523,14 @@ export async function processAuditJob(
       );
     }
     const msg = "Malformed AI response: no JSON object found in output";
-    await rejectVersion(bindings.db, versionId, msg);
+    await rejectAndNotify(bindings, job, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
 
   if (!validateAuditResponse(extracted)) {
     const msg = "Malformed AI response: JSON did not match required schema (verdict/riskScore/findings)";
-    await rejectVersion(bindings.db, versionId, msg);
+    await rejectAndNotify(bindings, job, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
@@ -443,7 +565,6 @@ export async function processAuditJob(
     riskScore: parsed.riskScore,
     findings: mergedFindings,
   });
-  void auditId;
 
   // 10. Update neuron budget
   await recordNeuronUsage(bindings.db, neuronsUsed);
@@ -451,6 +572,18 @@ export async function processAuditJob(
   // 11. Log outcome
   console.log(
     `[audit] plugin=${job.pluginId} version=${job.version} model=${modelDef.key} verdict=${parsed.verdict} neurons=${neuronsUsed} duration=${Date.now() - startTime}ms`,
+  );
+
+  // 12. Emit notification for the terminal AI verdict. This is wrapped in
+  //     a try/catch inside `tryEmitAuditNotification` so a notifications
+  //     failure can never strand the audit pipeline.
+  await tryEmitAuditNotification(
+    bindings,
+    job,
+    auditId,
+    parsed.verdict,
+    parsed.riskScore,
+    mergedFindings.length,
   );
 
   return { verdict: parsed.verdict, status: "complete", neuronsUsed };
