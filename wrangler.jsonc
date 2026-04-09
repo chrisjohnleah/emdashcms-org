@@ -79,9 +79,11 @@
     }
   ],
 
-  // Hourly cleanup of expired rate_limits rows (prevents unbounded D1 growth)
+  // Cron triggers:
+  //  - "0 * * * *": hourly cleanup of expired rate_limits rows
+  //  - "5 9 * * *": daily notification digest (09:05 UTC — D-09 in 12-CONTEXT.md)
   "triggers": {
-    "crons": ["0 * * * *"]
+    "crons": ["0 * * * *", "5 9 * * *"]
   },
 
   "placement": {

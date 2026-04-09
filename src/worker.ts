@@ -1,7 +1,9 @@
 // Custom Cloudflare Worker entry point
-// - fetch: delegates to Astro's handler for SSR pages + API endpoints
-// - queue: dispatches batches to the audit OR notifications consumer
-//   based on `batch.queue` (parallel handler pattern, D-27)
+// - fetch:     delegates to Astro's handler for SSR pages + API endpoints
+// - scheduled: dispatches on `event.cron` — hourly rate_limits cleanup
+//              (0 * * * *) and daily notification digest (5 9 * * *)
+// - queue:     dispatches batches to the audit OR notifications consumer
+//              based on `batch.queue` (parallel handler pattern, D-27)
 import { handle } from "@astrojs/cloudflare/handler";
 import {
   processAuditJob,
@@ -10,6 +12,7 @@ import {
 } from "./lib/audit/consumer";
 import { rejectVersion } from "./lib/audit/audit-queries";
 import { processNotificationBatch } from "./lib/notifications/consumer";
+import { runDailyDigest } from "./lib/notifications/digest";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
 import type { AuditJob, NotificationJob } from "./types/marketplace";
 
@@ -18,17 +21,33 @@ export default {
     return handle(request, env, ctx);
   },
 
-  async scheduled(_event, env, _ctx) {
-    // Purge rate_limits rows older than 1 hour to prevent unbounded growth.
-    // Keys are `{ip}:{YYYY-MM-DDTHH:MM}` so the trailing 16 chars are the bucket.
-    const cutoff = new Date(Date.now() - 60 * 60_000)
-      .toISOString()
-      .slice(0, 16);
-    try {
-      await cleanupOldRateLimits(env.DB, cutoff);
-    } catch (err) {
-      console.error("[scheduled] rate_limits cleanup failed:", err);
+  async scheduled(event, env, ctx) {
+    // Hourly rate_limits cleanup. Purge rows older than 1 hour to keep
+    // the table bounded. Keys are `{ip}:{YYYY-MM-DDTHH:MM}` so the
+    // trailing 16 chars are the bucket.
+    if (event.cron === "0 * * * *") {
+      const cutoff = new Date(Date.now() - 60 * 60_000)
+        .toISOString()
+        .slice(0, 16);
+      try {
+        await cleanupOldRateLimits(env.DB, cutoff);
+      } catch (err) {
+        console.error("[scheduled] rate_limits cleanup failed:", err);
+      }
+      return;
     }
+
+    // Daily notification digest at 09:05 UTC (D-09 in 12-CONTEXT.md).
+    // `waitUntil` lets the invocation acknowledge quickly while the
+    // digest work continues in the background.
+    if (event.cron === "5 9 * * *") {
+      ctx.waitUntil(runDailyDigest(env));
+      return;
+    }
+
+    console.error(
+      `[scheduled] Unknown cron expression: ${event.cron}`,
+    );
   },
 
   async queue(batch, env, _ctx) {
