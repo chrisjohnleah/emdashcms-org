@@ -34,6 +34,10 @@
       {
         "binding": "AUDIT_QUEUE",
         "queue": "emdashcms-audit"
+      },
+      {
+        "binding": "NOTIF_QUEUE",
+        "queue": "emdashcms-notifications"
       }
     ],
     "consumers": [
@@ -43,6 +47,13 @@
         "max_batch_timeout": 30,
         "max_retries": 3,
         "dead_letter_queue": "emdashcms-audit-dlq"
+      },
+      {
+        "queue": "emdashcms-notifications",
+        "max_batch_size": 1,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "emdashcms-notifications-dlq"
       }
     ]
   },
@@ -103,6 +114,12 @@
   // In dev, provide these in .dev.vars (already gitignored)
   // GITHUB_WEBHOOK_SECRET and GITHUB_APP_PRIVATE_KEY are optional until configured
   "secrets": {
-    "required": ["GITHUB_CLIENT_SECRET", "JWT_SECRET", "TURNSTILE_SECRET_KEY"]
+    "required": [
+      "GITHUB_CLIENT_SECRET",
+      "JWT_SECRET",
+      "TURNSTILE_SECRET_KEY",
+      "UNOSEND_API_KEY",
+      "UNOSEND_WEBHOOK_SECRET"
+    ]
   }
 }
