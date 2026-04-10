@@ -82,8 +82,14 @@ export default {
         | "off"
         | "static-first"
         | undefined) ?? "manual";
+    console.log(
+      `[queue] Received ${batch.messages.length} audit message(s), global auditMode=${auditMode}`,
+    );
     for (const message of batch.messages) {
       const job = message.body as AuditJob;
+      console.log(
+        `[queue] Processing audit job: plugin=${job.pluginId} version=${job.version} modeOverride=${job.auditModeOverride ?? "none"} modelOverride=${job.modelOverride ?? "none"} bundleKey=${job.bundleKey}`,
+      );
       try {
         await processAuditJob(job, {
           db: env.DB,
@@ -92,6 +98,9 @@ export default {
           auditMode,
           notifQueue: env.NOTIF_QUEUE,
         });
+        console.log(
+          `[queue] Audit complete, acking: plugin=${job.pluginId} version=${job.version}`,
+        );
         message.ack();
       } catch (err) {
         if (err instanceof BudgetExceededError) {

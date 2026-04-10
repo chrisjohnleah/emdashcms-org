@@ -257,6 +257,9 @@ export async function processAuditJob(
   // Per-job override (set by admin "Run AI" / "Run static" actions) wins
   // over the global AUDIT_MODE env var.
   const mode = job.auditModeOverride ?? bindings.auditMode ?? "manual";
+  console.log(
+    `[audit] START processAuditJob: plugin=${job.pluginId} version=${job.version} resolvedMode=${mode} (override=${job.auditModeOverride ?? "none"}, global=${bindings.auditMode ?? "none"})`,
+  );
 
   // 1. Resolve version ID
   const versionId = await resolveVersionId(bindings.db, job.pluginId, job.version);
@@ -449,6 +452,9 @@ export async function processAuditJob(
   //    unknown keys fall back to the default inside resolveAuditModel.
   const modelDef = resolveAuditModel(job.modelOverride);
   const modelId = modelDef.workersAiId;
+  console.log(
+    `[audit] AI call starting: plugin=${job.pluginId} version=${job.version} model=${modelId} promptLength=${promptContent.length} budget=${budget.used}/${budget.limit}`,
+  );
 
   // 7. Call Workers AI.
   // Two response shapes are observed across Workers AI text-gen models:
@@ -495,6 +501,10 @@ export async function processAuditJob(
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
   }
+
+  console.log(
+    `[audit] AI call returned: plugin=${job.pluginId} version=${job.version} model=${modelId} hasResponse=${!!raw.response} hasChoices=${!!raw.choices} usage=${JSON.stringify(raw.usage ?? null)} elapsed=${Date.now() - startTime}ms`,
+  );
 
   // 7. Normalise the response shape. Standard Workers AI models put the
   // text on `result.response`; OpenAI-compatible models (gemma-4-26b-a4b)
@@ -565,6 +575,10 @@ export async function processAuditJob(
     riskScore: parsed.riskScore,
     findings: mergedFindings,
   });
+
+  console.log(
+    `[audit] Record stored: plugin=${job.pluginId} version=${job.version} auditId=${auditId} verdict=${parsed.verdict} riskScore=${parsed.riskScore} findings=${mergedFindings.length}`,
+  );
 
   // 10. Update neuron budget
   await recordNeuronUsage(bindings.db, neuronsUsed);

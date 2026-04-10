@@ -52,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure assets directory exists for vitest-pool-workers
+        run: mkdir -p dist/client
+
       - name: Run tests
         run: npm test
 

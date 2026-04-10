@@ -82,6 +82,10 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
 
     const auditModeOverride = mode === "ai" ? "auto" : "manual";
 
+    console.log(
+      `[run-audit] Enqueueing audit: plugin=${pluginId} version=${version} mode=${mode} auditModeOverride=${auditModeOverride} model=${modelOverride ?? "default"} bundleKey=${ver.bundleKey}`,
+    );
+
     await enqueueAuditJob(env.AUDIT_QUEUE, {
       pluginId,
       version,
@@ -92,6 +96,10 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
       // (consumer ignores it when not in auto mode) but we strip it anyway.
       modelOverride: mode === "ai" ? modelOverride : undefined,
     });
+
+    console.log(
+      `[run-audit] Enqueued successfully: plugin=${pluginId} version=${version}`,
+    );
 
     return jsonResponse(
       {
