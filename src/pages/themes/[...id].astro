@@ -44,6 +44,10 @@ if (!theme) {
               <div class="w-5 h-5 rounded-full bg-paper-sunk" />
             )}
             <span class="text-sm text-ink-muted">{theme.author.name}</span>
+            <span class="emdash-sep" aria-hidden="true"></span>
+            <span class="text-sm text-ink-muted" title="Outbound install clicks">
+              {theme.downloadCount.toLocaleString()} downloads
+            </span>
           </div>
 
           <div class="mt-6 flex items-center gap-3 flex-wrap">
@@ -53,6 +57,7 @@ if (!theme) {
                 target="_blank"
                 rel="noopener noreferrer"
                 variant="primary"
+                data-track-theme-download
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
                 Preview Theme
@@ -115,24 +120,56 @@ if (!theme) {
             {theme.repositoryUrl && (
               <div>
                 <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Repository</dt>
-                <dd class="mt-1"><a href={theme.repositoryUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.repositoryUrl.replace('https://', '')}</a></dd>
+                <dd class="mt-1"><a href={theme.repositoryUrl} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.repositoryUrl.replace('https://', '')}</a></dd>
               </div>
             )}
             {theme.homepageUrl && (
               <div>
                 <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Homepage</dt>
-                <dd class="mt-1"><a href={theme.homepageUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.homepageUrl.replace('https://', '')}</a></dd>
+                <dd class="mt-1"><a href={theme.homepageUrl} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.homepageUrl.replace('https://', '')}</a></dd>
               </div>
             )}
             {theme.demoUrl && (
               <div>
                 <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Demo</dt>
-                <dd class="mt-1"><a href={theme.demoUrl} target="_blank" rel="noopener noreferrer" class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.demoUrl.replace('https://', '')}</a></dd>
+                <dd class="mt-1"><a href={theme.demoUrl} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.demoUrl.replace('https://', '')}</a></dd>
               </div>
             )}
           </div>
 
         </div>
     </section>
+
+    <script is:inline define:vars={{ themeId: theme.id }}>
+      // Track outbound install-intent clicks. Themes have no bundle in
+      // our R2, so an outbound click is the only "interest" signal we
+      // can capture. We use sendBeacon so the request is fire-and-forget
+      // and survives the page navigation; if the browser lacks beacon
+      // support we fall back to a keepalive fetch.
+      (function () {
+        var sent = false;
+        function track() {
+          if (sent) return;
+          sent = true;
+          var url = "/api/v1/themes/" + encodeURIComponent(themeId) + "/downloads";
+          try {
+            if (navigator.sendBeacon) {
+              navigator.sendBeacon(url);
+            } else {
+              fetch(url, { method: "POST", keepalive: true }).catch(function () {});
+            }
+          } catch (e) {
+            // Tracking failures must never break navigation.
+          }
+        }
+        document
+          .querySelectorAll("[data-track-theme-download]")
+          .forEach(function (el) {
+            el.addEventListener("click", track);
+            // auxclick covers middle-click "open in new tab"
+            el.addEventListener("auxclick", track);
+          });
+      })();
+    </script>
   </BaseLayout>
 )}

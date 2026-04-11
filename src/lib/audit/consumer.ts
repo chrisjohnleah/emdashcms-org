@@ -453,7 +453,7 @@ export async function processAuditJob(
   const modelDef = resolveAuditModel(job.modelOverride);
   const modelId = modelDef.workersAiId;
   console.log(
-    `[audit] AI call starting: plugin=${job.pluginId} version=${job.version} model=${modelId} promptLength=${promptContent.length} budget=${budget.used}/${budget.limit}`,
+    `[audit] AI call starting: plugin=${job.pluginId} version=${job.version} model=${modelId} promptLength=${promptContent.length} budget=${budget.used}`,
   );
 
   // 7. Call Workers AI.

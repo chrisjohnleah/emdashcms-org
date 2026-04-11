@@ -6,6 +6,15 @@ declare namespace App {
       githubId: number;
       username: string;
     };
+    /**
+     * The Cloudflare Workers ExecutionContext, injected by
+     * @astrojs/cloudflare. Use `cfContext.waitUntil(promise)` to extend
+     * the request lifetime past the response — handy for fire-and-forget
+     * counter increments and analytics writes. Optional because Astro
+     * dev (`astro dev`) does not run inside workerd; only `npm run
+     * dev:worker` and production deploys populate it.
+     */
+    cfContext?: ExecutionContext;
   }
 }
 

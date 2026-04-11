@@ -75,6 +75,7 @@ describe("Dashboard queries", () => {
         latestVersion: "1.0.0",
         latestStatus: "published",
         installCount: 42,
+        downloadCount: 0,
         updatedAt: "2025-01-01T00:00:00Z",
       });
     });

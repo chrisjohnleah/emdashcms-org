@@ -32,6 +32,7 @@ interface SearchPluginsOpts {
 const PLUGIN_SORT_MAP: Record<string, { column: string; dir: "DESC" | "ASC" }> =
   {
     installs: { column: "p.installs_count", dir: "DESC" },
+    downloads: { column: "p.downloads_count", dir: "DESC" },
     updated: { column: "p.updated_at", dir: "DESC" },
     created: { column: "p.created_at", dir: "DESC" },
     name: { column: "p.name", dir: "ASC" },
@@ -384,7 +385,7 @@ export async function getPluginsByAuthor(
   const result = await db
     .prepare(
       `SELECT
-        p.id, p.name, p.installs_count, p.updated_at,
+        p.id, p.name, p.installs_count, p.downloads_count, p.updated_at,
         (SELECT pv.version FROM plugin_versions pv
          WHERE pv.plugin_id = p.id
          ORDER BY pv.created_at DESC LIMIT 1) AS latest_version,
@@ -499,6 +500,7 @@ interface SearchThemesOpts {
 
 const THEME_SORT_MAP: Record<string, { column: string; dir: "DESC" | "ASC" }> =
   {
+    downloads: { column: "t.downloads_count", dir: "DESC" },
     updated: { column: "t.updated_at", dir: "DESC" },
     created: { column: "t.created_at", dir: "DESC" },
     name: { column: "t.name", dir: "ASC" },

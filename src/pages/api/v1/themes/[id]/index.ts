@@ -1,19 +1,19 @@
 import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
-import { getThemeDetail } from "../../../../lib/db/queries";
-import { jsonResponse, errorResponse } from "../../../../lib/api/response";
-import { resolveAuthorId } from "../../../../lib/publishing/plugin-queries";
+import { getThemeDetail } from "../../../../../lib/db/queries";
+import { jsonResponse, errorResponse } from "../../../../../lib/api/response";
+import { resolveAuthorId } from "../../../../../lib/publishing/plugin-queries";
 import {
   updateThemeMetadata,
-} from "../../../../lib/publishing/theme-queries";
-import type { UpdateThemeMetadataInput } from "../../../../lib/publishing/theme-queries";
-import { checkPluginAccess, hasRole } from "../../../../lib/auth/permissions";
+} from "../../../../../lib/publishing/theme-queries";
+import type { UpdateThemeMetadataInput } from "../../../../../lib/publishing/theme-queries";
+import { checkPluginAccess, hasRole } from "../../../../../lib/auth/permissions";
 import {
   validateUrlFields,
   validateKeywords,
   validateStringLengths,
   isBodyTooLarge,
-} from "../../../../lib/api/validation";
+} from "../../../../../lib/api/validation";
 
 export const prerender = false;
 

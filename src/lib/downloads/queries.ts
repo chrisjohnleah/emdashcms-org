@@ -104,3 +104,63 @@ export async function pluginExists(
     .first();
   return row !== null;
 }
+
+// --- Raw Download Tracking ---
+
+/**
+ * Increment the raw download counter for a plugin. Called from the
+ * bundle endpoint after R2 successfully serves the artifact, so a 404
+ * or storage miss never inflates the counter. No dedup — every served
+ * byte is one download. Pair with `installs_count` (CLI-validated,
+ * site-deduped) to compare anonymous download volume to real installs.
+ */
+export async function incrementPluginDownloads(
+  db: D1Database,
+  pluginId: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE plugins
+         SET downloads_count = downloads_count + 1,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE id = ?`,
+    )
+    .bind(pluginId)
+    .run();
+}
+
+/**
+ * Increment the outbound-click counter for a theme. Themes are
+ * metadata-only (no bundles in our R2), so this is the only signal we
+ * can capture for "interest" — the user clicked a link that takes them
+ * to npm/git/the demo. Called from the theme tracking endpoint.
+ */
+export async function incrementThemeDownloads(
+  db: D1Database,
+  themeId: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE themes
+         SET downloads_count = downloads_count + 1,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE id = ?`,
+    )
+    .bind(themeId)
+    .run();
+}
+
+/**
+ * Check if a theme exists in D1. Mirrors `pluginExists` so the theme
+ * tracking endpoint can return a clean 404 for unknown IDs.
+ */
+export async function themeExists(
+  db: D1Database,
+  themeId: string,
+): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 AS found FROM themes WHERE id = ?")
+    .bind(themeId)
+    .first();
+  return row !== null;
+}

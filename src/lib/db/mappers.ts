@@ -66,6 +66,7 @@ export function mapPluginSummary(row: Row): MarketplacePluginSummary {
     capabilities: JSON.parse((row.capabilities as string) || "[]"),
     keywords: JSON.parse((row.keywords as string) || "[]"),
     installCount: (row.installs_count as number) ?? 0,
+    downloadCount: (row.downloads_count as number) ?? 0,
     hasIcon: iconKey !== null,
     iconUrl: iconKey ? `/api/v1/images/${iconKey}` : null,
     latestVersion,
@@ -156,6 +157,7 @@ export function mapThemeSummary(row: Row): MarketplaceThemeSummary {
     demoUrl: (row.demo_url as string) ?? null,
     hasThumbnail: thumbnailKey !== null,
     thumbnailUrl: thumbnailKey ? `/api/v1/images/${thumbnailKey}` : null,
+    downloadCount: (row.downloads_count as number) ?? 0,
   };
 }
 
@@ -182,6 +184,7 @@ export function mapDashboardPlugin(row: Row): {
   latestVersion: string | null;
   latestStatus: string | null;
   installCount: number;
+  downloadCount: number;
   updatedAt: string;
 } {
   return {
@@ -190,6 +193,7 @@ export function mapDashboardPlugin(row: Row): {
     latestVersion: (row.latest_version as string) ?? null,
     latestStatus: (row.latest_status as string) ?? null,
     installCount: (row.installs_count as number) ?? 0,
+    downloadCount: (row.downloads_count as number) ?? 0,
     updatedAt: row.updated_at as string,
   };
 }

@@ -4,6 +4,9 @@ import {
   getPublishedVersionBundle,
   trackInstall,
   pluginExists,
+  incrementPluginDownloads,
+  incrementThemeDownloads,
+  themeExists,
 } from "../../src/lib/downloads/queries";
 import { checkRateLimit } from "../../src/lib/downloads/rate-limit";
 import { searchPlugins, getPluginDetail } from "../../src/lib/db/queries";
@@ -382,6 +385,88 @@ describe("DOWN-03: Install counts in API responses", () => {
     const detail = await getPluginDetail(env.DB, "dl-test-plugin");
     expect(detail).not.toBeNull();
     expect(detail!.installCount).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DOWN-04: Raw download counters (browser ZIP + CLI bundle GETs)
+// ---------------------------------------------------------------------------
+
+describe("DOWN-04: Raw download counters", () => {
+  it("incrementPluginDownloads bumps the plugin downloads_count", async () => {
+    const before = await env.DB.prepare(
+      "SELECT downloads_count FROM plugins WHERE id = ?",
+    )
+      .bind("dl-test-plugin")
+      .first<{ downloads_count: number }>();
+
+    await incrementPluginDownloads(env.DB, "dl-test-plugin");
+    await incrementPluginDownloads(env.DB, "dl-test-plugin");
+    await incrementPluginDownloads(env.DB, "dl-test-plugin");
+
+    const after = await env.DB.prepare(
+      "SELECT downloads_count FROM plugins WHERE id = ?",
+    )
+      .bind("dl-test-plugin")
+      .first<{ downloads_count: number }>();
+
+    expect(after!.downloads_count).toBe((before?.downloads_count ?? 0) + 3);
+  });
+
+  it("searchPlugins exposes downloadCount in summary", async () => {
+    const result = await searchPlugins(env.DB, {
+      query: "dl-test-plugin",
+      category: null,
+      capability: null,
+      sort: "downloads",
+      cursor: null,
+      limit: 20,
+    });
+
+    const plugin = result.items.find((p) => p.id === "dl-test-plugin");
+    expect(plugin).toBeDefined();
+    expect(plugin!.downloadCount).toBeGreaterThanOrEqual(3);
+  });
+
+  it("getPluginDetail exposes downloadCount", async () => {
+    const detail = await getPluginDetail(env.DB, "dl-test-plugin");
+    expect(detail).not.toBeNull();
+    expect(detail!.downloadCount).toBeGreaterThanOrEqual(3);
+  });
+
+  it("incrementThemeDownloads bumps the theme downloads_count", async () => {
+    // Seed a theme inline — themes table is otherwise untouched in this file
+    await env.DB.prepare(
+      `INSERT INTO themes (id, author_id, name, description, repository_url, demo_url, npm_package, keywords, created_at, updated_at)
+       VALUES ('dl-test-theme', 'dl-author-1', 'Test Theme', 'A test theme', 'https://example.com/repo', 'https://example.com/demo', '@test/theme', '[]', '2026-04-04T08:00:00Z', '2026-04-04T08:00:00Z')`,
+    ).run();
+
+    const before = await env.DB.prepare(
+      "SELECT downloads_count FROM themes WHERE id = ?",
+    )
+      .bind("dl-test-theme")
+      .first<{ downloads_count: number }>();
+    expect(before!.downloads_count).toBe(0);
+
+    await incrementThemeDownloads(env.DB, "dl-test-theme");
+    await incrementThemeDownloads(env.DB, "dl-test-theme");
+
+    const after = await env.DB.prepare(
+      "SELECT downloads_count FROM themes WHERE id = ?",
+    )
+      .bind("dl-test-theme")
+      .first<{ downloads_count: number }>();
+    expect(after!.downloads_count).toBe(2);
+  });
+
+  it("themeExists returns true for an existing theme", async () => {
+    const exists = await themeExists(env.DB, "dl-test-theme");
+    expect(exists).toBe(true);
+  });
+
+  it("themeExists returns false for an unknown theme", async () => {
+    const exists = await themeExists(env.DB, "no-such-theme-xyz");
+    expect(exists).toBe(false);
   });
 });
 

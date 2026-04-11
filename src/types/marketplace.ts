@@ -76,6 +76,15 @@ export interface MarketplacePluginSummary {
   capabilities: string[];
   keywords: string[];
   installCount: number;
+  /**
+   * Raw bundle download count — incremented on every successful GET to
+   * the version bundle endpoint, with no site-level dedup. Distinct
+   * from `installCount`, which counts unique sites that called the CLI
+   * install-tracking endpoint after a successful install. Use
+   * `downloadCount` for "popularity" surfaces and `installCount` for
+   * "real installs" surfaces.
+   */
+  downloadCount: number;
   hasIcon: boolean;
   iconUrl: string | null;
   latestVersion: {
@@ -137,6 +146,14 @@ export interface MarketplaceThemeSummary {
   demoUrl: string | null;
   hasThumbnail: boolean;
   thumbnailUrl: string | null;
+  /**
+   * Outbound-click count — incremented when a user clicks through to
+   * the npm package, repository, or demo from the theme detail page.
+   * Themes are metadata-only (no bundle in our R2), so this is the
+   * only "interest" signal we can capture. Use it as the popularity
+   * surface for theme listings.
+   */
+  downloadCount: number;
 }
 
 export interface MarketplaceThemeDetail extends MarketplaceThemeSummary {

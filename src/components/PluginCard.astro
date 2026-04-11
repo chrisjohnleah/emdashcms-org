@@ -18,7 +18,12 @@ const showCautionTier =
     plugin.latestVersion.audit?.verdict === 'warn');
 
 const description = plugin.shortDescription ?? plugin.description;
-const installs = plugin.installCount.toLocaleString();
+// Prefer downloads for the card surface — it's the broader "popularity"
+// signal (every browser ZIP click + every CLI fetch), whereas
+// `installCount` is the narrower CLI-validated unique-site count. The
+// detail page surfaces both side by side for users who want the
+// distinction.
+const downloads = plugin.downloadCount.toLocaleString();
 ---
 <a
   href={`/plugins/${plugin.id}`}
@@ -77,8 +82,8 @@ const installs = plugin.installCount.toLocaleString();
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
       </svg>
-      {installs}
-      <span class="sr-only">installs</span>
+      {downloads}
+      <span class="sr-only">downloads</span>
     </span>
 
     {plugin.capabilities.slice(0, featured ? 4 : 3).map((cap) => (

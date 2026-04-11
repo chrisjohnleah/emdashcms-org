@@ -170,7 +170,13 @@ const formatSize = (bytes: number) => {
                 {plugin.author.name}
               </a>
               <span class="emdash-sep" aria-hidden="true"></span>
-              <span>{plugin.installCount.toLocaleString()} installs</span>
+              <span title="Bundle downloads — every browser ZIP and CLI fetch">
+                {plugin.downloadCount.toLocaleString()} downloads
+              </span>
+              <span class="emdash-sep" aria-hidden="true"></span>
+              <span title="Unique sites that completed a CLI install">
+                {plugin.installCount.toLocaleString()} installs
+              </span>
               {reviewStats.totalCount > 0 && (
                 <>
                   <span class="emdash-sep" aria-hidden="true"></span>

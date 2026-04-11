@@ -7,6 +7,7 @@ interface Props {
 
 const { theme } = Astro.props;
 const description = theme.shortDescription ?? theme.description;
+const downloads = theme.downloadCount.toLocaleString();
 ---
 <a
   href={`/themes/${theme.id}`}
@@ -53,14 +54,19 @@ const description = theme.shortDescription ?? theme.description;
       </p>
     )}
 
-    {theme.keywords.length > 0 && (
-      <div class="mt-5 flex items-center gap-2 flex-wrap">
-        {theme.keywords.slice(0, 4).map((kw) => (
-          <span class="rounded-full bg-paper-sunk border border-rule px-2 py-0.5 text-[11px] text-ink-muted">
-            {kw}
-          </span>
-        ))}
-      </div>
-    )}
+    <div class="mt-5 flex items-center gap-2 flex-wrap text-xs text-ink-soft">
+      <span class="inline-flex items-center gap-1" title="Outbound install clicks">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+        {downloads}
+        <span class="sr-only">downloads</span>
+      </span>
+      {theme.keywords.slice(0, 3).map((kw) => (
+        <span class="rounded-full bg-paper-sunk border border-rule px-2 py-0.5 text-[11px] text-ink-muted">
+          {kw}
+        </span>
+      ))}
+    </div>
   </div>
 </a>

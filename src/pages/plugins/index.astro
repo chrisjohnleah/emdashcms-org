@@ -12,7 +12,7 @@ import EmptyState from '../../components/EmptyState.astro';
 const url = Astro.url;
 const q = url.searchParams.get('q') ?? '';
 const category = url.searchParams.get('category') ?? null;
-const sort = url.searchParams.get('sort') ?? 'installs';
+const sort = url.searchParams.get('sort') ?? 'downloads';
 const cursor = url.searchParams.get('cursor') ?? null;
 
 const { items: plugins, nextCursor } = await searchPlugins(env.DB, {
@@ -25,6 +25,7 @@ const { items: plugins, nextCursor } = await searchPlugins(env.DB, {
 });
 
 const sortOptions = [
+  { value: 'downloads', label: 'Most downloaded' },
   { value: 'installs', label: 'Most installed' },
   { value: 'updated', label: 'Recently updated' },
   { value: 'created', label: 'Recently added' },
