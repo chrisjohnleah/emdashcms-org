@@ -151,10 +151,16 @@ export const manifestSchema = z.object({
   ),
 
   // Optional publishing metadata
-  name: z.optional(z.string()),
-  description: z.optional(z.string()),
-  minEmDashVersion: z.optional(z.string()),
-  changelog: z.optional(z.string()),
+  name: z.optional(z.string().check(z.maxLength(256))),
+  // Caps on the two long-form prose fields are DOS-hardening, not
+  // content policy. They're rendered through markdown-it at request
+  // time; Workers free-tier CPU is 10ms and a multi-megabyte markdown
+  // parse would blow that budget, so we reject at upload instead of
+  // rendering. 8KB is more than a generous README intro — longer
+  // prose belongs in the repo.
+  description: z.optional(z.string().check(z.maxLength(8192))),
+  minEmDashVersion: z.optional(z.string().check(z.maxLength(64))),
+  changelog: z.optional(z.string().check(z.maxLength(8192))),
 });
 
 export type ValidatedManifest = z.infer<typeof manifestSchema>;

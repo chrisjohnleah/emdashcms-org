@@ -31,6 +31,24 @@ const md = new MarkdownIt({
   typographer: true,
 });
 
+// Harden outbound links: every rendered `<a>` gets `target="_blank"`
+// so the plugin listing doesn't navigate away, plus
+// `rel="noopener noreferrer"` to defeat reverse-tabnabbing
+// (window.opener → parent frame hijack) and strip the Referer header
+// on the outbound hit. markdown-it exposes no option for this, so we
+// wrap `link_open` following the pattern from its own docs.
+const defaultLinkOpen =
+  md.renderer.rules.link_open ??
+  ((tokens, idx, options, _env, self) =>
+    self.renderToken(tokens, idx, options));
+
+md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  token.attrSet("target", "_blank");
+  token.attrSet("rel", "noopener noreferrer");
+  return defaultLinkOpen(tokens, idx, options, env, self);
+};
+
 /**
  * Render a publisher-supplied markdown string to sanitised HTML.
  *
