@@ -142,12 +142,14 @@ export async function hashIpForTarget(
  * `meta.changes = 0`, and the counters are NOT bumped. The first
  * download from any given IP for any given (plugin, version) is the
  * only one that counts. This mirrors how `installs` uses `site_hash`
- * for CLI dedup.
+ * for site-level dedup of install events.
  *
- * Pair the plugin total with `installs_count` (CLI-validated,
- * site-deduped) to compare interest (downloads) to real installs;
- * use the version-level counter to chart per-version adoption trends
- * in the admin/dashboard like a "by URL" report.
+ * Pair the plugin total with `installs_count` — which is bumped only
+ * when the EmDash CMS install endpoint POSTs to /installs with a
+ * stable `siteHash` after a successful in-CMS install — to compare
+ * interest (downloads) against unique sites running the plugin. Use
+ * the version-level counter to chart per-version adoption trends in
+ * the admin/dashboard like a "by URL" report.
  */
 export async function incrementPluginDownloads(
   db: D1Database,

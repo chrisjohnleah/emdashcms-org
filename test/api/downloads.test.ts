@@ -390,7 +390,7 @@ describe("DOWN-03: Install counts in API responses", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DOWN-04: Raw download counters (browser ZIP + CLI bundle GETs)
+// DOWN-04: Raw download counters (browser ZIP + EmDash CMS install fetches)
 // ---------------------------------------------------------------------------
 
 describe("DOWN-04: Download counters with anti-fraud dedup", () => {

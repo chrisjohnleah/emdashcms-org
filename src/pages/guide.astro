@@ -72,30 +72,41 @@ const description = "How to install plugins and themes from the EmDash community
         </div>
 
         <p class="text-ink-muted leading-relaxed mb-6 max-w-prose">
-          Point your EmDash CMS instance at this marketplace to browse and install plugins directly from the CLI.
+          Point your EmDash CMS instance at this marketplace, then browse and install plugins from the admin dashboard at <span class="font-mono text-ink">Plugins &rsaquo; Marketplace</span>.
         </p>
 
         <p class="text-sm text-ink-muted mb-2 max-w-prose">
-          Add the marketplace URL to your EmDash configuration:
+          Add the marketplace URL to your Astro config and enable the sandbox runner so installed plugins can run in isolated workers:
         </p>
         <div class="bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule mb-6">
-          <pre>{`{
-  "marketplace": {
-    "url": "https://emdashcms.org/api/v1"
-  }
-}`}</pre>
+          <pre>{`// astro.config.mjs
+import { emdash } from "emdash/astro";
+
+export default defineConfig({
+  integrations: [
+    emdash({
+      marketplace: "https://emdashcms.org",
+      sandboxRunner: true,
+    }),
+  ],
+});`}</pre>
         </div>
 
         <p class="text-sm text-ink-muted mb-2 max-w-prose">
-          Then install plugins via the CLI:
+          Then, signed in as an admin:
         </p>
-        <div class="bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule mb-6">
-          emdash plugin install @scope/plugin-name
-        </div>
+        <ol class="text-sm text-ink-muted leading-relaxed max-w-prose mb-6 list-decimal pl-6 space-y-1">
+          <li>Open the EmDash admin panel and go to <span class="font-mono text-ink">Plugins &rsaquo; Marketplace</span></li>
+          <li>Browse or search for a plugin and open its detail page</li>
+          <li>Review the capability consent dialog and click <span class="font-mono text-ink">Install</span></li>
+        </ol>
+        <p class="text-sm text-ink-muted leading-relaxed max-w-prose mb-6">
+          The plugin bundle is downloaded from this marketplace, copied into your site&rsquo;s own R2 bucket, and loaded into the sandbox runner. The marketplace is a distribution channel only &mdash; once installed, your site never depends on us at runtime.
+        </p>
 
         <div class="border-l-4 border-warn/35 bg-warn-soft p-4 rounded-r-lg">
           <p class="text-sm text-warn leading-relaxed max-w-prose">
-            The <code class="font-mono text-warn bg-warn-soft px-1 py-0.5 rounded text-xs">emdash</code> CLI ships with EmDash CMS &mdash; it is not provided by this marketplace. Check the <a href="https://emdashcms.com" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-ink transition-colors">EmDash CMS documentation</a> for setup instructions.
+            The marketplace browser, install flow, and sandbox runner are all part of EmDash CMS itself. Check the <a href="https://emdashcms.com/docs/plugins/installing" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2 hover:text-ink transition-colors">EmDash installing-plugins docs</a> for full setup details and the capability consent model.
           </p>
         </div>
       </section>

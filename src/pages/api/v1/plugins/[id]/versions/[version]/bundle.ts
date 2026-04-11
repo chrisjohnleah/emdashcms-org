@@ -32,7 +32,11 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
       return errorResponse(404, "Bundle not found in storage");
     }
 
-    // Track raw download (browser ZIP click + CLI both flow through here).
+    // Track raw download — every fetch flows through this endpoint:
+    // browser ZIP clicks AND the EmDash CMS install endpoint pulling
+    // the bundle into a site's local R2 (the marketplace is a
+    // distribution channel, not a runtime dependency, per upstream's
+    // packages/core/src/plugins/marketplace.ts).
     //
     // Two layers of abuse protection:
     //   1. Per-IP rate limit (60/min) blocks flood spam at the edge so a

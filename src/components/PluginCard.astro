@@ -19,10 +19,10 @@ const showCautionTier =
 
 const description = plugin.shortDescription ?? plugin.description;
 // Prefer downloads for the card surface — it's the broader "popularity"
-// signal (every browser ZIP click + every CLI fetch), whereas
-// `installCount` is the narrower CLI-validated unique-site count. The
-// detail page surfaces both side by side for users who want the
-// distinction.
+// signal (every browser ZIP click + every fetch from the EmDash CMS
+// install endpoint), whereas `installCount` is the narrower count of
+// unique sites whose CMS install flow reported back. The detail page
+// surfaces both side by side for users who want the distinction.
 const downloads = plugin.downloadCount.toLocaleString();
 ---
 <a
