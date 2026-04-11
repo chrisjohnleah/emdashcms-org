@@ -30,6 +30,7 @@
     "jose": "^6.2.2",
     "markdown-it": "14.1.1",
     "modern-tar": "^0.7.6",
+    "workers-og": "^0.0.27",
     "wrangler": "^4.80.0"
   },
   "devDependencies": {

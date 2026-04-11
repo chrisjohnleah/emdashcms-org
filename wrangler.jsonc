@@ -29,6 +29,16 @@
     }
   ],
 
+  // Three queues power this worker:
+  //  - emdashcms-audit: fail-closed plugin audit pipeline (Phase 5).
+  //  - emdashcms-notifications: email + in-app notification dispatch (Phase 12).
+  //  - emdashcms-og: deferred OG image generation for social share previews
+  //    (Phase 16). OG rendering via `workers-og` (Satori + resvg-wasm) costs
+  //    200-500ms CPU per image — 20-50x the 10ms Workers Free-tier request-path
+  //    budget. The /og/plugin/[id].png and /og/theme/[id].png routes are a
+  //    thin R2 proxy; on cache miss they enqueue a job on this queue and serve
+  //    a placeholder PNG. The consumer runs inside the 15-minute queue worker
+  //    wall clock and 90s CPU budget declared below, outside the 10ms ceiling.
   "queues": {
     "producers": [
       {
@@ -38,6 +48,10 @@
       {
         "binding": "NOTIF_QUEUE",
         "queue": "emdashcms-notifications"
+      },
+      {
+        "binding": "OG_QUEUE",
+        "queue": "emdashcms-og"
       }
     ],
     "consumers": [
@@ -54,6 +68,13 @@
         "max_batch_timeout": 30,
         "max_retries": 3,
         "dead_letter_queue": "emdashcms-notifications-dlq"
+      },
+      {
+        "queue": "emdashcms-og",
+        "max_batch_size": 1,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "emdashcms-og-dlq"
       }
     ]
   },
