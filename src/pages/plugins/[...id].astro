@@ -13,6 +13,7 @@ import TrustSignals from '../../components/TrustSignals.astro';
 import TrustTierBadge from '../../components/TrustTierBadge.astro';
 import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
+import { renderPluginMarkdown } from '../../lib/markdown';
 
 const { id } = Astro.params;
 const plugin = await getPluginDetail(env.DB, id!);
@@ -257,7 +258,7 @@ const formatSize = (bytes: number) => {
           {plugin.description && (
             <div class="mt-12">
               <h2 class="font-display text-2xl text-ink" style="font-weight: 500;">Description</h2>
-              <p class="mt-3 text-base text-ink-muted leading-relaxed max-w-prose whitespace-pre-wrap">{plugin.description}</p>
+              <div class="plugin-prose mt-3 max-w-prose text-base text-ink-muted leading-relaxed" set:html={renderPluginMarkdown(plugin.description) ?? ''}></div>
             </div>
           )}
 
@@ -677,5 +678,107 @@ const formatSize = (bytes: number) => {
         });
       });
     </script>
+
+    <style is:global>
+      /* Scoped prose styles for publisher-supplied markdown. Matches the
+         editorial theme — restrained sizes, existing ink tokens, no
+         decorative surprises. The wrapper gets `.plugin-prose` on the
+         Description block only, so no bleed into other paragraphs. */
+      .plugin-prose :is(h1, h2, h3, h4, h5, h6) {
+        font-family: var(--font-display, serif);
+        color: var(--color-ink, #1a1a1a);
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        line-height: 1.25;
+      }
+      .plugin-prose h1 { font-size: 1.75rem; margin-top: 2rem; margin-bottom: 0.75rem; }
+      .plugin-prose h2 { font-size: 1.375rem; margin-top: 1.75rem; margin-bottom: 0.625rem; }
+      .plugin-prose h3 { font-size: 1.125rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+      .plugin-prose h4 { font-size: 1rem; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+      .plugin-prose > :first-child { margin-top: 0; }
+
+      .plugin-prose p { margin: 0.875rem 0; }
+      .plugin-prose ul, .plugin-prose ol { margin: 0.875rem 0; padding-left: 1.375rem; }
+      .plugin-prose ul { list-style: disc; }
+      .plugin-prose ol { list-style: decimal; }
+      .plugin-prose li { margin: 0.25rem 0; }
+      .plugin-prose li > p { margin: 0.25rem 0; }
+
+      .plugin-prose a {
+        color: var(--color-ink, #1a1a1a);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        text-decoration-color: var(--color-rule-strong, #cbc9c3);
+        transition: text-decoration-color 0.15s;
+      }
+      .plugin-prose a:hover { text-decoration-color: var(--color-accent-deep, #8b5a2b); }
+
+      .plugin-prose strong { color: var(--color-ink, #1a1a1a); font-weight: 600; }
+      .plugin-prose em { font-style: italic; }
+
+      .plugin-prose code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.875em;
+        padding: 0.125rem 0.375rem;
+        background: var(--color-paper-sunk, #f2efe9);
+        border: 1px solid var(--color-rule, #e5e2db);
+        border-radius: 4px;
+      }
+      .plugin-prose pre {
+        margin: 1.25rem 0;
+        padding: 1rem 1.125rem;
+        background: var(--color-paper-sunk, #f2efe9);
+        border: 1px solid var(--color-rule, #e5e2db);
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      .plugin-prose pre code {
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        font-size: inherit;
+      }
+
+      .plugin-prose blockquote {
+        margin: 1.25rem 0;
+        padding: 0.25rem 0 0.25rem 1rem;
+        border-left: 2px solid var(--color-rule-strong, #cbc9c3);
+        color: var(--color-ink-soft, #6b6a65);
+        font-style: italic;
+      }
+
+      .plugin-prose hr {
+        margin: 1.75rem 0;
+        border: 0;
+        border-top: 1px solid var(--color-rule, #e5e2db);
+      }
+
+      .plugin-prose img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 6px;
+        margin: 1.25rem 0;
+      }
+
+      .plugin-prose table {
+        width: 100%;
+        margin: 1.25rem 0;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+      }
+      .plugin-prose th, .plugin-prose td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--color-rule, #e5e2db);
+        text-align: left;
+      }
+      .plugin-prose th {
+        font-weight: 600;
+        color: var(--color-ink, #1a1a1a);
+        background: var(--color-paper-soft, #f8f6f1);
+      }
+    </style>
   </BaseLayout>
 )}
