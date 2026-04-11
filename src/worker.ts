@@ -1,7 +1,8 @@
 // Custom Cloudflare Worker entry point
 // - fetch:     delegates to Astro's handler for SSR pages + API endpoints
 // - scheduled: dispatches on `event.cron` — hourly rate_limits cleanup
-//              (0 * * * *) and daily notification digest (5 9 * * *)
+//              (0 * * * *), daily notification digest (5 9 * * *), and
+//              weekly digest snapshot (5 0 * * 0 — Phase 14 D-22)
 // - queue:     dispatches batches to the audit, notifications, or OG
 //              consumer based on `batch.queue` (parallel handler
 //              pattern, D-27). OG consumption is dynamically imported
@@ -16,6 +17,7 @@ import {
 import { rejectVersion } from "./lib/audit/audit-queries";
 import { processNotificationBatch } from "./lib/notifications/consumer";
 import { runDailyDigest } from "./lib/notifications/digest";
+import { runWeeklyDigest } from "./lib/feeds/digest-generator";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
 import type { AuditJob, NotificationJob } from "./types/marketplace";
 import type { OgJob } from "./lib/seo/og-queue";
@@ -46,6 +48,16 @@ export default {
     // digest work continues in the background.
     if (event.cron === "5 9 * * *") {
       ctx.waitUntil(runDailyDigest(env));
+      return;
+    }
+
+    // Weekly digest snapshot at 00:05 Sunday UTC (D-22 in 14-CONTEXT.md).
+    // Mirrors the daily-digest pattern above: waitUntil lets the scheduled
+    // invocation acknowledge quickly while the D1 snapshot runs in the
+    // background. Idempotent via INSERT OR REPLACE on weekly_digests.iso_week
+    // — any re-run for the same week overwrites the same row in place.
+    if (event.cron === "5 0 * * 0") {
+      ctx.waitUntil(runWeeklyDigest(env));
       return;
     }
 
