@@ -78,7 +78,17 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
         "Content-Disposition": `attachment; filename="${`${pluginId}-${version}.tgz`.replace(/[^a-zA-Z0-9@._-]/g, "_")}"`,
         "Content-Length": String(r2Object.size),
         ETag: r2Object.httpEtag,
-        "Cache-Control": "public, max-age=86400, immutable",
+        // No edge / browser cache. We previously sent
+        // `public, max-age=86400, immutable` here, which had the
+        // unintended effect of letting the Cloudflare edge AND the
+        // browser short-circuit subsequent downloads — meaning the
+        // Worker never ran again, the tracking code never fired,
+        // and `downloads_count` stayed flat no matter how many times
+        // a user clicked. Bundles are small (the typical plugin is
+        // single-digit KB) and R2 reads are cheap, so the right
+        // tradeoff is "always round-trip to the Worker so the
+        // tracker (and the dedup logic) gets to vote on every fetch."
+        "Cache-Control": "no-store",
       },
     });
   } catch (err) {
