@@ -101,8 +101,14 @@ jobs:
           command: d1 migrations apply emdashcms-org --remote
 
       - name: Deploy worker
+        # `--message` is the deployment annotation. It appears as the
+        # "Message" column in the Worker's version history so anyone
+        # reviewing a rollback candidate can see the source commit and
+        # that this was a CI deploy (not a hand-run `wrangler deploy`).
+        # The "deployed by" attribution is still the token owner —
+        # Cloudflare doesn't expose that to the deploy API.
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy --message "CI deploy ${{ github.sha }} from ${{ github.ref_name }} (run ${{ github.run_id }})"
