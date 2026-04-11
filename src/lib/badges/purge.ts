@@ -45,7 +45,11 @@ export async function purgeBadges(
   origin: string,
   pluginId: string,
 ): Promise<void> {
-  const cache = caches.default;
+  // `caches.default` is a Workers runtime global. The DOM lib bundled
+  // with TypeScript's default target declares CacheStorage without a
+  // `default` property, so astro check resolves the DOM shape first.
+  // Cast narrowly so the rest of the helper stays readable.
+  const cache: Cache = (caches as unknown as { default: Cache }).default;
   const encodedId = encodeURIComponent(pluginId);
   for (const metric of BADGE_METRICS) {
     const url = `${origin}/badges/v1/plugin/${encodedId}/${metric}.svg`;

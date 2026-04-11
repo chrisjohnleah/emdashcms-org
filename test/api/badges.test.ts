@@ -13,6 +13,7 @@ import {
   type BadgeData,
 } from "../../src/lib/badges/metrics";
 import { purgeBadges } from "../../src/lib/badges/purge";
+import { handleBadgeRequest } from "../../src/lib/badges/handler";
 
 // ---------------------------------------------------------------------------
 // Seed data — one "real" plugin with a published AI-reviewed version, plus
@@ -473,5 +474,145 @@ describe("badges/purge", () => {
     } finally {
       deleteSpy.mockRestore();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleBadgeRequest — full route handler (cache, rate limit, routing)
+// ---------------------------------------------------------------------------
+
+describe("badges/handler", () => {
+  // Build a mock env that mirrors the test env but swaps the rate
+  // limiter for a vi.fn so individual tests can flip success/failure.
+  function mockEnv(rlSuccess = true): Env {
+    return {
+      ...(env as unknown as Env),
+      GENERAL_RATE_LIMITER: {
+        limit: vi.fn().mockResolvedValue({ success: rlSuccess }),
+      } as unknown as RateLimit,
+    };
+  }
+
+  it("returns svg with correct content-type and MISS on first request", async () => {
+    const req = new Request(
+      "https://handler-test-a.example/badges/v1/plugin/handler-test/installs.svg",
+    );
+    const res = await handleBadgeRequest(req, mockEnv());
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
+    );
+    expect(res.headers.get("CF-Cache-Status")).toBe("MISS");
+    const body = await res.text();
+    expect(body.startsWith("<svg ")).toBe(true);
+    expect(body).toContain("installs");
+    expect(body).toContain("523");
+  });
+
+  it("returns HIT on second request for same URL", async () => {
+    const url =
+      "https://handler-test-b.example/badges/v1/plugin/handler-test/version.svg";
+    const first = await handleBadgeRequest(new Request(url), mockEnv());
+    expect(first.headers.get("CF-Cache-Status")).toBe("MISS");
+    // Drain body to ensure cache.put completes.
+    await first.arrayBuffer();
+
+    const second = await handleBadgeRequest(new Request(url), mockEnv());
+    expect(second.status).toBe(200);
+    expect(second.headers.get("CF-Cache-Status")).toBe("HIT");
+  });
+
+  it("returns 200 muted unknown badge for unknown plugin id (never 404)", async () => {
+    const res = await handleBadgeRequest(
+      new Request(
+        "https://handler-test-c.example/badges/v1/plugin/nonexistent/trust-tier.svg",
+      ),
+      mockEnv(),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
+    const body = await res.text();
+    expect(body).toContain("unknown");
+    expect(body).toContain("#8b949e"); // muted color
+  });
+
+  it("returns 400 with Cache-Control: no-store for bad metric name", async () => {
+    const res = await handleBadgeRequest(
+      new Request(
+        "https://handler-test-d.example/badges/v1/plugin/handler-test/banana.svg",
+      ),
+      mockEnv(),
+    );
+    expect(res.status).toBe(400);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
+  });
+
+  it("returns 429 when rate limiter rejects, without touching the DB", async () => {
+    const prepareSpy = vi.spyOn(env.DB, "prepare");
+    prepareSpy.mockClear();
+    const res = await handleBadgeRequest(
+      new Request(
+        "https://handler-test-e.example/badges/v1/plugin/handler-test/installs.svg",
+      ),
+      mockEnv(false),
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(prepareSpy).not.toHaveBeenCalled();
+    prepareSpy.mockRestore();
+  });
+
+  it("does not set any Set-Cookie header (D-17, anonymous access)", async () => {
+    const res = await handleBadgeRequest(
+      new Request(
+        "https://handler-test-f.example/badges/v1/plugin/handler-test/audit-verdict.svg",
+      ),
+      mockEnv(),
+    );
+    expect(res.headers.get("Set-Cookie")).toBeNull();
+  });
+
+  it("decodes URL-encoded scoped plugin ids and hydrates the real row", async () => {
+    const res = await handleBadgeRequest(
+      new Request(
+        "https://handler-test-g.example/badges/v1/plugin/%40scope%2Fbadge-test/installs.svg",
+      ),
+      mockEnv(),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    // The scoped plugin was seeded with installs_count=42.
+    expect(body).toContain("42");
+  });
+
+  it("performs exactly one D1 prepare per cache miss", async () => {
+    const prepareSpy = vi.spyOn(env.DB, "prepare");
+    prepareSpy.mockClear();
+    const res = await handleBadgeRequest(
+      new Request(
+        "https://handler-test-h.example/badges/v1/plugin/handler-test/compat.svg",
+      ),
+      mockEnv(),
+    );
+    await res.arrayBuffer();
+    expect(prepareSpy).toHaveBeenCalledTimes(1);
+    prepareSpy.mockRestore();
+  });
+
+  it("ignores query strings when keying the cache (T-13-03)", async () => {
+    // First request populates cache for the canonical pathname.
+    const canonical =
+      "https://handler-test-i.example/badges/v1/plugin/handler-test/trust-tier.svg";
+    const first = await handleBadgeRequest(new Request(canonical), mockEnv());
+    expect(first.headers.get("CF-Cache-Status")).toBe("MISS");
+    await first.arrayBuffer();
+
+    // Second request with a junk query string should still HIT — the
+    // cache key is derived from pathname only.
+    const poisoned = canonical + "?garbage=1&poison=true";
+    const second = await handleBadgeRequest(new Request(poisoned), mockEnv());
+    expect(second.headers.get("CF-Cache-Status")).toBe("HIT");
   });
 });

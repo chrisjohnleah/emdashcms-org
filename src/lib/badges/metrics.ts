@@ -14,9 +14,24 @@
  * "AI-reviewed — Caution" (D-20).
  */
 
-import type { D1Database } from "@cloudflare/workers-types";
-import { deriveTrustTier, type TrustTier } from "../db/mappers";
+import { deriveTrustTier } from "../db/mappers";
 import { BADGE_COLORS, type BadgeColor } from "./render";
+
+/**
+ * Local mirror of the `TrustTier` union declared privately in
+ * `src/lib/db/mappers.ts`. Kept in sync with the deriveTrustTier
+ * return type; `mappers.ts` does not export the type, so we redeclare
+ * it here to type the tier-to-visual lookup without forcing a churny
+ * export. If mappers.ts ever adds a new tier, this union must be
+ * updated — the D-20 verbatim-label test suite will catch a drift.
+ */
+type TrustTier =
+  | "unreviewed"
+  | "scanned"
+  | "scanned-caution"
+  | "ai-reviewed"
+  | "ai-reviewed-caution"
+  | "rejected";
 
 /**
  * The five metric names locked by D-01. Order matches the context.
@@ -98,8 +113,10 @@ export async function getBadgeData(
   db: D1Database,
   pluginId: string,
 ): Promise<BadgeData> {
-  const row = await db
-    .prepare(
+  // Single D1 prepared statement — honours the "one D1 read per cache
+  // miss" budget (success criterion 4). Correlated subqueries run
+  // inside the same read and do not count separately.
+  const stmt = db.prepare(
       `SELECT
          p.installs_count,
          p.status AS plugin_status,
@@ -126,17 +143,16 @@ export async function getBadgeData(
           ORDER BY pv.created_at DESC LIMIT 1) AS latest_audit_model
        FROM plugins p
        WHERE p.id = ?`,
-    )
-    .bind(pluginId)
-    .first<{
-      installs_count: number | null;
-      plugin_status: string | null;
-      latest_version: string | null;
-      latest_version_status: string | null;
-      min_emdash_version: string | null;
-      latest_audit_verdict: string | null;
-      latest_audit_model: string | null;
-    }>();
+  );
+  const row = await stmt.bind(pluginId).first<{
+    installs_count: number | null;
+    plugin_status: string | null;
+    latest_version: string | null;
+    latest_version_status: string | null;
+    min_emdash_version: string | null;
+    latest_audit_verdict: string | null;
+    latest_audit_model: string | null;
+  }>();
 
   if (!row) {
     return {
