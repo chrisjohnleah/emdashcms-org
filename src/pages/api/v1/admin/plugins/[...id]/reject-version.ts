@@ -7,6 +7,7 @@ import {
 } from "../../../../../../lib/api/response";
 import { createAuditRecord } from "../../../../../../lib/audit/audit-queries";
 import { emitAuditNotification } from "../../../../../../lib/notifications/emitter";
+import { purgeBadges } from "../../../../../../lib/badges/purge";
 
 export const prerender = false;
 
@@ -83,6 +84,14 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
       findings: [],
       publicNote,
     });
+
+    // Evict stale README badges so the rejection surfaces immediately
+    // on the next badge render. Best-effort per D-15.
+    try {
+      await purgeBadges(new URL(request.url).origin, pluginId);
+    } catch (err) {
+      console.error("[badges] purge after reject-version failed:", err);
+    }
 
     // Emit the audit_fail notification. Wrapped in try/catch so a broken
     // notification pipeline cannot break the reject flow — the version

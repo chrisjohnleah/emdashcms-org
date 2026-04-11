@@ -5,6 +5,12 @@ import { describe, it, expect, beforeAll, vi } from "vitest";
 import embedPanelSource from "../../src/components/EmbedBadgesPanel.astro?raw";
 import pluginDetailSource from "../../src/pages/plugins/[...id].astro?raw";
 import dashboardPluginSource from "../../src/pages/dashboard/plugins/[id].astro?raw";
+import auditConsumerSource from "../../src/lib/audit/consumer.ts?raw";
+import approveVersionSource from "../../src/pages/api/v1/admin/plugins/[...id]/approve-version.ts?raw";
+import rejectVersionSource from "../../src/pages/api/v1/admin/plugins/[...id]/reject-version.ts?raw";
+import revokeVersionSource from "../../src/pages/api/v1/admin/plugins/[...id]/revoke-version.ts?raw";
+import revokePluginSource from "../../src/pages/api/v1/admin/plugins/[...id]/revoke.ts?raw";
+import restorePluginSource from "../../src/pages/api/v1/admin/plugins/[...id]/restore.ts?raw";
 import {
   renderBadge,
   BADGE_COLORS,
@@ -674,5 +680,126 @@ describe("embed panel mount", () => {
   it("EmbedBadgesPanel exposes all-markdown and all-html snippet blocks", () => {
     expect(embedPanelSource).toMatch(/ebp-md-all/);
     expect(embedPanelSource).toMatch(/ebp-html-all/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Badge purge call sites (13-02) — file-level assertions against the 6
+// mutation surfaces (audit consumer + 5 admin routes). The consumer
+// runs from a Queue message and the admin routes are inline APIRoute
+// handlers, so exercising the real code paths would require mocking R2,
+// Workers AI, and the middleware auth layer. File-level grep still
+// proves the wiring is in place and catches accidental removal during
+// future refactors — the actual runtime behaviour is covered by the
+// purgeBadges unit tests above (fans out to 5 URL-encoded cache keys,
+// swallows per-URL errors).
+// ---------------------------------------------------------------------------
+
+describe("badges/purge call sites", () => {
+  it("audit consumer imports purgeBadges and SITE_ORIGIN", () => {
+    expect(auditConsumerSource).toMatch(
+      /import\s*\{\s*purgeBadges\s*\}\s*from\s+["']\.\.\/badges\/purge["']/,
+    );
+    expect(auditConsumerSource).toMatch(
+      /const\s+SITE_ORIGIN\s*=\s*["']https:\/\/emdashcms\.org["']/,
+    );
+  });
+
+  it("audit consumer calls purgeBadges after every createAuditRecord", () => {
+    // 5 createAuditRecord sites (static-first reject, static-first
+    // publish/flagged, manual mode, budget-exhausted, AI verdict) each
+    // get one purge call.
+    const purgeCalls = auditConsumerSource.match(
+      /await\s+purgeBadges\(SITE_ORIGIN,\s*job\.pluginId\)/g,
+    );
+    expect(purgeCalls?.length ?? 0).toBeGreaterThanOrEqual(5);
+  });
+
+  it("audit consumer wraps each purge in try/catch (D-15 defense)", () => {
+    // Each purge call must be inside a try block so an outer failure
+    // cannot strand the audit pipeline. The cheapest check: every
+    // purgeBadges call in the consumer is preceded by a `try {`.
+    const lines = auditConsumerSource.split("\n");
+    let protectedCalls = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (/await\s+purgeBadges\(/.test(lines[i])) {
+        // Look backwards up to 3 lines for a try block opener.
+        for (let j = Math.max(0, i - 3); j < i; j++) {
+          if (/\btry\s*\{/.test(lines[j])) {
+            protectedCalls++;
+            break;
+          }
+        }
+      }
+    }
+    expect(protectedCalls).toBeGreaterThanOrEqual(5);
+  });
+
+  it("audit consumer documents the regional purge limitation on SITE_ORIGIN", () => {
+    // The hardcoded prod origin is only safe because purges are
+    // colo-local. That justification must survive in a comment near
+    // the constant so a future reader doesn't "fix" it to a generic env var.
+    expect(auditConsumerSource).toMatch(/REGIONAL PURGE LIMITATION/);
+  });
+
+  for (const [name, source] of [
+    ["approve-version", approveVersionSource],
+    ["reject-version", rejectVersionSource],
+    ["revoke-version", revokeVersionSource],
+    ["revoke", revokePluginSource],
+    ["restore", restorePluginSource],
+  ] as const) {
+    describe(`admin/${name}`, () => {
+      it("imports purgeBadges from the badges library", () => {
+        expect(source).toMatch(
+          /import\s*\{\s*purgeBadges\s*\}\s*from\s+["'][^"']*\/badges\/purge["']/,
+        );
+      });
+
+      it("derives the origin from the request URL", () => {
+        expect(source).toMatch(/new URL\(request\.url\)\.origin/);
+      });
+
+      it("invokes purgeBadges with the request origin and plugin id", () => {
+        expect(source).toMatch(
+          /await\s+purgeBadges\(\s*new URL\(request\.url\)\.origin,\s*pluginId\s*\)/,
+        );
+      });
+
+      it("wraps purgeBadges in a best-effort try/catch", () => {
+        // Match a try block whose body contains the purgeBadges call —
+        // the [\s\S] + non-greedy body lets us assert the pair without
+        // caring about the exact comment/indentation in between.
+        expect(source).toMatch(
+          /try\s*\{[\s\S]*?await\s+purgeBadges\(/,
+        );
+        expect(source).toMatch(/\}\s*catch\s*\([^)]*\)\s*\{[\s\S]*?\[badges\]/);
+      });
+    });
+  }
+
+  it("purgeBadges itself does not throw when caches.default.delete rejects (defense-in-depth)", async () => {
+    // The helper swallows per-URL errors. This is the unit-level
+    // guarantee the call sites rely on so that their outer try/catch
+    // only has to catch import/module failures, not per-URL fan-out.
+    const originalCache = (caches as unknown as { default: Cache }).default;
+    const brokenCache: Cache = {
+      ...originalCache,
+      delete: () => Promise.reject(new Error("purge failed")),
+    } as Cache;
+    Object.defineProperty(caches, "default", {
+      configurable: true,
+      get: () => brokenCache,
+    });
+    try {
+      await expect(
+        purgeBadges("https://test.example", "unit-test-plugin"),
+      ).resolves.toBeUndefined();
+    } finally {
+      Object.defineProperty(caches, "default", {
+        configurable: true,
+        get: () => originalCache,
+      });
+    }
   });
 });

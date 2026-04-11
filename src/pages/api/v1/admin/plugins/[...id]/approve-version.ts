@@ -7,6 +7,7 @@ import {
 } from "../../../../../../lib/api/response";
 import { createAuditRecord } from "../../../../../../lib/audit/audit-queries";
 import { emitAuditNotification } from "../../../../../../lib/notifications/emitter";
+import { purgeBadges } from "../../../../../../lib/badges/purge";
 
 export const prerender = false;
 
@@ -72,6 +73,16 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
       riskScore: 0,
       findings: [],
     });
+
+    // Evict stale README badges for this plugin from the edge cache so
+    // the next badge request rebuilds with the just-approved version
+    // and trust tier. Best-effort per D-15: a purge failure must not
+    // fail the parent request — the version is already approved.
+    try {
+      await purgeBadges(new URL(request.url).origin, pluginId);
+    } catch (err) {
+      console.error("[badges] purge after approve-version failed:", err);
+    }
 
     // Emit the audit_pass notification. Wrapped in try/catch so a broken
     // notification pipeline cannot break the approve flow — the version

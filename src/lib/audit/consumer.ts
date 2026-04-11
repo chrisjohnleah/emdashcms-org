@@ -22,6 +22,21 @@ import {
 import { runStaticScan, type StaticFinding } from "./static-scanner";
 import { manifestSchema } from "../publishing/manifest-schema";
 import { emitAuditNotification } from "../notifications/emitter";
+import { purgeBadges } from "../badges/purge";
+
+/**
+ * Origin used by the queue consumer to address the badge cache. The
+ * consumer runs from a Queues message, not an HTTP request, so there
+ * is no `request.url` to derive an origin from. `caches.default.delete`
+ * is regional anyway (see REGIONAL PURGE LIMITATION in badges/purge.ts
+ * and D-15 in 13-CONTEXT.md), so hardcoding the production origin is
+ * safe: the purge only affects the executing colo, and other colos
+ * serve stale entries until `s-maxage` (1 hour) expires.
+ *
+ * If the marketplace ever fronts a second origin, convert this to a
+ * wrangler.jsonc var. Today there is exactly one production origin.
+ */
+const SITE_ORIGIN = "https://emdashcms.org";
 
 // --- Bindings ---
 
@@ -380,6 +395,15 @@ export async function processAuditJob(
         findings: staticFindings.map(staticFindingToMarketplace),
         versionStatusOverride: "rejected",
       });
+      // Evict stale README badges immediately after the terminal
+      // transition. Defense-in-depth try/catch: purgeBadges already
+      // swallows per-URL errors, but an outer failure (e.g. the import
+      // itself) must never strand the audit pipeline.
+      try {
+        await purgeBadges(SITE_ORIGIN, job.pluginId);
+      } catch (err) {
+        console.error("[badges] purge after static-first reject failed:", err);
+      }
       // Static-first reject is a terminal `rejected` transition — surface
       // it as an `audit_fail` so the publisher gets the same treatment as
       // a real AI fail verdict.
@@ -411,6 +435,17 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: targetStatus,
     });
+    // Evict stale README badges immediately after the terminal
+    // publish/flagged transition so next render rebuilds with the new
+    // version + trust tier.
+    try {
+      await purgeBadges(SITE_ORIGIN, job.pluginId);
+    } catch (err) {
+      console.error(
+        `[badges] purge after static-first ${targetStatus} failed:`,
+        err,
+      );
+    }
     // Static-first publish is a terminal transition — synthesize a
     // verdict so the right event type fires (warn for soft findings,
     // pass for a clean scan).
@@ -443,6 +478,15 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: "pending",
     });
+    // Cheap defensive purge: pending is not a terminal state so the
+    // badge values should not have moved, but a fresh audit record
+    // still touches the plugin's trust surface — evicting is a no-op
+    // on uncached keys and cannot cause harm.
+    try {
+      await purgeBadges(SITE_ORIGIN, job.pluginId);
+    } catch (err) {
+      console.error("[badges] purge after manual-mode static scan failed:", err);
+    }
     // Manual/off mode leaves the version `pending` — NOT a terminal
     // state, so do not emit a notification. The publisher will hear
     // about the version when an admin runs the audit and the version
@@ -471,6 +515,15 @@ export async function processAuditJob(
       findings: staticFindings.map(staticFindingToMarketplace),
       versionStatusOverride: "pending",
     });
+    // Defensive purge — same rationale as the manual-mode path above.
+    try {
+      await purgeBadges(SITE_ORIGIN, job.pluginId);
+    } catch (err) {
+      console.error(
+        "[badges] purge after budget-exhausted static scan failed:",
+        err,
+      );
+    }
     void auditId;
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
@@ -729,6 +782,14 @@ export async function processAuditJob(
     riskScore: parsed.riskScore,
     findings: mergedFindings,
   });
+  // Evict stale README badges after the terminal AI verdict so the
+  // next render rebuilds with the new version + trust tier + audit
+  // verdict. Defense-in-depth try/catch per D-15.
+  try {
+    await purgeBadges(SITE_ORIGIN, job.pluginId);
+  } catch (err) {
+    console.error("[badges] purge after AI audit writeback failed:", err);
+  }
 
   console.log(
     `[audit] Record stored: plugin=${job.pluginId} version=${job.version} auditId=${auditId} verdict=${parsed.verdict} riskScore=${parsed.riskScore} findings=${mergedFindings.length}`,

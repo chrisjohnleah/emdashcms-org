@@ -4,10 +4,11 @@ import { isSuperAdmin } from "../../../../../../lib/auth/admin";
 import { setPluginStatus } from "../../../../../../lib/db/admin-queries";
 import { errorResponse } from "../../../../../../lib/api/response";
 import { emitRevokeNotification } from "../../../../../../lib/notifications/emitter";
+import { purgeBadges } from "../../../../../../lib/badges/purge";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, locals }) => {
+export const POST: APIRoute = async ({ params, locals, request }) => {
   const author = locals.author;
   if (!author || !isSuperAdmin(author.githubId)) {
     return errorResponse(403, "Forbidden");
@@ -26,6 +27,15 @@ export const POST: APIRoute = async ({ params, locals }) => {
 
   const updated = await setPluginStatus(env.DB, pluginId, "revoked");
   if (!updated) return errorResponse(404, "Plugin not found");
+
+  // Evict stale README badges for this plugin. Best-effort per D-15:
+  // a purge failure must not break the revoke — the plugin row is
+  // already flipped to `revoked` in D1 at this point.
+  try {
+    await purgeBadges(new URL(request.url).origin, pluginId);
+  } catch (err) {
+    console.error("[badges] purge after plugin revoke failed:", err);
+  }
 
   // Best-effort notification emission. The plugin is already revoked at
   // this point — failures here MUST NOT break the response. Note: this
