@@ -108,12 +108,44 @@ export async function pluginExists(
 // --- Raw Download Tracking ---
 
 /**
- * Increment both the plugin-level and version-level download counters
- * in a single D1 batch. Called from the bundle endpoint after R2
- * successfully serves the artifact, so a 404 or storage miss never
- * inflates either counter. No dedup — every served byte is one
- * download. Pair the plugin total with `installs_count` (CLI-validated,
- * site-deduped) to compare anonymous download volume to real installs;
+ * Hash a raw IP address into a per-target opaque identifier suitable
+ * for the dedup tables. The salt is the target ID itself (plugin_id
+ * for bundle downloads, "theme:{themeId}" for theme outbound clicks),
+ * which means the same IP across two plugins produces two unrelated
+ * hashes — a leaked dedup table cannot be used to correlate "this IP
+ * downloaded plugin A and plugin B".
+ *
+ * `Web Crypto SubtleCrypto` is available natively in Workers; no
+ * dependency needed. The hash is hex (64 chars) so it round-trips
+ * cleanly through D1's TEXT primary key.
+ */
+export async function hashIpForTarget(
+  ip: string,
+  targetSalt: string,
+): Promise<string> {
+  const data = new TextEncoder().encode(`${ip}:${targetSalt}`);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * Lifetime-deduped increment of both the plugin-level and version-level
+ * download counters. Called from the bundle endpoint after R2
+ * successfully serves the artifact (so a 404 or storage miss never
+ * inflates either counter).
+ *
+ * Dedup model: a row is recorded in `download_dedup` keyed by
+ * (ip_hash, plugin_id, version). The same caller downloading the same
+ * version a second time hits the unique index, INSERT OR IGNORE leaves
+ * `meta.changes = 0`, and the counters are NOT bumped. The first
+ * download from any given IP for any given (plugin, version) is the
+ * only one that counts. This mirrors how `installs` uses `site_hash`
+ * for CLI dedup.
+ *
+ * Pair the plugin total with `installs_count` (CLI-validated,
+ * site-deduped) to compare interest (downloads) to real installs;
  * use the version-level counter to chart per-version adoption trends
  * in the admin/dashboard like a "by URL" report.
  */
@@ -121,10 +153,27 @@ export async function incrementPluginDownloads(
   db: D1Database,
   pluginId: string,
   version: string,
-): Promise<void> {
-  // Batch so both counters move together — if D1 fails, neither
-  // increments, keeping the plugin total and the sum of version
-  // totals consistent.
+  ipHash: string,
+): Promise<{ counted: boolean }> {
+  // Step 1: claim the dedup slot. INSERT OR IGNORE returns
+  // meta.changes = 0 if the (ip_hash, plugin_id, version) tuple
+  // already exists, meaning this IP has downloaded this version
+  // before — and we should NOT bump the counters.
+  const dedup = await db
+    .prepare(
+      `INSERT OR IGNORE INTO download_dedup (ip_hash, plugin_id, version)
+       VALUES (?, ?, ?)`,
+    )
+    .bind(ipHash, pluginId, version)
+    .run();
+
+  if ((dedup.meta?.changes ?? 0) === 0) {
+    return { counted: false };
+  }
+
+  // Step 2: first download from this IP for this version — bump both
+  // counters atomically. Batched so the plugin total and the sum of
+  // version totals stay in lockstep.
   await db.batch([
     db
       .prepare(
@@ -142,18 +191,35 @@ export async function incrementPluginDownloads(
       )
       .bind(pluginId, version),
   ]);
+
+  return { counted: true };
 }
 
 /**
- * Increment the outbound-click counter for a theme. Themes are
- * metadata-only (no bundles in our R2), so this is the only signal we
- * can capture for "interest" — the user clicked a link that takes them
- * to npm/git/the demo. Called from the theme tracking endpoint.
+ * Lifetime-deduped increment of the theme outbound-click counter.
+ * Themes are metadata-only (no bundle in our R2), so this is the
+ * only "interest" signal we can capture — the user clicked through
+ * to npm/repo/demo. Same dedup model as plugins: `theme_download_dedup`
+ * holds (ip_hash, theme_id), and only the first click from any IP
+ * for a given theme increments the counter.
  */
 export async function incrementThemeDownloads(
   db: D1Database,
   themeId: string,
-): Promise<void> {
+  ipHash: string,
+): Promise<{ counted: boolean }> {
+  const dedup = await db
+    .prepare(
+      `INSERT OR IGNORE INTO theme_download_dedup (ip_hash, theme_id)
+       VALUES (?, ?)`,
+    )
+    .bind(ipHash, themeId)
+    .run();
+
+  if ((dedup.meta?.changes ?? 0) === 0) {
+    return { counted: false };
+  }
+
   await db
     .prepare(
       `UPDATE themes
@@ -163,6 +229,8 @@ export async function incrementThemeDownloads(
     )
     .bind(themeId)
     .run();
+
+  return { counted: true };
 }
 
 /**

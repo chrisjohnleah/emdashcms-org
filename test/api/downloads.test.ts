@@ -7,6 +7,7 @@ import {
   incrementPluginDownloads,
   incrementThemeDownloads,
   themeExists,
+  hashIpForTarget,
 } from "../../src/lib/downloads/queries";
 import { checkRateLimit } from "../../src/lib/downloads/rate-limit";
 import { searchPlugins, getPluginDetail } from "../../src/lib/db/queries";
@@ -392,8 +393,16 @@ describe("DOWN-03: Install counts in API responses", () => {
 // DOWN-04: Raw download counters (browser ZIP + CLI bundle GETs)
 // ---------------------------------------------------------------------------
 
-describe("DOWN-04: Raw download counters", () => {
-  it("incrementPluginDownloads bumps both plugin total and version-specific counters", async () => {
+describe("DOWN-04: Download counters with anti-fraud dedup", () => {
+  // Make hash collisions impossible across tests by salting with the
+  // test name. The production code uses plugin_id / theme_id as salt;
+  // here we just need stable, distinct hashes per test.
+  const ipA = "ip-aaa";
+  const ipB = "ip-bbb";
+  const hashAForPlugin = (pluginId: string) => hashIpForTarget(ipA, pluginId);
+  const hashBForPlugin = (pluginId: string) => hashIpForTarget(ipB, pluginId);
+
+  it("first download from a new IP bumps both plugin and version counters", async () => {
     const pluginBefore = await env.DB.prepare(
       "SELECT downloads_count FROM plugins WHERE id = ?",
     )
@@ -405,9 +414,13 @@ describe("DOWN-04: Raw download counters", () => {
       .bind("dl-test-plugin", "1.0.0")
       .first<{ downloads_count: number }>();
 
-    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
-    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
-    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
+    const result = await incrementPluginDownloads(
+      env.DB,
+      "dl-test-plugin",
+      "1.0.0",
+      await hashAForPlugin("dl-test-plugin"),
+    );
+    expect(result.counted).toBe(true);
 
     const pluginAfter = await env.DB.prepare(
       "SELECT downloads_count FROM plugins WHERE id = ?",
@@ -421,29 +434,117 @@ describe("DOWN-04: Raw download counters", () => {
       .first<{ downloads_count: number }>();
 
     expect(pluginAfter!.downloads_count).toBe(
-      (pluginBefore?.downloads_count ?? 0) + 3,
+      (pluginBefore?.downloads_count ?? 0) + 1,
     );
     expect(versionAfter!.downloads_count).toBe(
-      (versionBefore?.downloads_count ?? 0) + 3,
+      (versionBefore?.downloads_count ?? 0) + 1,
     );
   });
 
-  it("only the targeted version increments — sibling versions stay flat", async () => {
-    const sibBefore = await env.DB.prepare(
+  it("repeated downloads from the same IP for the same version are NOT counted", async () => {
+    const pluginBefore = await env.DB.prepare(
+      "SELECT downloads_count FROM plugins WHERE id = ?",
+    )
+      .bind("dl-test-plugin")
+      .first<{ downloads_count: number }>();
+
+    const r1 = await incrementPluginDownloads(
+      env.DB,
+      "dl-test-plugin",
+      "1.0.0",
+      await hashAForPlugin("dl-test-plugin"),
+    );
+    const r2 = await incrementPluginDownloads(
+      env.DB,
+      "dl-test-plugin",
+      "1.0.0",
+      await hashAForPlugin("dl-test-plugin"),
+    );
+    const r3 = await incrementPluginDownloads(
+      env.DB,
+      "dl-test-plugin",
+      "1.0.0",
+      await hashAForPlugin("dl-test-plugin"),
+    );
+    expect(r1.counted).toBe(false); // already counted in previous test
+    expect(r2.counted).toBe(false);
+    expect(r3.counted).toBe(false);
+
+    const pluginAfter = await env.DB.prepare(
+      "SELECT downloads_count FROM plugins WHERE id = ?",
+    )
+      .bind("dl-test-plugin")
+      .first<{ downloads_count: number }>();
+
+    expect(pluginAfter!.downloads_count).toBe(
+      pluginBefore?.downloads_count ?? 0,
+    );
+  });
+
+  it("a different IP downloading the same version IS counted", async () => {
+    const pluginBefore = await env.DB.prepare(
+      "SELECT downloads_count FROM plugins WHERE id = ?",
+    )
+      .bind("dl-test-plugin")
+      .first<{ downloads_count: number }>();
+
+    const result = await incrementPluginDownloads(
+      env.DB,
+      "dl-test-plugin",
+      "1.0.0",
+      await hashBForPlugin("dl-test-plugin"),
+    );
+    expect(result.counted).toBe(true);
+
+    const pluginAfter = await env.DB.prepare(
+      "SELECT downloads_count FROM plugins WHERE id = ?",
+    )
+      .bind("dl-test-plugin")
+      .first<{ downloads_count: number }>();
+
+    expect(pluginAfter!.downloads_count).toBe(
+      (pluginBefore?.downloads_count ?? 0) + 1,
+    );
+  });
+
+  it("the same IP IS counted again when downloading a different version", async () => {
+    // ipA already counted on 1.0.0 above. Switching to 1.1.0 should
+    // produce a new dedup row and bump both counters.
+    const versionBefore = await env.DB.prepare(
       "SELECT downloads_count FROM plugin_versions WHERE plugin_id = ? AND version = ?",
     )
       .bind("dl-test-plugin", "1.1.0")
       .first<{ downloads_count: number }>();
 
-    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
+    const result = await incrementPluginDownloads(
+      env.DB,
+      "dl-test-plugin",
+      "1.1.0",
+      await hashAForPlugin("dl-test-plugin"),
+    );
+    expect(result.counted).toBe(true);
 
-    const sibAfter = await env.DB.prepare(
+    const versionAfter = await env.DB.prepare(
       "SELECT downloads_count FROM plugin_versions WHERE plugin_id = ? AND version = ?",
     )
       .bind("dl-test-plugin", "1.1.0")
       .first<{ downloads_count: number }>();
+    expect(versionAfter!.downloads_count).toBe(
+      (versionBefore?.downloads_count ?? 0) + 1,
+    );
+  });
 
-    expect(sibAfter!.downloads_count).toBe(sibBefore?.downloads_count ?? 0);
+  it("hashIpForTarget produces distinct hashes for the same IP across different targets", async () => {
+    const a = await hashIpForTarget(ipA, "plugin-foo");
+    const b = await hashIpForTarget(ipA, "plugin-bar");
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("hashIpForTarget is deterministic for the same (ip, salt)", async () => {
+    const a1 = await hashIpForTarget(ipA, "plugin-foo");
+    const a2 = await hashIpForTarget(ipA, "plugin-foo");
+    expect(a1).toBe(a2);
   });
 
   it("getPluginVersions exposes per-version downloadCount", async () => {
@@ -451,7 +552,7 @@ describe("DOWN-04: Raw download counters", () => {
     const versions = await getPluginVersions(env.DB, "dl-test-plugin");
     const v100 = versions.find((v) => v.version === "1.0.0");
     expect(v100).toBeDefined();
-    expect(v100!.downloadCount).toBeGreaterThanOrEqual(4);
+    expect(v100!.downloadCount).toBeGreaterThanOrEqual(2);
   });
 
   it("searchPlugins exposes downloadCount in summary", async () => {
@@ -466,17 +567,16 @@ describe("DOWN-04: Raw download counters", () => {
 
     const plugin = result.items.find((p) => p.id === "dl-test-plugin");
     expect(plugin).toBeDefined();
-    expect(plugin!.downloadCount).toBeGreaterThanOrEqual(3);
+    expect(plugin!.downloadCount).toBeGreaterThanOrEqual(2);
   });
 
   it("getPluginDetail exposes downloadCount", async () => {
     const detail = await getPluginDetail(env.DB, "dl-test-plugin");
     expect(detail).not.toBeNull();
-    expect(detail!.downloadCount).toBeGreaterThanOrEqual(3);
+    expect(detail!.downloadCount).toBeGreaterThanOrEqual(2);
   });
 
-  it("incrementThemeDownloads bumps the theme downloads_count", async () => {
-    // Seed a theme inline — themes table is otherwise untouched in this file
+  it("theme: first click from a new IP increments, repeats are blocked", async () => {
     await env.DB.prepare(
       `INSERT INTO themes (id, author_id, name, description, repository_url, demo_url, npm_package, keywords, created_at, updated_at)
        VALUES ('dl-test-theme', 'dl-author-1', 'Test Theme', 'A test theme', 'https://example.com/repo', 'https://example.com/demo', '@test/theme', '[]', '2026-04-04T08:00:00Z', '2026-04-04T08:00:00Z')`,
@@ -489,8 +589,16 @@ describe("DOWN-04: Raw download counters", () => {
       .first<{ downloads_count: number }>();
     expect(before!.downloads_count).toBe(0);
 
-    await incrementThemeDownloads(env.DB, "dl-test-theme");
-    await incrementThemeDownloads(env.DB, "dl-test-theme");
+    const ipHashA = await hashIpForTarget(ipA, "theme:dl-test-theme");
+    const ipHashB = await hashIpForTarget(ipB, "theme:dl-test-theme");
+
+    const r1 = await incrementThemeDownloads(env.DB, "dl-test-theme", ipHashA);
+    const r2 = await incrementThemeDownloads(env.DB, "dl-test-theme", ipHashA); // repeat
+    const r3 = await incrementThemeDownloads(env.DB, "dl-test-theme", ipHashB); // new IP
+
+    expect(r1.counted).toBe(true);
+    expect(r2.counted).toBe(false);
+    expect(r3.counted).toBe(true);
 
     const after = await env.DB.prepare(
       "SELECT downloads_count FROM themes WHERE id = ?",

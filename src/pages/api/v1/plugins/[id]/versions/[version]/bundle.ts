@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import {
   getPublishedVersionBundle,
   incrementPluginDownloads,
+  hashIpForTarget,
 } from "../../../../../../../lib/downloads/queries";
 import { errorResponse } from "../../../../../../../lib/api/response";
 import { checkRateLimit } from "../../../../../../../lib/downloads/rate-limit";
@@ -32,10 +33,21 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
     }
 
     // Track raw download (browser ZIP click + CLI both flow through here).
-    // Per-IP rate limit: 60/min — generous enough for paginated CLI
-    // installs across a monorepo, tight enough to deflect reload-spam.
-    // Counter is only bumped when the limiter allows the request, so a
-    // single curl loop can't drive the number arbitrarily high.
+    //
+    // Two layers of abuse protection:
+    //   1. Per-IP rate limit (60/min) blocks flood spam at the edge so a
+    //      single attacker can't even reach the dedup table 1000 times
+    //      a minute.
+    //   2. Lifetime per-(IP, plugin, version) dedup inside
+    //      `incrementPluginDownloads`: the same IP downloading the same
+    //      version a second time is recorded but does NOT bump the
+    //      counters. The counter measures *unique IPs* who fetched
+    //      this version, not raw HTTP requests.
+    //
+    // The IP is hashed with the plugin_id as salt so the dedup table
+    // can never be used to correlate "this IP downloaded plugins
+    // A, B, C" if D1 ever leaks. Raw IPs are never written to D1.
+    //
     // Fire-and-forget via waitUntil so the bundle stream starts
     // immediately; failures are logged but never block the download.
     const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
@@ -46,9 +58,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
           `download:${ip}`,
           60,
         );
-        if (allowed) {
-          await incrementPluginDownloads(env.DB, pluginId, version);
-        }
+        if (!allowed) return;
+        const ipHash = await hashIpForTarget(ip, pluginId);
+        await incrementPluginDownloads(env.DB, pluginId, version, ipHash);
       } catch (err) {
         console.error("[api] Download tracking failed:", err);
       }

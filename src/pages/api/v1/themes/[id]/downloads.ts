@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import {
   incrementThemeDownloads,
   themeExists,
+  hashIpForTarget,
 } from "../../../../../lib/downloads/queries";
 import { errorResponse } from "../../../../../lib/api/response";
 import { checkRateLimit } from "../../../../../lib/downloads/rate-limit";
@@ -26,9 +27,20 @@ export const POST: APIRoute = async ({ params, request }) => {
     return errorResponse(400, "Theme ID is required");
   }
 
-  // Per-IP rate limit: 30 clicks/min. Same shared rate_limits table the
-  // installs route uses; the `theme-download:` prefix keeps the bucket
-  // distinct so download-tracking can't deplete the install budget.
+  // Two layers of abuse protection (mirrors the bundle endpoint):
+  //
+  //   1. Per-IP rate limit (30/min on the `theme-download:` bucket so
+  //      it can't deplete the shared install budget) blocks flood
+  //      spam at the edge.
+  //   2. Lifetime per-(IP, theme_id) dedup inside
+  //      `incrementThemeDownloads`: the same IP clicking through to
+  //      this theme a second time is recorded but does NOT bump the
+  //      counter. The counter measures *unique IPs* who showed install
+  //      intent for this theme, not raw beacon hits.
+  //
+  // The IP is hashed with `theme:{themeId}` as salt so the dedup table
+  // can't be used to correlate "this IP looked at themes A, B, C" if
+  // D1 ever leaks. Raw IPs are never written.
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
   const { allowed } = await checkRateLimit(
     env.DB,
@@ -48,7 +60,8 @@ export const POST: APIRoute = async ({ params, request }) => {
       return errorResponse(404, "Theme not found");
     }
 
-    await incrementThemeDownloads(env.DB, themeId);
+    const ipHash = await hashIpForTarget(ip, `theme:${themeId}`);
+    await incrementThemeDownloads(env.DB, themeId, ipHash);
 
     return new Response(null, { status: 202 });
   } catch (err) {
