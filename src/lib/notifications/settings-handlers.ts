@@ -370,9 +370,42 @@ export async function handleTestSend(
 // ---------------------------------------------------------------------------
 
 /**
+ * Status flags for the global dashboard banners — fetched in one round
+ * trip so the layout doesn't pay for two SELECTs per page load.
+ *
+ * `missingEmail` is true when the author has no deliverable address on
+ * file at all (e.g. they signed up during a deploy window where the
+ * `user:email` OAuth scope hadn't shipped yet). Renders a "re-link
+ * GitHub" prompt so they can grant the scope without waiting for an
+ * out-of-band fix.
+ *
+ * `bounced` is true when an existing address has hard-bounced and the
+ * author needs to update the override.
+ *
+ * Both signals come from the same row, so a single SELECT covers them.
+ */
+export async function getAuthorEmailStatus(
+  db: D1Database,
+  authorId: string,
+): Promise<{ missingEmail: boolean; bounced: boolean }> {
+  const row = await db
+    .prepare("SELECT email, email_bounced_at FROM authors WHERE id = ?")
+    .bind(authorId)
+    .first<{ email: string | null; email_bounced_at: string | null }>();
+  if (!row) return { missingEmail: false, bounced: false };
+  return {
+    missingEmail: !row.email,
+    bounced: !!row.email_bounced_at,
+  };
+}
+
+/**
  * Cheap single-column lookup for the global bounce banner. Returns
  * `true` when the author's email has hard-bounced and they should see
  * the warning banner on every authenticated dashboard page.
+ *
+ * Kept for callers that only need the bounce signal; prefer
+ * `getAuthorEmailStatus` when both flags are needed in one trip.
  */
 export async function hasAuthorBounced(
   db: D1Database,

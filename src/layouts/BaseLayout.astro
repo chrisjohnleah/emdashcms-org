@@ -5,7 +5,7 @@ import { env } from 'cloudflare:workers';
 import '../styles/global.css';
 import MobileNav from '../components/MobileNav.astro';
 import DashboardBanner from '../components/DashboardBanner.astro';
-import { hasAuthorBounced } from '../lib/notifications/settings-handlers';
+import { getAuthorEmailStatus } from '../lib/notifications/settings-handlers';
 import { resolveAuthorId } from '../lib/publishing/plugin-queries';
 
 interface Props {
@@ -25,26 +25,35 @@ const navLinks = [
   { label: 'Guide', href: '/guide' },
 ];
 
-// Global notification-bounce banner (Plan 12-03, D-22).
+// Global dashboard banners — bounced address + missing email.
 //
-// When an authenticated publisher is on a /dashboard/* page and their
-// `authors.email_bounced_at` is set, surface a persistent warn banner
-// with a link to the settings page where they can fix the override.
+// One round-trip via getAuthorEmailStatus surfaces both signals so we
+// only pay a single indexed SELECT per authenticated dashboard page.
 //
-// Restrict the extra D1 read to authenticated dashboard paths only so
-// public listings stay free-tier cheap. One indexed single-column
-// SELECT per dashboard page load is comfortably within budget.
+//  - missingEmail: shown when authors.email is NULL. Happens for any
+//    publisher whose row was created before the `user:email` OAuth
+//    scope was deployed. The banner asks them to re-link their GitHub
+//    account; the relink button hits /api/v1/auth/github which now
+//    requests the broader scope so GitHub re-prompts for consent.
+//
+//  - bounced: shown when an existing email has hard-bounced and the
+//    author needs to set an override on the settings page.
 let showBounceBanner = false;
+let showMissingEmailBanner = false;
 try {
   if (Astro.locals.author && currentPath.startsWith('/dashboard')) {
     const authorId = await resolveAuthorId(env.DB, Astro.locals.author.githubId);
     if (authorId) {
-      showBounceBanner = await hasAuthorBounced(env.DB, authorId);
+      const status = await getAuthorEmailStatus(env.DB, authorId);
+      showBounceBanner = status.bounced;
+      // Only surface the missing-email prompt when there's no bounced
+      // address competing for attention — bounce is the more urgent fix.
+      showMissingEmailBanner = status.missingEmail && !status.bounced;
     }
   }
 } catch (err) {
-  // Banner is cosmetic — a transient D1 error should never 500 the page.
-  console.error('[BaseLayout] bounce banner lookup failed:', err);
+  // Banners are cosmetic — a transient D1 error should never 500 the page.
+  console.error('[BaseLayout] email status lookup failed:', err);
 }
 ---
 <html lang="en">
@@ -154,6 +163,23 @@ try {
             type="warn"
             message="Your notification email is bouncing. Update it in your notification settings at /dashboard/settings to resume delivery."
           />
+        </div>
+      )}
+      {showMissingEmailBanner && (
+        <div class="page pt-4">
+          <DashboardBanner type="warn" message="">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <span>
+                We don't have an email on file for you, so we can't send audit notifications. Re-link your GitHub account to grant access to your verified address.
+              </span>
+              <a
+                href="/api/v1/auth/github?relink=1"
+                class="inline-flex items-center justify-center rounded-md border border-warn/50 bg-warn-soft px-3 py-1.5 text-xs font-medium text-warn hover:bg-warn/20 transition-colors whitespace-nowrap"
+              >
+                Re-link GitHub
+              </a>
+            </div>
+          </DashboardBanner>
         </div>
       )}
       <slot />
