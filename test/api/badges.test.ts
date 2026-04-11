@@ -1,0 +1,477 @@
+import { env } from "cloudflare:test";
+import { describe, it, expect, beforeAll, vi } from "vitest";
+import {
+  renderBadge,
+  BADGE_COLORS,
+  xmlEscape,
+} from "../../src/lib/badges/render";
+import {
+  getBadgeData,
+  buildBadgeContent,
+  formatCount,
+  BADGE_METRICS,
+  type BadgeData,
+} from "../../src/lib/badges/metrics";
+import { purgeBadges } from "../../src/lib/badges/purge";
+
+// ---------------------------------------------------------------------------
+// Seed data — one "real" plugin with a published AI-reviewed version, plus
+// one scoped plugin id to cover the @scope/name URL-encoding path.
+// ---------------------------------------------------------------------------
+
+beforeAll(async () => {
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM plugin_audits"),
+    env.DB.prepare("DELETE FROM plugin_versions"),
+    env.DB.prepare("DELETE FROM plugins"),
+    env.DB.prepare("DELETE FROM authors"),
+  ]);
+
+  await env.DB.batch([
+    env.DB
+      .prepare(
+        "INSERT INTO authors (id, github_id, github_username, avatar_url, verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .bind(
+        "badge-author",
+        9001,
+        "badge-dev",
+        "https://avatars.githubusercontent.com/u/9001",
+        1,
+        "2026-04-01T00:00:00Z",
+        "2026-04-01T00:00:00Z",
+      ),
+  ]);
+
+  const pluginSql =
+    "INSERT INTO plugins (id, author_id, name, description, category, capabilities, keywords, repository_url, homepage_url, icon_key, license, installs_count, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+  await env.DB.batch([
+    env.DB
+      .prepare(pluginSql)
+      .bind(
+        "handler-test",
+        "badge-author",
+        "Handler Test Plugin",
+        "Test plugin for badge handler tests.",
+        "content",
+        "[]",
+        "[]",
+        "https://github.com/badge-dev/handler-test",
+        null,
+        null,
+        "MIT",
+        523,
+        "active",
+        "2026-04-01T00:00:00Z",
+        "2026-04-01T00:00:00Z",
+      ),
+    env.DB
+      .prepare(pluginSql)
+      .bind(
+        "@scope/badge-test",
+        "badge-author",
+        "Scoped Badge Test",
+        "Scoped plugin id for URL encoding coverage.",
+        "content",
+        "[]",
+        "[]",
+        null,
+        null,
+        null,
+        "MIT",
+        42,
+        "active",
+        "2026-04-01T00:00:00Z",
+        "2026-04-01T00:00:00Z",
+      ),
+  ]);
+
+  const versionSql =
+    "INSERT INTO plugin_versions (id, plugin_id, version, status, bundle_key, manifest, file_count, compressed_size, decompressed_size, min_emdash_version, checksum, changelog, readme, published_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+  await env.DB.batch([
+    env.DB
+      .prepare(versionSql)
+      .bind(
+        "pv-handler-1",
+        "handler-test",
+        "1.4.2",
+        "published",
+        "bundles/handler-test/1.4.2.tar.gz",
+        '{"id":"handler-test","version":"1.4.2","capabilities":[],"allowedHosts":[],"storage":null,"hooks":[],"routes":[],"admin":null}',
+        5,
+        10000,
+        25000,
+        "1.2.0",
+        "sha256:aaaa",
+        "Initial release.",
+        "# Handler Test",
+        "2026-04-02T00:00:00Z",
+        "2026-04-01T00:00:00Z",
+        "2026-04-02T00:00:00Z",
+      ),
+    env.DB
+      .prepare(versionSql)
+      .bind(
+        "pv-scoped-1",
+        "@scope/badge-test",
+        "0.1.0",
+        "published",
+        "bundles/scoped/0.1.0.tar.gz",
+        '{"id":"@scope/badge-test","version":"0.1.0","capabilities":[],"allowedHosts":[],"storage":null,"hooks":[],"routes":[],"admin":null}',
+        3,
+        5000,
+        12000,
+        null,
+        "sha256:bbbb",
+        "Scoped plugin initial release.",
+        "# Scoped",
+        "2026-04-02T00:00:00Z",
+        "2026-04-01T00:00:00Z",
+        "2026-04-02T00:00:00Z",
+      ),
+  ]);
+
+  const auditSql =
+    "INSERT INTO plugin_audits (id, plugin_version_id, status, model, prompt_tokens, completion_tokens, neurons_used, raw_response, issues, verdict, risk_score, findings, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+  await env.DB.batch([
+    env.DB
+      .prepare(auditSql)
+      .bind(
+        "audit-handler-1",
+        "pv-handler-1",
+        "completed",
+        "@cf/google/gemma-4-26b-a4b-it",
+        1000,
+        200,
+        100,
+        null,
+        "[]",
+        "pass",
+        5,
+        "[]",
+        "2026-04-02T00:00:00Z",
+      ),
+    env.DB
+      .prepare(auditSql)
+      .bind(
+        "audit-scoped-1",
+        "pv-scoped-1",
+        "completed",
+        "static-only",
+        0,
+        0,
+        0,
+        null,
+        "[]",
+        null,
+        0,
+        "[]",
+        "2026-04-02T00:00:00Z",
+      ),
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// Render library
+// ---------------------------------------------------------------------------
+
+describe("badges/render", () => {
+  it("xmlEscape escapes the five reserved XML characters", () => {
+    expect(xmlEscape("a<b&c")).toBe("a&lt;b&amp;c");
+    expect(xmlEscape('say "hi"')).toBe("say &quot;hi&quot;");
+    expect(xmlEscape("it's")).toBe("it&apos;s");
+    expect(xmlEscape("a>b")).toBe("a&gt;b");
+  });
+
+  it("xmlEscape passes em-dash through unchanged (valid UTF-8 in XML text)", () => {
+    expect(xmlEscape("Scanned — Caution")).toBe("Scanned — Caution");
+    expect(xmlEscape("AI-reviewed — Caution")).toBe("AI-reviewed — Caution");
+  });
+
+  it("BADGE_COLORS exposes the locked hex palette", () => {
+    expect(BADGE_COLORS.success).toBe("#3fb950");
+    expect(BADGE_COLORS.warn).toBe("#d29922");
+    expect(BADGE_COLORS.danger).toBe("#f85149");
+    expect(BADGE_COLORS.muted).toBe("#8b949e");
+    expect(BADGE_COLORS.label).toBe("#555");
+  });
+
+  it("renderBadge returns a well-formed SVG containing label and value", () => {
+    const svg = renderBadge("installs", "1.2k", BADGE_COLORS.success);
+    expect(svg.startsWith("<svg ")).toBe(true);
+    expect(svg).toContain("installs");
+    expect(svg).toContain("1.2k");
+    expect(svg).toContain(BADGE_COLORS.success);
+    expect(svg).toContain('font-family="Verdana');
+    expect(svg).toContain('role="img"');
+    expect(svg).toContain("</svg>");
+  });
+
+  it("renderBadge escapes hostile user content in both segments", () => {
+    const svg = renderBadge("label", "<script>alert(1)</script>", BADGE_COLORS.muted);
+    expect(svg).not.toContain("<script>");
+    expect(svg).toContain("&lt;script&gt;");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Metrics library (pure formatters)
+// ---------------------------------------------------------------------------
+
+describe("badges/metrics", () => {
+  it("BADGE_METRICS exposes the five locked metric names in the D-01 order", () => {
+    expect([...BADGE_METRICS]).toEqual([
+      "installs",
+      "version",
+      "trust-tier",
+      "audit-verdict",
+      "compat",
+    ]);
+  });
+
+  it("formatCount produces Shields-style abbreviations", () => {
+    expect(formatCount(0)).toBe("0");
+    expect(formatCount(999)).toBe("999");
+    expect(formatCount(1000)).toBe("1k");
+    expect(formatCount(1500)).toBe("1.5k");
+    expect(formatCount(9999)).toBe("10k");
+    expect(formatCount(12345)).toBe("12k");
+    expect(formatCount(1_200_000)).toBe("1.2M");
+    expect(formatCount(5_000_000)).toBe("5M");
+  });
+
+  const baseData = (overrides: Partial<BadgeData> = {}): BadgeData => ({
+    pluginExists: true,
+    pluginStatus: "active",
+    installsCount: 0,
+    latestVersion: null,
+    latestVersionStatus: null,
+    latestAuditVerdict: null,
+    latestAuditModel: null,
+    minEmDashVersion: null,
+    ...overrides,
+  });
+
+  describe("installs metric", () => {
+    it("formats counts for an existing plugin", () => {
+      const out = buildBadgeContent("installs", baseData({ installsCount: 523 }));
+      expect(out).toEqual({ label: "installs", value: "523", color: BADGE_COLORS.success });
+    });
+    it("renders unknown/muted when plugin does not exist", () => {
+      const out = buildBadgeContent("installs", baseData({ pluginExists: false }));
+      expect(out).toEqual({ label: "installs", value: "unknown", color: BADGE_COLORS.muted });
+    });
+  });
+
+  describe("version metric", () => {
+    it("prefixes semver with v for a published version", () => {
+      const out = buildBadgeContent("version", baseData({ latestVersion: "1.4.2", latestVersionStatus: "published" }));
+      expect(out).toEqual({ label: "version", value: "v1.4.2", color: BADGE_COLORS.success });
+    });
+    it("renders unknown/muted when no published version exists", () => {
+      const out = buildBadgeContent("version", baseData({ latestVersion: null }));
+      expect(out).toEqual({ label: "version", value: "unknown", color: BADGE_COLORS.muted });
+    });
+  });
+
+  describe("trust-tier metric", () => {
+    it("AI-reviewed for published + AI model", () => {
+      const out = buildBadgeContent(
+        "trust-tier",
+        baseData({
+          latestVersionStatus: "published",
+          latestAuditModel: "@cf/google/gemma-4-26b-a4b-it",
+        }),
+      );
+      expect(out).toEqual({ label: "trust", value: "AI-reviewed", color: BADGE_COLORS.success });
+    });
+    it("Scanned for published + static-only", () => {
+      const out = buildBadgeContent(
+        "trust-tier",
+        baseData({ latestVersionStatus: "published", latestAuditModel: "static-only" }),
+      );
+      expect(out).toEqual({ label: "trust", value: "Scanned", color: BADGE_COLORS.success });
+    });
+    it("Scanned — Caution for flagged + static-only (em-dash verbatim)", () => {
+      const out = buildBadgeContent(
+        "trust-tier",
+        baseData({ latestVersionStatus: "flagged", latestAuditModel: "static-only" }),
+      );
+      expect(out).toEqual({
+        label: "trust",
+        value: "Scanned — Caution",
+        color: BADGE_COLORS.warn,
+      });
+    });
+    it("AI-reviewed — Caution for flagged + AI model (em-dash verbatim)", () => {
+      const out = buildBadgeContent(
+        "trust-tier",
+        baseData({
+          latestVersionStatus: "flagged",
+          latestAuditModel: "@cf/google/gemma-4-26b-a4b-it",
+        }),
+      );
+      expect(out).toEqual({
+        label: "trust",
+        value: "AI-reviewed — Caution",
+        color: BADGE_COLORS.warn,
+      });
+    });
+    it("Unreviewed/muted when no version is known", () => {
+      const out = buildBadgeContent("trust-tier", baseData({ latestVersionStatus: null }));
+      expect(out).toEqual({ label: "trust", value: "unknown", color: BADGE_COLORS.muted });
+    });
+    it("unknown/muted when plugin does not exist", () => {
+      const out = buildBadgeContent(
+        "trust-tier",
+        baseData({ pluginExists: false, latestVersionStatus: null }),
+      );
+      expect(out).toEqual({ label: "trust", value: "unknown", color: BADGE_COLORS.muted });
+    });
+  });
+
+  describe("audit-verdict metric", () => {
+    it("passing/success for verdict pass", () => {
+      const out = buildBadgeContent("audit-verdict", baseData({ latestAuditVerdict: "pass" }));
+      expect(out).toEqual({ label: "audit", value: "passing", color: BADGE_COLORS.success });
+    });
+    it("warnings/warn for verdict warn", () => {
+      const out = buildBadgeContent("audit-verdict", baseData({ latestAuditVerdict: "warn" }));
+      expect(out).toEqual({ label: "audit", value: "warnings", color: BADGE_COLORS.warn });
+    });
+    it("failing/danger for verdict fail", () => {
+      const out = buildBadgeContent("audit-verdict", baseData({ latestAuditVerdict: "fail" }));
+      expect(out).toEqual({ label: "audit", value: "failing", color: BADGE_COLORS.danger });
+    });
+    it("unreviewed/muted when no verdict present", () => {
+      const out = buildBadgeContent("audit-verdict", baseData({ latestAuditVerdict: null }));
+      expect(out).toEqual({ label: "audit", value: "unreviewed", color: BADGE_COLORS.muted });
+    });
+    it("unknown/muted when plugin does not exist", () => {
+      const out = buildBadgeContent(
+        "audit-verdict",
+        baseData({ pluginExists: false }),
+      );
+      expect(out).toEqual({ label: "audit", value: "unknown", color: BADGE_COLORS.muted });
+    });
+  });
+
+  describe("compat metric", () => {
+    it("≥ X.Y.Z when min_emdash_version is set", () => {
+      const out = buildBadgeContent("compat", baseData({ minEmDashVersion: "1.2.0" }));
+      expect(out).toEqual({ label: "emdash", value: "≥ 1.2.0", color: BADGE_COLORS.success });
+    });
+    it("any/muted when min_emdash_version is null", () => {
+      const out = buildBadgeContent("compat", baseData({ minEmDashVersion: null }));
+      expect(out).toEqual({ label: "emdash", value: "any", color: BADGE_COLORS.muted });
+    });
+    it("unknown/muted when plugin does not exist", () => {
+      const out = buildBadgeContent("compat", baseData({ pluginExists: false }));
+      expect(out).toEqual({ label: "emdash", value: "unknown", color: BADGE_COLORS.muted });
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getBadgeData — single D1 read
+// ---------------------------------------------------------------------------
+
+describe("badges/getBadgeData", () => {
+  it("returns pluginExists:false for an unknown plugin id", async () => {
+    const data = await getBadgeData(env.DB, "does-not-exist");
+    expect(data.pluginExists).toBe(false);
+    expect(data.installsCount).toBe(0);
+    expect(data.latestVersion).toBeNull();
+    expect(data.latestVersionStatus).toBeNull();
+    expect(data.latestAuditVerdict).toBeNull();
+    expect(data.latestAuditModel).toBeNull();
+    expect(data.minEmDashVersion).toBeNull();
+  });
+
+  it("hydrates every metric field for a seeded plugin", async () => {
+    const data = await getBadgeData(env.DB, "handler-test");
+    expect(data.pluginExists).toBe(true);
+    expect(data.installsCount).toBe(523);
+    expect(data.latestVersion).toBe("1.4.2");
+    expect(data.latestVersionStatus).toBe("published");
+    expect(data.latestAuditVerdict).toBe("pass");
+    expect(data.latestAuditModel).toBe("@cf/google/gemma-4-26b-a4b-it");
+    expect(data.minEmDashVersion).toBe("1.2.0");
+  });
+
+  it("hydrates a scoped-id plugin with null min_emdash_version", async () => {
+    const data = await getBadgeData(env.DB, "@scope/badge-test");
+    expect(data.pluginExists).toBe(true);
+    expect(data.installsCount).toBe(42);
+    expect(data.latestVersion).toBe("0.1.0");
+    expect(data.latestAuditVerdict).toBeNull();
+    expect(data.latestAuditModel).toBe("static-only");
+    expect(data.minEmDashVersion).toBeNull();
+  });
+
+  it("executes exactly one db.prepare per call", async () => {
+    const prepareSpy = vi.spyOn(env.DB, "prepare");
+    prepareSpy.mockClear();
+    await getBadgeData(env.DB, "handler-test");
+    expect(prepareSpy).toHaveBeenCalledTimes(1);
+    prepareSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// purgeBadges helper
+// ---------------------------------------------------------------------------
+
+describe("badges/purge", () => {
+  it("calls caches.default.delete for all five metric URLs", async () => {
+    const deleteSpy = vi
+      .spyOn(caches.default, "delete")
+      .mockResolvedValue(true);
+    try {
+      await purgeBadges("https://emdashcms.org", "myplugin");
+      expect(deleteSpy).toHaveBeenCalledTimes(5);
+      const urls = deleteSpy.mock.calls.map((c) => c[0]);
+      expect(urls).toEqual(
+        BADGE_METRICS.map(
+          (m) => `https://emdashcms.org/badges/v1/plugin/myplugin/${m}.svg`,
+        ),
+      );
+    } finally {
+      deleteSpy.mockRestore();
+    }
+  });
+
+  it("URL-encodes scoped plugin ids", async () => {
+    const deleteSpy = vi
+      .spyOn(caches.default, "delete")
+      .mockResolvedValue(true);
+    try {
+      await purgeBadges("https://emdashcms.org", "@scope/name");
+      expect(deleteSpy).toHaveBeenCalledTimes(5);
+      for (const [url] of deleteSpy.mock.calls) {
+        expect(url).toContain("%40scope%2Fname");
+      }
+    } finally {
+      deleteSpy.mockRestore();
+    }
+  });
+
+  it("swallows per-URL errors and keeps purging the rest", async () => {
+    const deleteSpy = vi
+      .spyOn(caches.default, "delete")
+      .mockImplementationOnce(() => Promise.resolve(true))
+      .mockImplementationOnce(() => Promise.reject(new Error("boom")))
+      .mockImplementation(() => Promise.resolve(true));
+    try {
+      await expect(
+        purgeBadges("https://emdashcms.org", "myplugin"),
+      ).resolves.toBeUndefined();
+      expect(deleteSpy).toHaveBeenCalledTimes(5);
+    } finally {
+      deleteSpy.mockRestore();
+    }
+  });
+});
