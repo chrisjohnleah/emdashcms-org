@@ -33,6 +33,16 @@ const formatDate = (iso: string) =>
     day: 'numeric', month: 'short', year: 'numeric',
   });
 
+// Audit models wrap their JSON response in markdown code fences
+// (```json … ```). Strip them so the moderator dashboard renders the
+// payload cleanly. Storage stays untouched — this is a display-only
+// transform so old rows clean up automatically.
+const stripCodeFence = (raw: string): string => {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json|JSON)?\s*\n([\s\S]*?)\n?```$/);
+  return fenced ? fenced[1].trim() : trimmed;
+};
+
 const formatBytes = (bytes: number) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -330,7 +340,7 @@ const severityStyle = (severity: string) => {
                           {v.rawResponse && (
                             <div class="mb-4">
                               <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-2">Raw AI Response</p>
-                              <pre class="mt-4 p-4 rounded-lg bg-paper-deep text-xs text-ink-muted overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap">{v.rawResponse}</pre>
+                              <pre class="mt-4 p-4 rounded-lg bg-paper-deep text-xs text-ink-muted overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap">{stripCodeFence(v.rawResponse)}</pre>
                             </div>
                           )}
 
