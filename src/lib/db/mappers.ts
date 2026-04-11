@@ -226,6 +226,7 @@ export function mapThemeSummary(row: Row): MarketplaceThemeSummary {
     hasThumbnail: thumbnailKey !== null,
     thumbnailUrl: thumbnailKey ? `/api/v1/images/${thumbnailKey}` : null,
     downloadCount: (row.downloads_count as number) ?? 0,
+    updatedAt: (row.updated_at as string) ?? (row.created_at as string),
   };
 }
 

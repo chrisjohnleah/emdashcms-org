@@ -185,6 +185,12 @@ export interface MarketplaceThemeSummary {
    * surface for theme listings.
    */
   downloadCount: number;
+  /**
+   * ISO 8601 UTC timestamp of the last theme row update. Surfaced so
+   * SEO surfaces (Schema.org CreativeWork.dateModified, sitemap.xml
+   * lastmod) can reflect staleness without an extra query.
+   */
+  updatedAt: string;
 }
 
 export interface MarketplaceThemeDetail extends MarketplaceThemeSummary {
