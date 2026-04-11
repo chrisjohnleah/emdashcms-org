@@ -59,7 +59,12 @@
   },
 
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
+    // AI bindings always reach Cloudflare's remote inference tier — no
+    // local emulation exists. Setting `remote: true` silences the
+    // "AI bindings always access remote resources" warning Wrangler
+    // emits in dev/test, where the binding is otherwise assumed local.
+    "remote": true
   },
 
   // Edge-cached rate limiters (free tier). Counters live in Cloudflare's

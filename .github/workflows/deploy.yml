@@ -62,6 +62,18 @@ jobs:
         run: mkdir -p dist/client
 
       - name: Run tests
+        # These dummy values exist only to silence Wrangler's "Missing
+        # required secrets" warning when vitest-pool-workers loads
+        # wrangler.jsonc. Miniflare provides the real runtime values
+        # (see vitest.config.ts miniflare.bindings), so these dummies
+        # never reach any test assertion — they just satisfy the config
+        # loader's `secrets.required` check during pool startup.
+        env:
+          GITHUB_CLIENT_SECRET: "test-github-client-secret"
+          JWT_SECRET: "test-jwt-secret-at-least-32-characters-long-for-hs256"
+          TURNSTILE_SECRET_KEY: "test-turnstile-secret"
+          UNOSEND_API_KEY: "test-unosend-api-key"
+          UNOSEND_WEBHOOK_SECRET: "test-unosend-webhook-secret-at-least-32-chars"
         run: npm test
 
       - name: Build (types + astro check + astro build)
