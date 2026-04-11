@@ -77,6 +77,13 @@ export async function emitAuditNotification(
     return;
   }
 
+  if (recipients.length === 0) {
+    console.warn(
+      `[notifications] audit emit found zero recipients plugin=${params.pluginId} version=${params.version} — check plugin_collaborators rows`,
+    );
+    return;
+  }
+
   const eventType = verdictToEventType(params.verdict);
 
   for (const recipient of recipients) {
@@ -181,6 +188,13 @@ export async function emitReportNotification(
     return;
   }
 
+  if (recipients.length === 0) {
+    console.warn(
+      `[notifications] report emit found zero recipients ${params.entityType}=${params.entityId}`,
+    );
+    return;
+  }
+
   for (const recipient of recipients) {
     try {
       const idempotencyKey = await deriveIdempotencyKey(
@@ -255,6 +269,13 @@ export async function emitRevokeNotification(
     console.error(
       `[notifications] fan-out failed for revoke ${params.entityType}=${params.entityId}:`,
       err,
+    );
+    return;
+  }
+
+  if (recipients.length === 0) {
+    console.warn(
+      `[notifications] revoke emit found zero recipients ${params.entityType}=${params.entityId}`,
     );
     return;
   }

@@ -352,6 +352,12 @@ async function skipDelivery(
   idempotencyKey: string,
   reason: string,
 ): Promise<void> {
+  // Log every skip — silent skips mask configuration drift (the
+  // canonical example: an author whose row has email=NULL will
+  // suppress every audit notification with no other trace).
+  console.warn(
+    `[notifications] skipped eventType=${job.eventType} recipient=${job.recipientAuthorId} reason="${reason}"`,
+  );
   const claimed = await claimDelivery(db, {
     idempotencyKey,
     authorId: job.recipientAuthorId,
