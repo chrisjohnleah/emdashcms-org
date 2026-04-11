@@ -1,0 +1,29 @@
+---
+// Phase 14: Reading-oriented list-row component for /digest pages (D-32).
+// Lighter than PluginCard — no icon, no install count, no grid chrome.
+// Used by /digest/[slug].astro to render new-plugin, updated-plugin, and
+// new-theme entries from the frozen manifest_json snapshot.
+interface Props {
+  title: string;
+  href: string;
+  author: string;
+  description?: string | null;
+  version?: string | null;
+  category?: string | null;
+}
+const { title, href, author, description, version, category } = Astro.props;
+---
+<article class="py-5 border-b border-rule last:border-b-0">
+  <h3 class="font-display text-xl leading-tight">
+    <a href={href} class="text-ink hover:underline">
+      {title}{version && <span class="text-ink-muted font-normal"> v{version}</span>}
+    </a>
+  </h3>
+  <p class="text-sm text-ink-muted mt-1">
+    by <a href={`https://github.com/${author}`} class="hover:underline">{author}</a>
+    {category && <span> · {category}</span>}
+  </p>
+  {description && (
+    <p class="text-base text-ink/80 mt-2 max-w-prose">{description}</p>
+  )}
+</article>
