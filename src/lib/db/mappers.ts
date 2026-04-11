@@ -12,6 +12,48 @@ import type {
 
 type Row = Record<string, unknown>;
 
+// --- Derived audit scores ---
+//
+// We split the single AI-emitted `riskScore` into two read-time scores
+// so public surfaces can distinguish "can this plugin harm my site?"
+// from "what visitor/admin data does this plugin handle?". No D1
+// schema change — both numbers are computed from the existing
+// `findings[].category + severity` shape.
+//
+// A finding's severity is weighted once; we take the MAX (not the sum)
+// across findings in a category so twenty medium-severity disclosures
+// don't spuriously blow up the score. The weights match the prompt's
+// RISK SCORE scale roughly: critical ~90, high ~70, medium ~40,
+// low ~15, info 0.
+
+const SECURITY_CATEGORIES = new Set([
+  "security",
+  "network",
+  "permissions",
+]);
+const PRIVACY_CATEGORIES = new Set(["privacy"]);
+
+const SEVERITY_WEIGHT: Record<string, number> = {
+  critical: 90,
+  high: 70,
+  medium: 40,
+  low: 15,
+  info: 0,
+};
+
+function scoreByCategory(
+  findings: MarketplaceAuditFinding[],
+  categories: Set<string>,
+): number {
+  let max = 0;
+  for (const f of findings) {
+    if (!categories.has(f.category)) continue;
+    const w = SEVERITY_WEIGHT[f.severity] ?? 0;
+    if (w > max) max = w;
+  }
+  return max;
+}
+
 export function mapAuthor(row: Row): MarketplaceAuthor {
   return {
     name: row.github_username as string,
@@ -22,22 +64,39 @@ export function mapAuthor(row: Row): MarketplaceAuthor {
 
 export function mapAuditSummary(row: Row): MarketplaceAuditSummary | null {
   if (!row.verdict) return null;
+  const findings: MarketplaceAuditFinding[] = JSON.parse(
+    (row.findings as string) || "[]",
+  );
   return {
     verdict: row.verdict as "pass" | "warn" | "fail",
     riskScore: row.risk_score as number,
+    securityRiskScore: scoreByCategory(findings, SECURITY_CATEGORIES),
+    privacyRiskScore: scoreByCategory(findings, PRIVACY_CATEGORIES),
   };
 }
 
 export function mapAuditDetail(row: Row): MarketplaceAuditDetail | null {
   if (!row.verdict) return null;
+  const findings: MarketplaceAuditFinding[] = JSON.parse(
+    (row.findings as string) || "[]",
+  );
   return {
     verdict: row.verdict as "pass" | "warn" | "fail",
     riskScore: row.risk_score as number,
-    findings: JSON.parse((row.findings as string) || "[]"),
+    securityRiskScore: scoreByCategory(findings, SECURITY_CATEGORIES),
+    privacyRiskScore: scoreByCategory(findings, PRIVACY_CATEGORIES),
+    findings,
   };
 }
 
 export function mapPluginSummary(row: Row): MarketplacePluginSummary {
+  // `latest_audit_findings` is an optional row column. Summary queries
+  // that join it can drive real security/privacy scores; queries that
+  // don't fall through to `[]`, producing 0/0 and matching the legacy
+  // "no finding detail on card surfaces" behaviour.
+  const latestAuditFindings: MarketplaceAuditFinding[] = JSON.parse(
+    (row.latest_audit_findings as string | undefined) ?? "[]",
+  );
   const latestVersion = row.latest_version
     ? {
         version: row.latest_version as string,
@@ -51,6 +110,14 @@ export function mapPluginSummary(row: Row): MarketplacePluginSummary {
           ? {
               verdict: row.latest_audit_verdict as "pass" | "warn" | "fail",
               riskScore: (row.latest_audit_risk_score as number) ?? 0,
+              securityRiskScore: scoreByCategory(
+                latestAuditFindings,
+                SECURITY_CATEGORIES,
+              ),
+              privacyRiskScore: scoreByCategory(
+                latestAuditFindings,
+                PRIVACY_CATEGORIES,
+              ),
             }
           : null,
       }

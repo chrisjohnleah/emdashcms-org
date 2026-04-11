@@ -544,6 +544,40 @@ describe("Plugin Detail (DISC-02)", () => {
     expect(plugin!.latestVersion!.audit).not.toBeNull();
     expect(plugin!.latestVersion!.audit!.verdict).toBe("warn");
   });
+
+  // Split-score exposure: findings are public on published versions,
+  // and mapAuditDetail derives securityRiskScore + privacyRiskScore
+  // from the findings' category + severity. This locks in the
+  // transparency promise — installers can see both dimensions before
+  // they install, regardless of verdict.
+  it("exposes split security / privacy scores and findings on published detail", async () => {
+    // analytics-pro v1.0.1 (flagged) has three findings seeded:
+    //   medium network, high security, low privacy
+    // → securityRiskScore = 70 (high in a security category)
+    //   privacyRiskScore  = 15 (low privacy)
+    const plugin = await getPluginDetail(env.DB, "analytics-pro");
+    expect(plugin).not.toBeNull();
+    const audit = plugin!.latestVersion!.audit!;
+    expect(audit.findings.length).toBe(3);
+    expect(audit.securityRiskScore).toBe(70);
+    expect(audit.privacyRiskScore).toBe(15);
+
+    // Findings come through verbatim — privacy finding is visible on the
+    // public surface so installers can make their own GDPR call.
+    const privacyFinding = audit.findings.find((f) => f.category === "privacy");
+    expect(privacyFinding).toBeDefined();
+    expect(privacyFinding!.severity).toBe("low");
+  });
+
+  it("returns zero security/privacy when only info-level findings exist", async () => {
+    // seo-toolkit latest (v1.1.0) has only info + low performance findings,
+    // no security or privacy categories → both derived scores are 0.
+    const plugin = await getPluginDetail(env.DB, "seo-toolkit");
+    expect(plugin).not.toBeNull();
+    const audit = plugin!.latestVersion!.audit!;
+    expect(audit.securityRiskScore).toBe(0);
+    expect(audit.privacyRiskScore).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -114,7 +114,18 @@ export async function searchPlugins(
         LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv3.id
         WHERE pv3.plugin_id = p.id AND pv3.status IN ('published', 'flagged')
         ORDER BY pv3.created_at DESC LIMIT 1
-      ) AS latest_audit_risk_score
+      ) AS latest_audit_risk_score,
+      -- findings JSON of the latest audit so mapPluginSummary can
+      -- derive securityRiskScore / privacyRiskScore from category +
+      -- severity. Cheap relative to the two subqueries above — the
+      -- SQLite planner already has the row cached.
+      (
+        SELECT pa.findings
+        FROM plugin_versions pv4
+        LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv4.id
+        WHERE pv4.plugin_id = p.id AND pv4.status IN ('published', 'flagged')
+        ORDER BY pv4.created_at DESC LIMIT 1
+      ) AS latest_audit_findings
     FROM plugins p
     JOIN authors a ON p.author_id = a.id
     ${whereClause}
@@ -290,7 +301,14 @@ export async function getPublicPluginsByAuthor(
           LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv3.id
           WHERE pv3.plugin_id = p.id AND pv3.status IN ('published', 'flagged')
           ORDER BY pv3.created_at DESC LIMIT 1
-        ) AS latest_audit_risk_score
+        ) AS latest_audit_risk_score,
+        (
+          SELECT pa.findings
+          FROM plugin_versions pv4
+          LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv4.id
+          WHERE pv4.plugin_id = p.id AND pv4.status IN ('published', 'flagged')
+          ORDER BY pv4.created_at DESC LIMIT 1
+        ) AS latest_audit_findings
        FROM plugins p
        JOIN authors a ON p.author_id = a.id
        WHERE p.author_id = ?

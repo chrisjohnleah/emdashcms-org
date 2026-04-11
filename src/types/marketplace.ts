@@ -13,7 +13,31 @@ export interface MarketplaceAuthor {
 
 export interface MarketplaceAuditSummary {
   verdict: "pass" | "warn" | "fail";
+  /**
+   * Overall risk score as emitted by the AI audit. Kept for back-compat
+   * with clients that only read a single number. Prefer
+   * `securityRiskScore` / `privacyRiskScore` in new surfaces — they are
+   * derived at map time from `findings[].category + severity` and let
+   * callers draw a cleaner "harm to the site" vs "data handling to
+   * disclose" distinction than a single collapsed score can express.
+   */
   riskScore: number;
+  /**
+   * Worst severity weight among findings whose `category` is
+   * `security`, `network`, or `permissions`. 0 when no such findings
+   * exist. This is the score that should drive "is this plugin safe to
+   * install" surfaces — it never incorporates privacy disclosures.
+   */
+  securityRiskScore: number;
+  /**
+   * Worst severity weight among findings whose `category` is `privacy`.
+   * 0 when the plugin handles no disclosable data. This is a
+   * disclosure signal, not a block signal — a plugin with a high
+   * `privacyRiskScore` and a clean `securityRiskScore` is still
+   * publishable and visible in browse surfaces, it just flags to
+   * installers that the plugin handles visitor or admin data.
+   */
+  privacyRiskScore: number;
 }
 
 export interface MarketplaceAuditFinding {

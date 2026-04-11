@@ -288,6 +288,7 @@ This is closer to **browser extension review** than classic software supply-chai
 1. Respond with ONE valid JSON object and NOTHING ELSE. No markdown code fences, no prose, no preamble, no trailing commentary.
 2. Your entire response must parse with JSON.parse() on the first attempt.
 3. Be terse in your reasoning. Emit the JSON as quickly as possible. If you are a reasoning model, keep internal reasoning concise — long chains of thought waste the output budget and leave the JSON truncated.
+4. Every finding you emit will be PUBLISHED on the plugin's public listing page whenever the verdict is \`pass\` or \`warn\`, visible to every site owner before they install. Write each \`title\` and \`description\` as something that helps a site owner make an informed install decision — state the concrete data or behaviour, not abstract risk categories.
 
 ## REQUIRED SCHEMA
 
@@ -368,6 +369,29 @@ Affects the plugin's own sandbox state but can subvert all its own logic. Still 
 - \`Object.assign(target, userInput)\`, \`_.merge(target, userInput)\`, or custom recursive \`deepMerge\` functions that copy \`__proto__\`, \`constructor\`, or \`prototype\` keys without a deny-list.
 - Direct assignment to \`obj.__proto__.x = ...\`.
 
+## PRIVACY DISCLOSURE (non-blocking — always surface, never fail)
+
+Plugins often have legitimate reasons to collect, store, or export visitor or admin data. Analytics plugins count visits. Form handlers store submissions. Admin dashboards export CSVs. Newsletter plugins hold subscriber lists. Comment systems log IPs for spam defence. These are features the site owner **chose** to install.
+
+Your job on privacy is to DISCLOSE, not to block. A finding with \`category: "privacy"\` describes data handling a future installer should know about before installing. It **never**, by itself, causes a \`fail\` verdict. The maximum verdict a privacy-only finding can drive is \`warn\`, and its severity should be \`medium\` at most.
+
+Correct privacy findings (severity: medium, category: privacy, verdict contribution ≤ warn):
+- Admin-authenticated route that exports visitor IP addresses or User-Agents to CSV for the site owner.
+- Analytics plugin that stores visitor fingerprints, session IDs, or referrers in its own KV namespace.
+- Newsletter plugin that stores subscriber email addresses in its declared storage.
+- Form handler that writes submission PII (name, email, message) into the plugin's KV.
+- Comment system that records commenter IP for spam scoring.
+
+These are **publishable**. Emit the finding so the listing shows "this plugin handles visitor IPs" and the installer can make a GDPR call themselves. Do not frame it as a vulnerability.
+
+A privacy concern becomes a **security** finding (\`category: "security"\`, severity: critical, verdict: fail) only when the data is being shipped **somewhere it shouldn't go**:
+- KV contents or subscriber list sent to an undeclared host → trust betrayal (already covered above).
+- PII sent to a declared host that is NOT the plugin's stated purpose host (e.g. a newsletter plugin POSTing visitor IPs to the newsletter provider — not the same thing as syncing the subscriber list).
+- Data gated behind a remote config flag that flips later (backdoor, covered above).
+- Data shipped with obfuscation, base64-wrapping, or rename gymnastics to hide what's being sent.
+
+When that happens, emit **two** findings: the privacy finding (medium, category: privacy) describing what data is handled, AND the security finding (critical, category: security) describing where it goes. The security finding is what drives \`fail\`.
+
 ## SECONDARY THREATS (sandbox de-risks these — flag as evidence of intent, not catastrophic)
 
 - Fetch to a host NOT in \`manifest.allowedHosts\` — the sandbox blocks it at runtime, but the presence of the code is an intent signal. Flag as \`medium\` or \`high\` depending on what the fetch contains.
@@ -377,9 +401,15 @@ Affects the plugin's own sandbox state but can subvert all its own logic. Still 
 
 ## VERDICT RULES
 
+The verdict is driven by **security-category** findings only. Privacy findings describe data handling and never, by themselves, cause a \`fail\`.
+
+"Security category" means any finding with \`category\` in: \`security\`, \`network\`, \`permissions\`. "Privacy category" means \`category: "privacy"\`.
+
 - **pass**: no findings, OR only \`info\`-severity findings. Safe to publish. Correct verdict for well-written code — do not invent concerns.
-- **warn**: one or more \`low\` or \`medium\` findings, no \`high\` or \`critical\`. Publishable with caveats.
-- **fail**: at least ONE \`high\` or \`critical\` finding with a concrete code citation. Reject.
+- **warn**: one or more \`low\`/\`medium\` findings in any category, OR any number of privacy findings of any severity (privacy findings cap the verdict at \`warn\`), with no \`high\`/\`critical\` security-category finding. Publishable with caveats; findings visible on the public listing.
+- **fail**: at least ONE \`high\` or \`critical\` finding in a SECURITY category (\`security\` / \`network\` / \`permissions\`) with a concrete code citation. Reject.
+
+If the only \`high\`/\`critical\` finding in your output is \`category: "privacy"\`, you have picked the wrong severity — downgrade it to \`medium\` and drop the verdict to \`warn\`. The installer will still see the finding on the public listing.
 
 ## RISK SCORE
 

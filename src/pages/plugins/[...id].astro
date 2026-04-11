@@ -200,7 +200,14 @@ const formatSize = (bytes: number) => {
                 <AuditBadge verdict={plugin.latestVersion.audit.verdict} />
               )}
               {plugin.latestVersion?.audit && (
-                <span class="text-xs text-ink-soft">Risk score: {plugin.latestVersion.audit.riskScore}/100</span>
+                <span class="text-xs text-ink-soft" title="Worst security-category finding severity">
+                  Security {plugin.latestVersion.audit.securityRiskScore}/100
+                </span>
+              )}
+              {plugin.latestVersion?.audit && plugin.latestVersion.audit.privacyRiskScore > 0 && (
+                <span class="text-xs text-ink-soft" title="Worst privacy-category finding severity — plugin handles visitor or admin data">
+                  Privacy {plugin.latestVersion.audit.privacyRiskScore}/100
+                </span>
               )}
             </div>
 
@@ -260,10 +267,22 @@ const formatSize = (bytes: number) => {
               <div class="mt-3 rounded-md border border-rule bg-paper-soft p-5">
                 <div class="flex items-center gap-3 flex-wrap text-sm text-ink-muted">
                   <AuditBadge verdict={plugin.latestVersion.audit.verdict} />
-                  <span>Risk score: {plugin.latestVersion.audit.riskScore}/100</span>
+                  <span class="emdash-sep" aria-hidden="true"></span>
+                  <span>Security risk: {plugin.latestVersion.audit.securityRiskScore}/100</span>
+                  <span class="emdash-sep" aria-hidden="true"></span>
+                  <span>Privacy disclosure: {plugin.latestVersion.audit.privacyRiskScore}/100</span>
                   <span class="emdash-sep" aria-hidden="true"></span>
                   <span>{plugin.latestVersion.audit.findings.length} findings</span>
                 </div>
+                <p class="mt-3 text-xs text-ink-soft leading-relaxed">
+                  <span class="text-ink-muted font-medium">Security risk</span> answers
+                  &ldquo;can this plugin harm my site?&rdquo; — it drives the publish
+                  decision.{' '}
+                  <span class="text-ink-muted font-medium">Privacy disclosure</span>{' '}
+                  answers &ldquo;what visitor or admin data does this plugin handle?&rdquo; —
+                  it&rsquo;s informational so you can make your own GDPR call before
+                  installing.
+                </p>
                 {plugin.latestVersion.audit.findings.length > 0 && (
                   <ul class="mt-4 space-y-2">
                     {plugin.latestVersion.audit.findings.map(f => (
@@ -275,6 +294,9 @@ const formatSize = (bytes: number) => {
                           f.severity === 'low' && 'bg-paper-sunk text-ink-muted',
                           f.severity === 'info' && 'bg-paper-sunk text-ink-soft',
                         ]}>{f.severity}</span>
+                        <span class="flex-shrink-0 rounded bg-paper-sunk px-1.5 py-0.5 text-[11px] font-mono text-ink-soft">
+                          {f.category}
+                        </span>
                         <span class="text-ink">{f.title}</span>
                       </li>
                     ))}
