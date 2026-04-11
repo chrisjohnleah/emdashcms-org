@@ -12,6 +12,7 @@
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
     "audit:local": "tsx scripts/audit-local.ts",
+    "bench": "tsx scripts/audit-benchmark.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:create-migration": "wrangler d1 migrations create emdashcms-org",

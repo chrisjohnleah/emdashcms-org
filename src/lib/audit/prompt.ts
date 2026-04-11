@@ -60,29 +60,21 @@ export const AUDIT_MODELS: Record<AuditModelKey, AuditModelDef> = {
     batchCapable: false,
   },
 
-  // --- Tier 2: premium deep audit via Batch API (70B-class reasoning) ---
-  "llama-3.3-70b-fast": {
-    key: "llama-3.3-70b-fast",
-    workersAiId: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    label: "Llama 3.3 70B (batch)",
-    description:
-      "Premium. Meta Llama 3.3 70B FP8-Fast — 70B-class reasoning, batch-capable so no 30s sync limit. Runs via Workers AI Async Batch API; admin triggers, cron polls, result lands in ~5 min. Use for deep audits and second-opinion on warn/fail verdicts.",
-    estimatedNeurons: "~300",
-    batchCapable: true,
-  },
+  // NOTE: batch-capable models (llama-3.3-70b-fast, qwen3-30b-a3b) were
+  // previously registered here but have been removed. Cloudflare Workers
+  // Free tier enforces a 10ms CPU budget on cron triggers, which our
+  // batch polling loop can't reliably fit inside once D1 reads +
+  // JSON.parse + writeback overhead is counted. The supporting
+  // infrastructure (batch-poller.ts, consumer.ts batch branch, migration
+  // 0022, `batchCapable` flag) is left in place as dormant code — a
+  // future phase can re-enable batch via a queue-self-requeue pattern
+  // (submit → requeue with delaySeconds → poll on next delivery) which
+  // doesn't need a cron and runs inside the 15-minute queue consumer
+  // wall clock. Until then, every production model runs sync inside the
+  // audit queue consumer which gives us all the headroom we need for
+  // plugins of realistic size.
 
-  // --- Tier 3: cheap batch fallback / admin-selectable second opinion ---
-  "qwen3-30b-a3b": {
-    key: "qwen3-30b-a3b",
-    workersAiId: "@cf/qwen/qwen3-30b-a3b-fp8",
-    label: "Qwen3 30B A3B (batch)",
-    description:
-      "Fallback. Qwen3 30B MoE with only 3B active params, FP8 quant, batch-capable. Similar cost to the default (~53 neurons/audit) but routed through the Async Batch API — ideal for reprocessing backlogs without burning sync capacity.",
-    estimatedNeurons: "~53",
-    batchCapable: true,
-  },
-
-  // --- Legacy: the original default, kept for backward compatibility ---
+  // --- Legacy: the original default, kept for regression testing ---
   "llama-3.2-3b": {
     key: "llama-3.2-3b",
     workersAiId: "@cf/meta/llama-3.2-3b-instruct",

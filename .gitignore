@@ -38,3 +38,9 @@ pnpm-debug.log*
 
 # design context (local-only — internal direction, not for public repo)
 .impeccable.md
+
+# audit model benchmark — local-only workspace for scripts/audit-benchmark.ts
+# Fixtures are real plugin tarballs we benchmark against; results are JSON
+# dumps with raw model output that can be noisy and change per run.
+bench-fixtures/
+bench-results/

@@ -210,8 +210,6 @@ export interface PluginBundle {
 export type AuditModelKey =
   | "llama-3.2-3b"
   | "glm-4.7-flash"
-  | "llama-3.3-70b-fast"
-  | "qwen3-30b-a3b"
   | "gemma-4-26b-a4b";
 
 export interface AuditJob {

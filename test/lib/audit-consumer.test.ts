@@ -562,89 +562,12 @@ describe("processAuditJob - fail-closed (AUDT-04)", () => {
     expect(version!.status).toBe("rejected");
   });
 
-  // -------------------------------------------------------------------------
-  // Batch API submission path (Workers AI Async Batch API)
-  // -------------------------------------------------------------------------
-
-  it("batch-capable model: submits via queueRequest and writes pending audit row", async () => {
-    // Llama 3.3 70B fp8-fast is batch-capable per AUDIT_MODELS. When the
-    // consumer receives a job for it, the consumer should call `ai.run`
-    // with `queueRequest: true`, receive a request_id in return, write a
-    // `status='pending'` audit row carrying that id, and return
-    // `{status:"complete", verdict:null}` so the queue message gets
-    // acked. The version itself MUST stay pending — it's the batch
-    // poller's job to finalise it later.
-    const fakeRequestId = "req-00000000-1111-2222-3333-444444444444";
-    const mockAi = {
-      run: vi.fn().mockResolvedValue({ request_id: fakeRequestId }),
-    };
-
-    const result = await processAuditJob(
-      makeJob({ modelOverride: "llama-3.3-70b-fast" }),
-      makeBindings(mockAi),
-    );
-
-    // Consumer returns ok so the queue message is acked.
-    expect(result.status).toBe("complete");
-    expect(result.verdict).toBeNull();
-    expect(result.neuronsUsed).toBe(0);
-
-    // ai.run should have been called with queueRequest:true as the 3rd arg.
-    expect(mockAi.run).toHaveBeenCalledOnce();
-    const [modelId, payload, options] = mockAi.run.mock.calls[0];
-    expect(modelId).toBe("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
-    expect(payload.messages).toBeInstanceOf(Array);
-    expect(options).toEqual({ queueRequest: true });
-
-    // A pending batch audit row should exist carrying the request_id.
-    const audit = await env.DB.prepare(
-      "SELECT status, model, batch_request_id, verdict FROM plugin_audits WHERE plugin_version_id = ? AND batch_request_id IS NOT NULL ORDER BY created_at DESC LIMIT 1",
-    )
-      .bind(VERSION_ID)
-      .first<{
-        status: string;
-        model: string;
-        batch_request_id: string;
-        verdict: string | null;
-      }>();
-    expect(audit).not.toBeNull();
-    expect(audit!.status).toBe("pending");
-    expect(audit!.model).toBe("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
-    expect(audit!.batch_request_id).toBe(fakeRequestId);
-    expect(audit!.verdict).toBeNull();
-
-    // Version status should still be pending — batch poller finalises it.
-    const version = await env.DB.prepare(
-      "SELECT status FROM plugin_versions WHERE id = ?",
-    )
-      .bind(VERSION_ID)
-      .first<{ status: string }>();
-    expect(version!.status).toBe("pending");
-  });
-
-  it("batch-capable model: submit failure rejects version", async () => {
-    // If Cloudflare's batch submit itself errors (e.g. the model isn't
-    // actually wired to batch yet, or the request is malformed), we
-    // cannot queue-retry — the failure isn't capacity related. Fall
-    // closed: the version gets rejected and an error audit row is
-    // written.
-    const mockAi = createErrorAi(new Error("Batch submit rejected"));
-
-    const result = await processAuditJob(
-      makeJob({ modelOverride: "llama-3.3-70b-fast" }),
-      makeBindings(mockAi),
-    );
-
-    expect(result.status).toBe("error");
-    expect(result.verdict).toBeNull();
-
-    const version = await env.DB.prepare(
-      "SELECT status FROM plugin_versions WHERE id = ?",
-    )
-      .bind(VERSION_ID)
-      .first<{ status: string }>();
-    expect(version!.status).toBe("rejected");
-  });
+  // NOTE: batch API tests were removed alongside the batch-capable
+  // audit models. The consumer's batch branch (src/lib/audit/consumer.ts)
+  // and the poller (src/lib/audit/batch-poller.ts) are kept as dormant
+  // code — when a batch-capable model is re-added to AUDIT_MODELS,
+  // re-introduce the tests covering submission, polling, and failure
+  // handling at that time.
 });
 
 // ---------------------------------------------------------------------------
