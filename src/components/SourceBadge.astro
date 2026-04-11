@@ -13,3 +13,11 @@ const { source } = Astro.props;
     GitHub
   </span>
 )}
+{source === 'upload' && (
+  <span
+    class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium border bg-paper-deep text-ink-muted border-ink-soft/30"
+    aria-label="Direct upload via dashboard"
+  >
+    Upload
+  </span>
+)}
