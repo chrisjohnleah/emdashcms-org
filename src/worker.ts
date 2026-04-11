@@ -2,8 +2,11 @@
 // - fetch:     delegates to Astro's handler for SSR pages + API endpoints
 // - scheduled: dispatches on `event.cron` — hourly rate_limits cleanup
 //              (0 * * * *) and daily notification digest (5 9 * * *)
-// - queue:     dispatches batches to the audit OR notifications consumer
-//              based on `batch.queue` (parallel handler pattern, D-27)
+// - queue:     dispatches batches to the audit, notifications, or OG
+//              consumer based on `batch.queue` (parallel handler
+//              pattern, D-27). OG consumption is dynamically imported
+//              so the ~2 MB workers-og wasm payload stays out of the
+//              fetch() cold-start bundle.
 import { handle } from "@astrojs/cloudflare/handler";
 import {
   processAuditJob,
@@ -15,6 +18,7 @@ import { processNotificationBatch } from "./lib/notifications/consumer";
 import { runDailyDigest } from "./lib/notifications/digest";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
 import type { AuditJob, NotificationJob } from "./types/marketplace";
+import type { OgJob } from "./lib/seo/og-queue";
 
 export default {
   async fetch(request, env, ctx) {
@@ -60,8 +64,9 @@ export default {
   },
 
   async queue(batch, env, _ctx) {
-    // Dispatch on the originating queue name. Both queues share this
-    // single handler so we don't need a second worker entry point (D-27).
+    // Dispatch on the originating queue name. All three queues share
+    // this single handler so we don't need a second worker entry
+    // point (D-27).
     if (batch.queue === "emdashcms-notifications") {
       await processNotificationBatch(
         batch as unknown as Parameters<typeof processNotificationBatch>[0],
@@ -70,6 +75,19 @@ export default {
           unosendApiKey: env.UNOSEND_API_KEY,
         },
       );
+      return;
+    }
+
+    if (batch.queue === "emdashcms-og") {
+      // Dynamic import: the workers-og module graph pulls in ~2 MB
+      // of wasm (yoga + resvg) plus the inlined TTF fonts. Pinning
+      // it behind a dynamic import keeps it out of the fetch() cold
+      // start so HTML pages and API endpoints aren't paying the
+      // download cost on every new isolate.
+      const { handleOgJob } = await import("./lib/seo/og-queue");
+      for (const message of batch.messages) {
+        await handleOgJob(message as Message<OgJob>);
+      }
       return;
     }
 

@@ -27,6 +27,19 @@ if (theme) {
     themeJsonLd = undefined;
   }
 }
+
+// OG image URL for social share previews. Points at /og/theme/[id].png
+// — BaseLayout (Plan 01) consumes this via the `ogImage` prop and
+// emits og:image + twitter:image meta, flipping twitter:card to
+// `summary_large_image`.
+const themeOgImage: { url: string; width: number; height: number } | undefined =
+  theme
+    ? {
+        url: `https://emdashcms.org/og/theme/${theme.id}.png`,
+        width: 1200,
+        height: 630,
+      }
+    : undefined;
 ---
 {!theme ? (
   <BaseLayout title="Theme not found - emdashcms.org">
@@ -45,6 +58,7 @@ if (theme) {
     title={theme.name + " - emdashcms.org"}
     description={theme.shortDescription ?? theme.description ?? undefined}
     jsonLd={themeJsonLd}
+    ogImage={themeOgImage}
   >
     <section class="page pt-12 pb-16 md:pt-16">
 

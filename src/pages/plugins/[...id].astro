@@ -120,6 +120,19 @@ if (plugin) {
   }
 }
 
+// OG image URL for social share previews. Points at the deferred-
+// generation route /og/plugin/[id].png — BaseLayout consumes this via
+// the `ogImage` prop wired in Plan 01 and emits og:image + twitter:image
+// meta tags, flipping twitter:card to `summary_large_image`.
+const pluginOgImage: { url: string; width: number; height: number } | undefined =
+  plugin
+    ? {
+        url: `https://emdashcms.org/og/plugin/${plugin.id}.png`,
+        width: 1200,
+        height: 630,
+      }
+    : undefined;
+
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -154,6 +167,7 @@ const formatSize = (bytes: number) => {
     description={plugin.shortDescription ?? plugin.description ?? undefined}
     noindex={plugin.pluginStatus === 'revoked'}
     jsonLd={pluginJsonLd}
+    ogImage={pluginOgImage}
   >
     <section class="page pt-12 pb-16 md:pt-16">
 
