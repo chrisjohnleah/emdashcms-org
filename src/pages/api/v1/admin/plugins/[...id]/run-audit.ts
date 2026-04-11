@@ -62,6 +62,16 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
           `model must be one of: ${Object.keys(AUDIT_MODELS).join(", ")}`,
         );
       }
+      const modelDef = AUDIT_MODELS[body.model as AuditModelKey];
+      // Reject disabled models (e.g. Gemma 4 waiting on Cloudflare batch
+      // support). The admin UI shouldn't offer the button at all, but we
+      // defend the API surface too so a stale client can't pick one.
+      if (modelDef.disabled) {
+        return errorResponse(
+          400,
+          `model '${body.model}' is currently disabled: ${modelDef.disabledReason ?? "no reason given"}`,
+        );
+      }
       modelOverride = body.model as AuditModelKey;
     }
   } catch {

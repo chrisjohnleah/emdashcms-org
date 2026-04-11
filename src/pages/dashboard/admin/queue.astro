@@ -198,14 +198,17 @@ const tabs: Tab[] = [
                         <Button
                           variant="secondary"
                           size="sm"
-                          data-run-audit
+                          data-run-audit={!model.disabled ? '' : undefined}
                           data-mode="ai"
                           data-model={model.key}
                           data-plugin-id={encodeURIComponent(item.pluginId)}
                           data-version={item.version}
-                          title={`${model.description} (${model.estimatedNeurons} neurons)`}
+                          disabled={model.disabled}
+                          title={model.disabled
+                            ? `Unavailable: ${model.disabledReason ?? 'disabled'}`
+                            : `${model.description} (${model.estimatedNeurons} neurons)`}
                         >
-                          AI: {model.label}{model.key === DEFAULT_AUDIT_MODEL ? ' *' : ''}
+                          AI: {model.label}{model.key === DEFAULT_AUDIT_MODEL ? ' *' : ''}{model.disabled ? ' (unavailable)' : ''}
                         </Button>
                       ))}
                     </div>

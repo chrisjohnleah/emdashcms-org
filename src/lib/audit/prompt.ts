@@ -27,33 +27,94 @@ export interface AuditModelDef {
   description: string;
   /** Approximate neuron cost per audit, for the admin UI */
   estimatedNeurons: string;
+  /**
+   * Whether this model supports the Workers AI Async Batch API
+   * (`queueRequest: true`). Batch-capable models avoid the 30-second
+   * sync wall clock — we submit, ack the queue message, and a cron
+   * poller picks up the result later. Only batch-capable models can
+   * use heavy / slow architectures (70B+ dense, 120B+ MoE).
+   *
+   * Source: https://developers.cloudflare.com/workers-ai/models/?capabilities=Batch
+   */
+  batchCapable: boolean;
+  /**
+   * When true, the admin "Run AI" button for this model is rendered
+   * disabled with `disabledReason` shown as a tooltip. Used for models
+   * Cloudflare has published but not yet wired into the Async Batch
+   * API — we keep them in the registry as a roadmap signal, and the
+   * day Cloudflare enables batch we just flip this to false.
+   */
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export const AUDIT_MODELS: Record<AuditModelKey, AuditModelDef> = {
+  // --- Tier 1: default for every upload (fast sync, best cost/quality) ---
+  "glm-4.7-flash": {
+    key: "glm-4.7-flash",
+    workersAiId: "@cf/zai-org/glm-4.7-flash",
+    label: "GLM-4.7 Flash",
+    description:
+      "Default. Z.AI GLM-4.7 Flash — speed-optimised 131K-ctx coding model with function calling. Strong real-world code reasoning, low hallucination, ~62 neurons/audit (161 audits/day on free tier).",
+    estimatedNeurons: "~62",
+    batchCapable: false,
+  },
+
+  // --- Tier 2: premium deep audit via Batch API (70B-class reasoning) ---
+  "llama-3.3-70b-fast": {
+    key: "llama-3.3-70b-fast",
+    workersAiId: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    label: "Llama 3.3 70B (batch)",
+    description:
+      "Premium. Meta Llama 3.3 70B FP8-Fast — 70B-class reasoning, batch-capable so no 30s sync limit. Runs via Workers AI Async Batch API; admin triggers, cron polls, result lands in ~5 min. Use for deep audits and second-opinion on warn/fail verdicts.",
+    estimatedNeurons: "~300",
+    batchCapable: true,
+  },
+
+  // --- Tier 3: cheap batch fallback / admin-selectable second opinion ---
+  "qwen3-30b-a3b": {
+    key: "qwen3-30b-a3b",
+    workersAiId: "@cf/qwen/qwen3-30b-a3b-fp8",
+    label: "Qwen3 30B A3B (batch)",
+    description:
+      "Fallback. Qwen3 30B MoE with only 3B active params, FP8 quant, batch-capable. Similar cost to the default (~53 neurons/audit) but routed through the Async Batch API — ideal for reprocessing backlogs without burning sync capacity.",
+    estimatedNeurons: "~53",
+    batchCapable: true,
+  },
+
+  // --- Legacy: the original default, kept for backward compatibility ---
   "llama-3.2-3b": {
     key: "llama-3.2-3b",
     workersAiId: "@cf/meta/llama-3.2-3b-instruct",
-    label: "Llama 3.2 3B",
+    label: "Llama 3.2 3B (legacy)",
     description:
-      "Default. Small (3B params) but capable enough for the lightweight audit we run. ~17 neurons/audit, ~588 audits/day on the free tier.",
+      "Legacy default. Small (3B params), fast and cheap (~17 neurons) but known to hallucinate security findings on anything more complex than trivial plugins. Kept available for regression testing; new audits should prefer GLM-4.7-Flash.",
     estimatedNeurons: "~17",
+    batchCapable: false,
   },
+
+  // --- Future: waiting on Cloudflare to enable Async Batch API for Gemma ---
   "gemma-4-26b-a4b": {
     key: "gemma-4-26b-a4b",
     workersAiId: "@cf/google/gemma-4-26b-a4b-it",
     label: "Gemma 4 26B-A4B",
     description:
-      "Premium. Mixture-of-experts (26B total / ~4B active params) with 256k context, vision, function calling, and reasoning. Sharper findings on borderline plugins. Higher neuron cost — reserve for spot checks or when the cheap pass flagged.",
-    estimatedNeurons: "~80-150",
+      "Premium (pending). Gemma 4 26B MoE (4B active), 256K ctx, strong reasoning. Cannot currently complete sync on free-tier Workers (30s wall clock) and Cloudflare has NOT yet enabled the Async Batch API for this model. Kept in the registry so the day batch support ships, we flip `disabled` to false and it becomes a second premium option alongside Llama 3.3 70B.",
+    estimatedNeurons: "~100",
+    batchCapable: false,
+    disabled: true,
+    disabledReason:
+      "Gemma 4 26B exceeds the 30s sync Worker wall clock on free tier, and Cloudflare has not yet enabled the Async Batch API for this model. Use Llama 3.3 70B (batch) for premium audits until Cloudflare adds batch support.",
   },
 };
 
 /**
  * Default model used when an audit job carries no modelOverride. Keep
- * this aligned with the cheapest viable model so the upload hot path
- * doesn't burn through the daily neuron budget.
+ * this aligned with the best cost/quality tradeoff for sync audits so
+ * the upload hot path doesn't burn through the daily neuron budget and
+ * doesn't hallucinate findings on real plugins.
  */
-export const DEFAULT_AUDIT_MODEL: AuditModelKey = "llama-3.2-3b";
+export const DEFAULT_AUDIT_MODEL: AuditModelKey = "glm-4.7-flash";
 
 /**
  * Backwards-compatible alias for the default model's Workers AI id.
@@ -114,7 +175,7 @@ export const MAX_CODE_CHARS = 50_000;
  * extract+parse it ourselves. This works with every text-generation model
  * on Workers AI, so model swaps don't break the audit pipeline.
  */
-export const SYSTEM_PROMPT = `You are a security auditor for EmDash CMS plugins. Your job is to analyze plugin source code and identify security risks, privacy violations, and code quality issues.
+export const SYSTEM_PROMPT = `You are a security auditor for EmDash CMS plugins. Your job is to analyze plugin source code and identify specific, evidence-backed security risks.
 
 CRITICAL OUTPUT FORMAT:
 - Respond with ONE valid JSON object and NOTHING ELSE.
@@ -130,32 +191,40 @@ The JSON object MUST have exactly these three top-level fields:
   "findings": [
     {
       "severity": "critical" | "high" | "medium" | "low" | "info",
-      "title": "<short>",
-      "description": "<one to three sentences>",
+      "title": "<short, specific — name the actual pattern>",
+      "description": "<one to three sentences, MUST quote or reference specific code>",
       "category": "security" | "privacy" | "network" | "permissions" | "code-quality" | "compatibility",
-      "location": "<file path or null>"
+      "location": "<file path, with line hint if possible, or null>"
     }
   ]
 }
 
-Verdict definitions:
-- "pass": safe to publish, no significant issues
-- "warn": publishable with warnings, minor concerns
-- "fail": should be rejected, critical or likely-malicious issues
+DO NOT HALLUCINATE FINDINGS. Strict rules:
+1. Every finding MUST cite a SPECIFIC line, function, or code pattern from the files provided. Generic statements like "may allow injection" without a concrete code reference are FORBIDDEN.
+2. The \`emdash\` / \`@emdash-cms/*\` packages are the TRUSTED plugin runtime SDK and block/element builders. Using them is NEVER a risk. Do not flag \`definePlugin\`, \`PluginContext\`, \`ctx.kv\`, \`ctx.log\`, \`ctx.http\`, \`b.header\`, \`b.section\`, \`b.actions\`, \`e.button\` or any other SDK-provided primitive.
+3. \`ctx.http.fetch\` and the \`network:fetch\` capability are the ONLY sanctioned way for plugins to make HTTP requests. Using them is CORRECT behaviour, not a risk — they are sandboxed by the host to the manifest's \`allowedHosts\`.
+4. TypeScript files (.ts) passing typed data through \`URLSearchParams\`, typed API clients, or JSON.parse on typed responses are NOT injection vectors. Do not flag them.
+5. If you cannot identify a concrete risky pattern supported by an actual code reference, return \`{"verdict":"pass","riskScore":0,"findings":[]}\`. "Pass" is the correct verdict for well-written code. Do not invent concerns to justify a non-empty findings list.
+6. A single vague or speculative finding is worse than no findings. Better to miss a risk than fabricate one.
 
-Categories to consider:
-- security: eval/Function usage, prototype pollution, injection, unsafe dynamic code
-- privacy: accessing user data beyond declared scope, sensitive storage, tracking without consent
-- network: exfiltration, requests to undeclared hosts, phone-home, hidden telemetry
-- permissions: excessive capabilities, accessing APIs beyond manifest scope, privilege escalation
-- code-quality: obfuscation, known malware patterns, suspicious minification
-- compatibility: patterns that would break in the EmDash sandbox, unsupported APIs
+Real risks to look for (with concrete code evidence):
+- security: \`eval()\`, \`new Function()\`, \`document.write()\`, \`innerHTML\` from user input, \`Object.assign({}, userInput)\` into prototypes, \`__proto__\` assignment, unsafe \`JSON.parse\` of untrusted strings used as code
+- privacy: reading user data fields not declared in manifest, writing PII to KV/storage without consent, fingerprinting patterns
+- network: \`fetch\`/\`XMLHttpRequest\` to hosts NOT listed in \`manifest.allowedHosts\`, WebSocket to unlisted hosts, DNS prefetch to attacker hosts, hidden \`Image.src\` pings
+- permissions: calling APIs that require capabilities not in \`manifest.capabilities\`, privilege escalation attempts
+- code-quality: obfuscated JS (minified bundle shipped as source, hex-encoded strings, \`\\x\` / \`\\u\` escaping of normal identifiers), typosquatting imports
+- compatibility: use of \`window\`, \`document\`, Node-only modules, or other APIs not available in the EmDash sandbox
+
+Verdict definitions (be strict about these):
+- "pass": no findings OR only \`info\`-severity findings. Safe to publish.
+- "warn": one or more \`low\` or \`medium\` findings. Publishable with caveats.
+- "fail": at least one \`high\` or \`critical\` finding with a concrete code citation. Reject.
 
 Risk score guidelines:
-- 0-20: clean code, no significant issues
-- 21-50: minor concerns publishers should address
-- 51-75: significant issues requiring attention
-- 76-100: critical security problems, likely malicious
+- 0-20: clean code, trust signals strong
+- 21-50: minor non-blocking concerns
+- 51-75: at least one high-severity finding with evidence
+- 76-100: at least one critical finding with evidence; likely malicious or catastrophically broken
 
 If the bundle is clean, return {"verdict":"pass","riskScore":0,"findings":[]}.`;
 

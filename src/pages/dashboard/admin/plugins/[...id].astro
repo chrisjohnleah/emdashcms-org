@@ -266,14 +266,17 @@ const severityStyle = (severity: string) => {
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  data-run-audit
+                                  data-run-audit={!model.disabled ? '' : undefined}
                                   data-mode="ai"
                                   data-model={model.key}
                                   data-plugin-id={encodeURIComponent(plugin.id)}
                                   data-version={v.version}
-                                  title={`${model.description} (${model.estimatedNeurons} neurons)`}
+                                  disabled={model.disabled}
+                                  title={model.disabled
+                                    ? `Unavailable: ${model.disabledReason ?? 'disabled'}`
+                                    : `${model.description} (${model.estimatedNeurons} neurons)`}
                                 >
-                                  Run AI: {model.label}{model.key === DEFAULT_AUDIT_MODEL ? ' *' : ''}
+                                  Run AI: {model.label}{model.key === DEFAULT_AUDIT_MODEL ? ' *' : ''}{model.disabled ? ' (unavailable)' : ''}
                                 </Button>
                               ))}
                               {(v.status === 'published' || v.status === 'flagged') && (
