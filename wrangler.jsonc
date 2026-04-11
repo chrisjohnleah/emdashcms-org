@@ -106,10 +106,10 @@
   //   - off: skip AI, auto-publish if static checks pass (use only in emergency)
   "vars": {
     "GITHUB_CLIENT_ID": "Ov23liIu0eF3FtxoIcYU",
-    "GITHUB_APP_ID": "",
+    "GITHUB_APP_ID": "3345980",
     "SUPERADMIN_GITHUB_IDS": "959104",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAC1FBCZjp5kjJ99c",
-    "AUDIT_MODE": "manual"
+    "AUDIT_MODE": "auto"
   },
 
   // Secrets set via: wrangler secret put <NAME>
