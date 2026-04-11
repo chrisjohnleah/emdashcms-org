@@ -30,6 +30,12 @@ concurrency:
 permissions:
   contents: read
 
+# Opt in to Node.js 24 ahead of the June 2026 deprecation of Node 20
+# on GitHub Actions runners. The cloudflare/wrangler-action still ships
+# as a Node 20 action until then; this env flag forces it to run on 24.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   deploy:
     name: Deploy to Cloudflare Workers
