@@ -139,6 +139,7 @@ export function mapVersionSummary(row: Row): MarketplaceVersionSummary {
     auditVerdict: (row.verdict as "pass" | "warn" | "fail") ?? null,
     imageAuditVerdict: null, // No image audit system in v1
     publishedAt: ((row.published_at ?? row.created_at) as string),
+    downloadCount: (row.downloads_count as number) ?? 0,
     findings: JSON.parse((row.findings as string) || "[]"),
     publicAdminNote: (row.public_admin_note as string) ?? null,
   };

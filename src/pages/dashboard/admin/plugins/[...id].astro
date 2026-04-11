@@ -214,8 +214,9 @@ const severityStyle = (severity: string) => {
                   <th class="pb-3 pl-6 pr-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Version</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Status</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Verdict</th>
-                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Risk Score</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Risk</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Source</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide text-right" title="Bundle GETs for this version">Downloads</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Retries</th>
                   <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide">Date</th>
                 </tr>
@@ -223,10 +224,10 @@ const severityStyle = (severity: string) => {
               <tbody class="divide-y divide-rule">
                 {versions.map(v => (
                   <tr class="group">
-                    <td colspan="7" class="p-0">
+                    <td colspan="8" class="p-0">
                       <details class="w-full">
                         <summary class="cursor-pointer list-none hover:bg-paper-sunk transition-colors">
-                          <div class="grid grid-cols-7 items-center w-full">
+                          <div class="grid grid-cols-8 items-center w-full">
                             <div class="py-3 pl-6 pr-4 font-mono text-ink">{v.version}</div>
                             <div class="py-3 px-4"><StatusBadge status={v.status} /></div>
                             <div class="py-3 px-4"><AuditBadge verdict={v.verdict} /></div>
@@ -236,6 +237,7 @@ const severityStyle = (severity: string) => {
                             <div class="py-3 px-4">
                               {v.source ? <SourceBadge source={v.source as 'github' | 'upload'} /> : <span class="text-ink-soft text-xs">--</span>}
                             </div>
+                            <div class="py-3 px-4 text-right font-mono text-ink-muted tabular-nums">{v.downloadCount.toLocaleString()}</div>
                             <div class="py-3 px-4 text-ink-soft font-mono">{v.retryCount}</div>
                             <div class="py-3 pl-4 pr-6 text-ink-soft">{formatDate(v.createdAt)}</div>
                           </div>

@@ -538,6 +538,7 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Status</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Audit</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Source</th>
+                  <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide text-right" scope="col" title="Bundle GETs for this version — browser ZIP + CLI">Downloads</th>
                   <th class="pb-3 px-4 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Uploaded</th>
                   <th class="pb-3 pl-4 pr-6 pt-4 text-xs font-semibold text-ink-soft uppercase tracking-wide" scope="col">Actions</th>
                 </tr>
@@ -549,6 +550,7 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
                     <td class="py-3 px-4"><StatusBadge status={v.status} /></td>
                     <td class="py-3 px-4"><AuditBadge verdict={v.auditVerdict} /></td>
                     <td class="py-3 px-4"><SourceBadge source={(sourceMap.get(v.version) ?? 'upload') as 'github' | 'upload'} /></td>
+                    <td class="py-3 px-4 text-right font-mono text-ink-muted tabular-nums">{v.downloadCount.toLocaleString()}</td>
                     <td class="py-3 px-4 text-ink-soft">{formatDate(v.publishedAt)}</td>
                     <td class="py-3 pl-4 pr-6">
                       <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/versions/' + v.version} class="text-ink-muted hover:text-ink transition-colors text-sm">View Audit</a>

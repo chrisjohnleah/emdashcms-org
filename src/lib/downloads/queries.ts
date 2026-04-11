@@ -108,25 +108,40 @@ export async function pluginExists(
 // --- Raw Download Tracking ---
 
 /**
- * Increment the raw download counter for a plugin. Called from the
- * bundle endpoint after R2 successfully serves the artifact, so a 404
- * or storage miss never inflates the counter. No dedup — every served
- * byte is one download. Pair with `installs_count` (CLI-validated,
- * site-deduped) to compare anonymous download volume to real installs.
+ * Increment both the plugin-level and version-level download counters
+ * in a single D1 batch. Called from the bundle endpoint after R2
+ * successfully serves the artifact, so a 404 or storage miss never
+ * inflates either counter. No dedup — every served byte is one
+ * download. Pair the plugin total with `installs_count` (CLI-validated,
+ * site-deduped) to compare anonymous download volume to real installs;
+ * use the version-level counter to chart per-version adoption trends
+ * in the admin/dashboard like a "by URL" report.
  */
 export async function incrementPluginDownloads(
   db: D1Database,
   pluginId: string,
+  version: string,
 ): Promise<void> {
-  await db
-    .prepare(
-      `UPDATE plugins
-         SET downloads_count = downloads_count + 1,
-             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-       WHERE id = ?`,
-    )
-    .bind(pluginId)
-    .run();
+  // Batch so both counters move together — if D1 fails, neither
+  // increments, keeping the plugin total and the sum of version
+  // totals consistent.
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE plugins
+           SET downloads_count = downloads_count + 1,
+               updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = ?`,
+      )
+      .bind(pluginId),
+    db
+      .prepare(
+        `UPDATE plugin_versions
+           SET downloads_count = downloads_count + 1
+         WHERE plugin_id = ? AND version = ?`,
+      )
+      .bind(pluginId, version),
+  ]);
 }
 
 /**

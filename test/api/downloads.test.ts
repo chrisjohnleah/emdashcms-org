@@ -393,24 +393,65 @@ describe("DOWN-03: Install counts in API responses", () => {
 // ---------------------------------------------------------------------------
 
 describe("DOWN-04: Raw download counters", () => {
-  it("incrementPluginDownloads bumps the plugin downloads_count", async () => {
-    const before = await env.DB.prepare(
+  it("incrementPluginDownloads bumps both plugin total and version-specific counters", async () => {
+    const pluginBefore = await env.DB.prepare(
       "SELECT downloads_count FROM plugins WHERE id = ?",
     )
       .bind("dl-test-plugin")
       .first<{ downloads_count: number }>();
+    const versionBefore = await env.DB.prepare(
+      "SELECT downloads_count FROM plugin_versions WHERE plugin_id = ? AND version = ?",
+    )
+      .bind("dl-test-plugin", "1.0.0")
+      .first<{ downloads_count: number }>();
 
-    await incrementPluginDownloads(env.DB, "dl-test-plugin");
-    await incrementPluginDownloads(env.DB, "dl-test-plugin");
-    await incrementPluginDownloads(env.DB, "dl-test-plugin");
+    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
+    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
+    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
 
-    const after = await env.DB.prepare(
+    const pluginAfter = await env.DB.prepare(
       "SELECT downloads_count FROM plugins WHERE id = ?",
     )
       .bind("dl-test-plugin")
       .first<{ downloads_count: number }>();
+    const versionAfter = await env.DB.prepare(
+      "SELECT downloads_count FROM plugin_versions WHERE plugin_id = ? AND version = ?",
+    )
+      .bind("dl-test-plugin", "1.0.0")
+      .first<{ downloads_count: number }>();
 
-    expect(after!.downloads_count).toBe((before?.downloads_count ?? 0) + 3);
+    expect(pluginAfter!.downloads_count).toBe(
+      (pluginBefore?.downloads_count ?? 0) + 3,
+    );
+    expect(versionAfter!.downloads_count).toBe(
+      (versionBefore?.downloads_count ?? 0) + 3,
+    );
+  });
+
+  it("only the targeted version increments — sibling versions stay flat", async () => {
+    const sibBefore = await env.DB.prepare(
+      "SELECT downloads_count FROM plugin_versions WHERE plugin_id = ? AND version = ?",
+    )
+      .bind("dl-test-plugin", "1.1.0")
+      .first<{ downloads_count: number }>();
+
+    await incrementPluginDownloads(env.DB, "dl-test-plugin", "1.0.0");
+
+    const sibAfter = await env.DB.prepare(
+      "SELECT downloads_count FROM plugin_versions WHERE plugin_id = ? AND version = ?",
+    )
+      .bind("dl-test-plugin", "1.1.0")
+      .first<{ downloads_count: number }>();
+
+    expect(sibAfter!.downloads_count).toBe(sibBefore?.downloads_count ?? 0);
+  });
+
+  it("getPluginVersions exposes per-version downloadCount", async () => {
+    const { getPluginVersions } = await import("../../src/lib/db/queries");
+    const versions = await getPluginVersions(env.DB, "dl-test-plugin");
+    const v100 = versions.find((v) => v.version === "1.0.0");
+    expect(v100).toBeDefined();
+    expect(v100!.downloadCount).toBeGreaterThanOrEqual(4);
   });
 
   it("searchPlugins exposes downloadCount in summary", async () => {

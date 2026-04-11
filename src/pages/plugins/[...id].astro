@@ -415,6 +415,10 @@ const formatSize = (bytes: number) => {
                           <span class="text-xs text-ink-soft">{formatSize(v.bundleSize)}</span>
                           <span class="emdash-sep" aria-hidden="true"></span>
                           <span class="text-xs text-ink-soft">{formatDate(v.publishedAt)}</span>
+                          <span class="emdash-sep" aria-hidden="true"></span>
+                          <span class="text-xs text-ink-soft tabular-nums" title="Downloads of this version">
+                            {v.downloadCount.toLocaleString()} downloads
+                          </span>
                         </div>
                         <div class="flex items-center gap-3 justify-end">
                           {isDownloadable && plugin.pluginStatus !== 'revoked' && (

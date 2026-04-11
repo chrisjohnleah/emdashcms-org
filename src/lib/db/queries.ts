@@ -375,6 +375,7 @@ export interface DashboardPlugin {
   latestVersion: string | null;
   latestStatus: string | null;
   installCount: number;
+  downloadCount: number;
   updatedAt: string;
 }
 

@@ -42,6 +42,13 @@ export interface MarketplaceVersionSummary {
   imageAuditVerdict: string | null;
   publishedAt: string;
   /**
+   * Per-version raw download count. Lets the dashboard chart "v0.2.4
+   * vs v0.2.3" trends instead of just showing one cumulative number
+   * for the whole plugin. Incremented on every successful bundle GET
+   * alongside the plugin-level counter.
+   */
+  downloadCount: number;
+  /**
    * Scanner/AI findings for this version, available for any rejected or
    * revoked version. Populated so the public plugin detail page can
    * expand an accordion showing why a version was refused — the scanner

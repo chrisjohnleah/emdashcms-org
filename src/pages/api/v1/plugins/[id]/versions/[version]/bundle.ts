@@ -47,7 +47,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
           60,
         );
         if (allowed) {
-          await incrementPluginDownloads(env.DB, pluginId);
+          await incrementPluginDownloads(env.DB, pluginId, version);
         }
       } catch (err) {
         console.error("[api] Download tracking failed:", err);

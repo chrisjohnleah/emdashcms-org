@@ -159,6 +159,7 @@ export interface AdminVersionDetail {
   promptTokens: number | null;
   completionTokens: number | null;
   neuronsUsed: number | null;
+  downloadCount: number;
 }
 
 export interface AuthorPlugin {
@@ -284,6 +285,7 @@ export async function getAdminPluginVersions(
     promptTokens: r.prompt_tokens as number | null,
     completionTokens: r.completion_tokens as number | null,
     neuronsUsed: r.neurons_used as number | null,
+    downloadCount: (r.downloads_count as number) ?? 0,
   }));
 }
 
