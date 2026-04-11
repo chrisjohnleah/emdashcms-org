@@ -87,8 +87,11 @@
   // Cron triggers:
   //  - "0 * * * *": hourly cleanup of expired rate_limits rows
   //  - "5 9 * * *": daily notification digest (09:05 UTC — D-09 in 12-CONTEXT.md)
+  //  - "*/2 * * * *": Workers AI Async Batch API poller (every 2 min) —
+  //    fetches results for pending batch audit rows submitted via
+  //    `queueRequest: true`. See src/lib/audit/batch-poller.ts.
   "triggers": {
-    "crons": ["0 * * * *", "5 9 * * *"]
+    "crons": ["0 * * * *", "5 9 * * *", "*/2 * * * *"]
   },
 
   "placement": {

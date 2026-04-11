@@ -11,6 +11,7 @@ import {
   TransientError,
 } from "./lib/audit/consumer";
 import { rejectVersion } from "./lib/audit/audit-queries";
+import { pollPendingBatches } from "./lib/audit/batch-poller";
 import { processNotificationBatch } from "./lib/notifications/consumer";
 import { runDailyDigest } from "./lib/notifications/digest";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
@@ -42,6 +43,25 @@ export default {
     // digest work continues in the background.
     if (event.cron === "5 9 * * *") {
       ctx.waitUntil(runDailyDigest(env));
+      return;
+    }
+
+    // Workers AI Async Batch API poller. Runs every 2 minutes. Fetches
+    // every `status='pending'` audit row with a `batch_request_id`,
+    // polls Cloudflare for the result, and finalises the row via
+    // completeBatchAudit or failBatchAudit. See src/lib/audit/batch-poller.ts
+    // for the full lifecycle. `waitUntil` lets the cron tick ack fast
+    // while polling continues in the background.
+    if (event.cron === "*/2 * * * *") {
+      ctx.waitUntil(
+        pollPendingBatches({
+          db: env.DB,
+          ai: env.AI,
+          notifQueue: env.NOTIF_QUEUE,
+        }).catch((err) => {
+          console.error("[scheduled] batch poller failed:", err);
+        }),
+      );
       return;
     }
 

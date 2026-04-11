@@ -14,7 +14,11 @@ import {
   extractJsonFromResponse,
   resolveAuditModel,
 } from "./prompt";
-import { createAuditRecord, rejectVersion } from "./audit-queries";
+import {
+  createAuditRecord,
+  createBatchAuditPending,
+  rejectVersion,
+} from "./audit-queries";
 import { runStaticScan, type StaticFinding } from "./static-scanner";
 import { manifestSchema } from "../publishing/manifest-schema";
 import { emitAuditNotification } from "../notifications/emitter";
@@ -478,8 +482,88 @@ export async function processAuditJob(
   const modelDef = resolveAuditModel(job.modelOverride);
   const modelId = modelDef.workersAiId;
   console.log(
-    `[audit] AI call starting: plugin=${job.pluginId} version=${job.version} model=${modelId} promptLength=${promptContent.length} budget=${budget.used}`,
+    `[audit] AI call starting: plugin=${job.pluginId} version=${job.version} model=${modelId} batchCapable=${modelDef.batchCapable} promptLength=${promptContent.length} budget=${budget.used}`,
   );
+
+  // 6a. Batch-capable models: submit via the Async Batch API and ack.
+  //     Cloudflare docs: https://developers.cloudflare.com/workers-ai/features/batch-api/
+  //
+  //     The submit returns immediately with a `request_id`. We write a
+  //     `status='pending'` audit row carrying that id, then ack the queue
+  //     message. The polling cron (`scheduled` handler, `*/2 * * * *`)
+  //     picks it up later via `findPendingBatchAudits` → `ai.run(model,
+  //     { request_id })` and finalises the row via `completeBatchAudit`.
+  //
+  //     Static findings recorded above are NOT merged yet — they'll be
+  //     merged by the poller when the batch result lands. That way the
+  //     single audit row contains the full picture when it's read.
+  if (modelDef.batchCapable) {
+    type BatchSubmitResponse = { request_id?: string; status?: string };
+    let submitResult: BatchSubmitResponse;
+    try {
+      submitResult = (await (bindings.ai as Ai).run(
+        modelId as Parameters<Ai["run"]>[0],
+        {
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: promptContent },
+          ],
+          max_tokens: 1024,
+          max_completion_tokens: 1024,
+          temperature: 0.1,
+        },
+        // `queueRequest: true` is the flag that routes this call through
+        // the Async Batch API. Only batch-capable models accept it; for
+        // non-batch models Workers AI errors out, which is why we gate
+        // on `modelDef.batchCapable`.
+        { queueRequest: true } as unknown as Parameters<Ai["run"]>[2],
+      )) as unknown as BatchSubmitResponse;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[audit] Batch submit failed: plugin=${job.pluginId} version=${job.version} model=${modelId} err=${errMsg}`,
+      );
+      // Fall closed: treat batch submission failure as a permanent error
+      // for this audit. The queue's own retries are the wrong mechanism
+      // here because the failure is likely "model doesn't support batch"
+      // or "invalid request" — not transient capacity.
+      await rejectAndNotify(
+        bindings,
+        job,
+        versionId,
+        `Batch submit failed: ${errMsg}`,
+      );
+      return { verdict: null, status: "error", neuronsUsed: 0 };
+    }
+
+    const requestId = submitResult?.request_id;
+    if (!requestId || typeof requestId !== "string") {
+      console.error(
+        `[audit] Batch submit returned no request_id: plugin=${job.pluginId} version=${job.version} response=${JSON.stringify(submitResult)}`,
+      );
+      await rejectAndNotify(
+        bindings,
+        job,
+        versionId,
+        "Batch submit returned no request_id",
+      );
+      return { verdict: null, status: "error", neuronsUsed: 0 };
+    }
+
+    const pendingAuditId = await createBatchAuditPending(bindings.db, {
+      versionId,
+      model: modelId,
+      batchRequestId: requestId,
+    });
+    console.log(
+      `[audit] Batch submitted: plugin=${job.pluginId} version=${job.version} model=${modelId} auditId=${pendingAuditId} requestId=${requestId}`,
+    );
+
+    // Return 'complete' so the queue handler acks the message. The
+    // Worker invocation ends here; the poller cron takes over for the
+    // result-handling half of the lifecycle.
+    return { verdict: null, status: "complete", neuronsUsed: 0 };
+  }
 
   // 7. Call Workers AI.
   // Two response shapes are observed across Workers AI text-gen models:
