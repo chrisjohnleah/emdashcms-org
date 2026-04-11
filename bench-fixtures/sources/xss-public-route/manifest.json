@@ -1,0 +1,20 @@
+{
+  "id": "comment-widget",
+  "version": "1.0.4",
+  "capabilities": [],
+  "allowedHosts": [],
+  "storage": {
+    "comments": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin", "public/comments", "public/submit"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/comments",
+        "label": "Comments",
+        "icon": "message"
+      }
+    ]
+  }
+}

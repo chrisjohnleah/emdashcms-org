@@ -638,16 +638,24 @@ export async function processAuditJob(
     `[audit] AI call returned: plugin=${job.pluginId} version=${job.version} model=${modelId} hasResponse=${!!raw.response} hasChoices=${!!raw.choices} usage=${JSON.stringify(raw.usage ?? null)} elapsed=${Date.now() - startTime}ms`,
   );
 
-  // 7. Normalise the response shape. Three paths we try in order:
-  //    a) `response` (standard text-gen)
-  //    b) `choices[0].message.content` (OpenAI-compat visible output)
-  //    c) `choices[0].message.reasoning_content` (fallback for reasoning
+  // 7. Normalise the response shape. Four paths we try in order:
+  //    a) `response` as STRING (standard text-gen, e.g. llama-*)
+  //    b) `response` as OBJECT (pre-parsed JSON, e.g. qwen2.5-coder-32b —
+  //       Workers AI detects valid JSON output and parses it for us).
+  //       We stringify it so extractJsonFromResponse() still works.
+  //    c) `choices[0].message.content` (OpenAI-compat visible output)
+  //    d) `choices[0].message.reasoning_content` (fallback for reasoning
   //       models that spent their whole output budget on chain-of-thought
   //       — the target JSON is still in the reasoning trace, and our
   //       extractJsonFromResponse() can pull it out of surrounding prose)
   const firstChoice = raw.choices?.[0]?.message;
+  const rawResponse = raw.response as unknown;
   const responseText =
-    raw.response ??
+    (typeof rawResponse === "string"
+      ? rawResponse
+      : rawResponse && typeof rawResponse === "object"
+        ? JSON.stringify(rawResponse)
+        : undefined) ??
     (firstChoice?.content && firstChoice.content.length > 0
       ? firstChoice.content
       : firstChoice?.reasoning_content) ??

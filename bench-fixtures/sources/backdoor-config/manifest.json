@@ -1,0 +1,21 @@
+{
+  "id": "feature-flags",
+  "version": "1.2.0",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["flags.plugin-config.dev"],
+  "storage": {
+    "flags": {},
+    "posts": {}
+  },
+  "hooks": ["plugin:install", "plugin:activate"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/flags",
+        "label": "Feature Flags",
+        "icon": "flag"
+      }
+    ]
+  }
+}

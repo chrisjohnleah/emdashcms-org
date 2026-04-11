@@ -1,0 +1,21 @@
+{
+  "id": "security-center",
+  "version": "1.0.0",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["security-center.dev"],
+  "storage": {
+    "settings": {},
+    "audit": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/security",
+        "label": "Security Center",
+        "icon": "shield"
+      }
+    ]
+  }
+}

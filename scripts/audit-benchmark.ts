@@ -62,11 +62,20 @@ if (!ACCOUNT_ID || !API_TOKEN) {
  * accurate.
  */
 const PRICING: Record<string, { inputPerM: number; outputPerM: number }> = {
+  // Production registry
   "@cf/zai-org/glm-4.7-flash": { inputPerM: 0.06, outputPerM: 0.4 },
+  "@cf/google/gemma-4-26b-a4b-it": { inputPerM: 0.1, outputPerM: 0.3 },
+  // Benchmark candidates (April 2026 CF pricing — verify against each
+  // model's page on developers.cloudflare.com/workers-ai/models/)
+  "@cf/qwen/qwen2.5-coder-32b-instruct": { inputPerM: 0.66, outputPerM: 1.0 },
+  "@cf/mistralai/mistral-small-3.1-24b-instruct": { inputPerM: 0.35, outputPerM: 0.56 },
+  "@cf/meta/llama-4-scout-17b-16e-instruct": { inputPerM: 0.27, outputPerM: 0.85 },
+  "@cf/openai/gpt-oss-20b": { inputPerM: 0.2, outputPerM: 0.3 },
+  // Historical / removed models — kept for backward-compat when
+  // benchmarking against older bench-results files
   "@cf/meta/llama-3.2-3b-instruct": { inputPerM: 0.051, outputPerM: 0.34 },
   "@cf/meta/llama-3.3-70b-instruct-fp8-fast": { inputPerM: 0.29, outputPerM: 2.25 },
   "@cf/qwen/qwen3-30b-a3b-fp8": { inputPerM: 0.051, outputPerM: 0.34 },
-  "@cf/google/gemma-4-26b-a4b-it": { inputPerM: 0.1, outputPerM: 0.3 },
 };
 
 const NEURONS_PER_USD = 1_000_000 / 11; // 1M neurons = $11 per CF pricing
@@ -148,7 +157,10 @@ function detectHallucinations(findings: BenchmarkResult["findings"]): string[] {
 
 interface SyncEnvelope {
   result?: {
-    response?: string;
+    // response is USUALLY a string, but some models (e.g.
+    // qwen2.5-coder-32b-instruct) pre-parse valid JSON output and
+    // return it as an object directly. Our extractor handles both.
+    response?: string | Record<string, unknown>;
     choices?: Array<{
       message?: {
         content?: string | null;
@@ -277,18 +289,27 @@ function extractResponseText(envelope: SyncEnvelope | BatchPollEnvelope): string
   if ("result" in envelope && envelope.result && "responses" in envelope.result) {
     const r = envelope.result.responses?.[0]?.result;
     if (!r) return "";
-    return (
-      r.response ??
-      r.choices?.[0]?.message?.content ??
-      ""
-    );
+    const resp = r.response;
+    if (typeof resp === "object" && resp !== null) {
+      return JSON.stringify(resp);
+    }
+    return (resp as string | undefined) ?? r.choices?.[0]?.message?.content ?? "";
   }
   // Sync response: direct `.result.response` or `.result.choices[0].message.content/reasoning_content`
   const r = envelope.result as SyncEnvelope["result"];
   if (!r) return "";
+
+  // Some Workers AI models (e.g. qwen2.5-coder-32b-instruct) detect
+  // valid JSON output and return it as a pre-parsed object. Stringify
+  // it so extractJsonFromResponse still works downstream — the parser
+  // will happily re-parse the resulting string.
+  if (r.response && typeof r.response === "object") {
+    return JSON.stringify(r.response);
+  }
+
   const firstChoice = r.choices?.[0]?.message;
   return (
-    r.response ??
+    (typeof r.response === "string" ? r.response : undefined) ??
     (firstChoice?.content && firstChoice.content.length > 0
       ? firstChoice.content
       : firstChoice?.reasoning_content ?? "") ??
