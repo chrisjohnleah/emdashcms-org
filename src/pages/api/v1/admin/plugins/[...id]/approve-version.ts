@@ -5,6 +5,8 @@ import {
   jsonResponse,
   errorResponse,
 } from "../../../../../../lib/api/response";
+import { createAuditRecord } from "../../../../../../lib/audit/audit-queries";
+import { emitAuditNotification } from "../../../../../../lib/notifications/emitter";
 
 export const prerender = false;
 
@@ -12,6 +14,10 @@ export const prerender = false;
  * Admin action: approve a pending plugin version, moving it to 'published'
  * and stamping published_at. Used by the moderation queue to manually
  * publish versions that AUDIT_MODE='manual' left for human review.
+ *
+ * Writes an `admin-action` audit row via createAuditRecord so the
+ * approval is recorded in audit history AND the publisher receives an
+ * `audit_pass` notification with a stable eventId for idempotency.
  */
 export const POST: APIRoute = async ({ params, locals, request }) => {
   const author = locals.author;
@@ -50,15 +56,44 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
       );
     }
 
-    await env.DB.prepare(
-      `UPDATE plugin_versions
-       SET status = 'published',
-           published_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
-           updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-       WHERE id = ?`,
-    )
-      .bind(row.id)
-      .run();
+    // createAuditRecord writes the audit row AND flips version status to
+    // 'published' (via verdictToStatus(pass)) in a single batch, including
+    // the published_at stamp. The returned auditId is reused as the
+    // notification eventId so a queue retry dedupes against the audit row.
+    const auditId = await createAuditRecord(env.DB, {
+      versionId: row.id,
+      status: "complete",
+      model: "admin-action",
+      promptTokens: 0,
+      completionTokens: 0,
+      neuronsUsed: 0,
+      rawResponse: "Manually approved by admin",
+      verdict: "pass",
+      riskScore: 0,
+      findings: [],
+    });
+
+    // Emit the audit_pass notification. Wrapped in try/catch so a broken
+    // notification pipeline cannot break the approve flow — the version
+    // is already published at this point and the response must succeed.
+    try {
+      const nameRow = await env.DB.prepare(
+        "SELECT name FROM plugins WHERE id = ?",
+      )
+        .bind(pluginId)
+        .first<{ name: string }>();
+      await emitAuditNotification(env.DB, env.NOTIF_QUEUE, {
+        auditId,
+        pluginId,
+        pluginName: nameRow?.name ?? pluginId,
+        version,
+        verdict: "pass",
+        riskScore: 0,
+        findingCount: 0,
+      });
+    } catch (notifyErr) {
+      console.error("[notifications] approve-version emit failed:", notifyErr);
+    }
 
     return jsonResponse(
       {

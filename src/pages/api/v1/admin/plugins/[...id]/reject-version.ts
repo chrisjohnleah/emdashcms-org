@@ -5,6 +5,8 @@ import {
   jsonResponse,
   errorResponse,
 } from "../../../../../../lib/api/response";
+import { createAuditRecord } from "../../../../../../lib/audit/audit-queries";
+import { emitAuditNotification } from "../../../../../../lib/notifications/emitter";
 
 export const prerender = false;
 
@@ -12,6 +14,11 @@ export const prerender = false;
  * Admin action: reject a pending or flagged plugin version. Used by the
  * moderation queue to refuse versions that the admin has manually
  * reviewed and decided not to publish.
+ *
+ * Writes an `admin-action` audit row via createAuditRecord — this both
+ * records the rejection in audit history (with the optional reason and
+ * public_note flag) AND yields a stable auditId reused as the
+ * notification eventId for idempotency.
  */
 export const POST: APIRoute = async ({ params, locals, request }) => {
   const author = locals.author;
@@ -57,32 +64,47 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
       return errorResponse(409, "Version is already rejected");
     }
 
-    await env.DB.prepare(
-      `UPDATE plugin_versions
-       SET status = 'rejected',
-           updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-       WHERE id = ?`,
-    )
-      .bind(row.id)
-      .run();
+    // createAuditRecord writes the audit row AND flips version status to
+    // 'rejected' (via verdictToStatus(fail)) in a single batch. publicNote
+    // controls whether the rejection reason surfaces on the plugin detail
+    // page; the column is stored either way.
+    const auditId = await createAuditRecord(env.DB, {
+      versionId: row.id,
+      status: "complete",
+      model: "admin-action",
+      promptTokens: 0,
+      completionTokens: 0,
+      neuronsUsed: 0,
+      rawResponse: reason
+        ? `Manually rejected by admin: ${reason}`
+        : "Manually rejected by admin",
+      verdict: "fail",
+      riskScore: 100,
+      findings: [],
+      publicNote,
+    });
 
-    // Persist the rejection reason as an audit record so the publisher
-    // (and future admins) can see why it was refused. The public_note
-    // flag controls whether the reason surfaces on the plugin detail page.
-    if (reason) {
-      await env.DB.prepare(
-        `INSERT INTO plugin_audits (
-          id, plugin_version_id, status, model, prompt_tokens, completion_tokens,
-          neurons_used, raw_response, verdict, risk_score, findings, public_note, created_at
-        ) VALUES (?, ?, 'complete', 'admin-action', 0, 0, 0, ?, 'fail', 100, '[]', ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
+    // Emit the audit_fail notification. Wrapped in try/catch so a broken
+    // notification pipeline cannot break the reject flow — the version
+    // is already rejected at this point and the response must succeed.
+    try {
+      const nameRow = await env.DB.prepare(
+        "SELECT name FROM plugins WHERE id = ?",
       )
-        .bind(
-          crypto.randomUUID(),
-          row.id,
-          `Manually rejected by admin: ${reason}`,
-          publicNote ? 1 : 0,
-        )
-        .run();
+        .bind(pluginId)
+        .first<{ name: string }>();
+      await emitAuditNotification(env.DB, env.NOTIF_QUEUE, {
+        auditId,
+        pluginId,
+        pluginName: nameRow?.name ?? pluginId,
+        version,
+        verdict: "fail",
+        riskScore: 100,
+        findingCount: 0,
+        errorMessage: reason,
+      });
+    } catch (notifyErr) {
+      console.error("[notifications] reject-version emit failed:", notifyErr);
     }
 
     return jsonResponse(
