@@ -103,23 +103,22 @@
     "mode": "smart"
   },
 
-  // Raise the CPU time limit from the 30s default to 5 minutes. Queue
+  // Raise the CPU time limit from the 30s default to 90s. Queue
   // consumers inherit the Worker CPU limit, and heavy audit models
-  // (Gemma 4 26B-A4B, GLM-4.7-Flash reasoning, GPT-OSS-120B) can spend
-  // minutes of CPU during inference.
+  // (Gemma 4 26B-A4B, GLM-4.7-Flash reasoning, GPT-OSS-120B) run
+  // through `ai.run()` — that wait time does NOT count as CPU, so
+  // real usage stays well under 100ms per audit in practice.
   //
-  // Note on what this actually does: "CPU time" per Cloudflare is
-  // active processing time only — time spent waiting on `ai.run()`
-  // subrequests, KV reads, D1 queries, or R2 gets does NOT count. So
-  // in practice we almost never use >100ms of CPU per audit. The 5min
-  // limit is purely an insurance policy for the rare audit that
-  // happens to be ALSO doing a lot of in-process work (e.g. parsing
-  // a huge tarball) while the model thinks. Queue consumer wall-clock
-  // stays at the 15-minute platform default.
+  // Observed: test plugins audit in <20s end-to-end. The 90s ceiling
+  // is a safety margin for unusually large tarballs doing heavier
+  // in-process work (parsing, static scanning) while the model thinks,
+  // without giving runaway loops a 5-minute blast radius against the
+  // free-tier daily CPU budget. Queue consumer wall-clock stays at
+  // the 15-minute platform default.
   //
   // Docs: https://developers.cloudflare.com/queues/platform/limits/#increasing-queue-consumer-worker-cpu-limits
   "limits": {
-    "cpu_ms": 300000
+    "cpu_ms": 90000
   },
 
   "observability": {
