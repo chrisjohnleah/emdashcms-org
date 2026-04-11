@@ -575,9 +575,22 @@ export async function processAuditJob(
   // unrecognised one). The shape is normalised after the call by
   // extractAiResponseText() so the rest of the pipeline only sees a
   // single { response, usage } envelope regardless of the model.
+  // Envelope supports three shapes we've observed on Workers AI:
+  //   a) Standard text-gen: { response: string, usage: {...} }
+  //      e.g. @cf/meta/llama-3.2-3b-instruct
+  //   b) OpenAI-compat with visible content: { choices: [{ message: { content } }], usage }
+  //   c) OpenAI-compat with reasoning: { choices: [{ message: { content, reasoning_content } }], usage }
+  //      e.g. @cf/zai-org/glm-4.7-flash, @cf/openai/gpt-oss-*, any model
+  //      with internal chain-of-thought. These may fill reasoning_content
+  //      and leave `content` empty if the completion budget is tight.
   type AiResponseEnvelope = {
     response?: string;
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{
+      message?: {
+        content?: string | null;
+        reasoning_content?: string | null;
+      };
+    }>;
     usage?: {
       prompt_tokens: number;
       completion_tokens: number;
@@ -590,13 +603,20 @@ export async function processAuditJob(
     // "5025: This model doesn't support JSON Schema". The prompt mandates
     // JSON-only output and extractJsonFromResponse() recovers it even if
     // the model wraps it in code fences or adds prose.
+    //
+    // max_tokens = 4096 gives reasoning models (GLM-4.7, GPT-OSS, etc.)
+    // enough room to complete their internal chain-of-thought AND emit
+    // the final JSON. Llama 3.2 3B (the previous default) never needed
+    // more than ~200 output tokens, but reasoning models can spend 1000+
+    // tokens thinking before they write a single visible token — if
+    // max_tokens caps them mid-thought, `content` comes back empty.
     raw = await (bindings.ai as Ai).run(modelId as Parameters<Ai["run"]>[0], {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: promptContent },
       ],
-      max_tokens: 1024,
-      max_completion_tokens: 1024,
+      max_tokens: 4096,
+      max_completion_tokens: 4096,
       temperature: 0.1,
     }) as unknown as AiResponseEnvelope;
   } catch (err) {
@@ -618,14 +638,28 @@ export async function processAuditJob(
     `[audit] AI call returned: plugin=${job.pluginId} version=${job.version} model=${modelId} hasResponse=${!!raw.response} hasChoices=${!!raw.choices} usage=${JSON.stringify(raw.usage ?? null)} elapsed=${Date.now() - startTime}ms`,
   );
 
-  // 7. Normalise the response shape. Standard Workers AI models put the
-  // text on `result.response`; OpenAI-compatible models (gemma-4-26b-a4b)
-  // put it on `result.choices[0].message.content`. Either way the
-  // downstream parser only sees a single string.
+  // 7. Normalise the response shape. Three paths we try in order:
+  //    a) `response` (standard text-gen)
+  //    b) `choices[0].message.content` (OpenAI-compat visible output)
+  //    c) `choices[0].message.reasoning_content` (fallback for reasoning
+  //       models that spent their whole output budget on chain-of-thought
+  //       — the target JSON is still in the reasoning trace, and our
+  //       extractJsonFromResponse() can pull it out of surrounding prose)
+  const firstChoice = raw.choices?.[0]?.message;
   const responseText =
     raw.response ??
-    raw.choices?.[0]?.message?.content ??
+    (firstChoice?.content && firstChoice.content.length > 0
+      ? firstChoice.content
+      : firstChoice?.reasoning_content) ??
     "";
+
+  // Diagnostic log on empty responses so future mysteries triage faster
+  // without a new round of tail-watching.
+  if (!responseText || !responseText.trim()) {
+    console.error(
+      `[audit] empty response envelope: plugin=${job.pluginId} version=${job.version} model=${modelId} rawKeys=${Object.keys(raw).join(",")} choiceKeys=${firstChoice ? Object.keys(firstChoice).join(",") : "none"} contentLen=${firstChoice?.content?.length ?? 0} reasoningLen=${firstChoice?.reasoning_content?.length ?? 0}`,
+    );
+  }
 
   // 8. Parse and validate response. The model may add prose, markdown
   // fences, or trailing chatter — extractJsonFromResponse handles all of
