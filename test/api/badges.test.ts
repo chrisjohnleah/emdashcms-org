@@ -1,5 +1,10 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeAll, vi } from "vitest";
+// `?raw` imports let vitest-pool-workers bundle the source text at build
+// time. Node's fs.promises is not available inside the workerd sandbox.
+import embedPanelSource from "../../src/components/EmbedBadgesPanel.astro?raw";
+import pluginDetailSource from "../../src/pages/plugins/[...id].astro?raw";
+import dashboardPluginSource from "../../src/pages/dashboard/plugins/[id].astro?raw";
 import {
   renderBadge,
   BADGE_COLORS,
@@ -614,5 +619,60 @@ describe("badges/handler", () => {
     const poisoned = canonical + "?garbage=1&poison=true";
     const second = await handleBadgeRequest(new Request(poisoned), mockEnv());
     expect(second.headers.get("CF-Cache-Status")).toBe("HIT");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Embed panel mount (13-02) — file-level assertions because the component
+// itself is a pure Astro template (no JS islands) and the real clipboard
+// wiring is manual-only per 13-VALIDATION.md Manual-Only Verifications.
+// ---------------------------------------------------------------------------
+
+describe("embed panel mount", () => {
+  it("public plugin detail imports and mounts EmbedBadgesPanel", () => {
+    expect(pluginDetailSource).toMatch(/import\s+EmbedBadgesPanel\s+from/);
+    expect(pluginDetailSource).toMatch(
+      /<EmbedBadgesPanel[^/>]*pluginId=\{plugin\.id\}/,
+    );
+    expect(pluginDetailSource).toMatch(/origin=\{Astro\.url\.origin\}/);
+  });
+
+  it("dashboard plugin detail imports and mounts EmbedBadgesPanel", () => {
+    expect(dashboardPluginSource).toMatch(/import\s+EmbedBadgesPanel\s+from/);
+    expect(dashboardPluginSource).toMatch(/<EmbedBadgesPanel/);
+    expect(dashboardPluginSource).toMatch(/origin=\{Astro\.url\.origin\}/);
+  });
+
+  it("EmbedBadgesPanel URL-encodes scoped plugin ids", () => {
+    expect(embedPanelSource).toMatch(/encodeURIComponent\(pluginId\)/);
+  });
+
+  it("EmbedBadgesPanel imports BADGE_METRICS from the library to avoid drift", () => {
+    expect(embedPanelSource).toMatch(/BADGE_METRICS/);
+    expect(embedPanelSource).toMatch(
+      /from\s+["']\.\.\/lib\/badges\/metrics["']/,
+    );
+  });
+
+  it("EmbedBadgesPanel wires clipboard via a single inline script", () => {
+    expect(embedPanelSource).toMatch(/navigator\.clipboard\.writeText/);
+    // The component ships with exactly one `<script is:inline>` block —
+    // strip the comment/template strings before counting so an update
+    // to the comment text cannot desynchronise the assertion. We match
+    // the block opener at column zero (no leading word chars) so the
+    // literal referenced in a code comment or string is not counted.
+    const openTags = embedPanelSource.match(/^<script\s+is:inline>/gm) ?? [];
+    expect(openTags.length).toBe(1);
+  });
+
+  it("EmbedBadgesPanel renders live <img> previews for all five metrics", () => {
+    // The preview block maps over BADGE_METRICS and emits an <img>.
+    expect(embedPanelSource).toMatch(/<img/);
+    expect(embedPanelSource).toMatch(/BADGE_METRICS\.map/);
+  });
+
+  it("EmbedBadgesPanel exposes all-markdown and all-html snippet blocks", () => {
+    expect(embedPanelSource).toMatch(/ebp-md-all/);
+    expect(embedPanelSource).toMatch(/ebp-html-all/);
   });
 });

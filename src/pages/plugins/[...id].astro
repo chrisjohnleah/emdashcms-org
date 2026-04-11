@@ -11,6 +11,7 @@ import StatusBadge from '../../components/StatusBadge.astro';
 import StarRating from '../../components/StarRating.astro';
 import TrustSignals from '../../components/TrustSignals.astro';
 import TrustTierBadge from '../../components/TrustTierBadge.astro';
+import EmbedBadgesPanel from '../../components/EmbedBadgesPanel.astro';
 import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 import { renderPluginMarkdown } from '../../lib/markdown';
@@ -432,6 +433,8 @@ const formatSize = (bytes: number) => {
           </div>
         </aside>
       </div>
+
+      <EmbedBadgesPanel pluginId={plugin.id} pluginName={plugin.name} origin={Astro.url.origin} />
 
       {!plugin.latestVersion && versions.length > 0 && (
         <div class="mt-10 rounded-md border border-warn/35 bg-warn-soft p-6 text-center">

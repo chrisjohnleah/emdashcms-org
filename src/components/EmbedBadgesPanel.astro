@@ -1,0 +1,201 @@
+---
+/**
+ * "Embed in README" panel — live badge previews plus copy-paste markdown
+ * and HTML snippets for every metric the badge endpoint exposes.
+ *
+ * Mounted on:
+ *  - `src/pages/plugins/[...id].astro` (public plugin detail, anonymous)
+ *  - `src/pages/dashboard/plugins/[id].astro` (publisher dashboard)
+ *
+ * Design rules (13-CONTEXT.md D-23..D-26):
+ *  - Pure template — no server fetches, all state flows from props.
+ *  - Metric list imported from `src/lib/badges/metrics` so a future
+ *    addition to BADGE_METRICS shows up in the panel automatically with
+ *    zero drift between route and embed snippets.
+ *  - Plugin id is URL-encoded so scoped ids (`@scope/name`) work in both
+ *    the live `<img>` previews and the copy-paste snippets. The badge
+ *    handler decodes them automatically at the route layer.
+ *  - No new dependencies, no Astro islands, no `client:*` directives.
+ *    Copy-to-clipboard is wired via a single `<script is:inline>` block
+ *    so the component is drop-in and does not pull state from the host
+ *    page's script graph.
+ */
+
+import { BADGE_METRICS } from "../lib/badges/metrics";
+
+interface Props {
+  pluginId: string;
+  pluginName: string;
+  origin: string;
+}
+
+const { pluginId, pluginName, origin } = Astro.props;
+
+// Scoped plugin ids (`@scope/name`) must be percent-encoded into both
+// the live preview `<img>` src and the snippets so the cache keys match
+// what the badge handler produces.
+const encodedId = encodeURIComponent(pluginId);
+
+type BadgeMetric = (typeof BADGE_METRICS)[number];
+
+const buildUrl = (metric: BadgeMetric) =>
+  `${origin}/badges/v1/plugin/${encodedId}/${metric}.svg`;
+
+const buildAlt = (metric: BadgeMetric) => `${metric} badge for ${pluginName}`;
+
+const perBadgeMarkdown: Record<BadgeMetric, string> = {
+  installs: `![${buildAlt("installs")}](${buildUrl("installs")})`,
+  version: `![${buildAlt("version")}](${buildUrl("version")})`,
+  "trust-tier": `![${buildAlt("trust-tier")}](${buildUrl("trust-tier")})`,
+  "audit-verdict": `![${buildAlt("audit-verdict")}](${buildUrl("audit-verdict")})`,
+  compat: `![${buildAlt("compat")}](${buildUrl("compat")})`,
+};
+
+const allMarkdown = BADGE_METRICS.map((m) => perBadgeMarkdown[m]).join("\n");
+const allHtml = BADGE_METRICS.map(
+  (m) => `<img src="${buildUrl(m)}" alt="${buildAlt(m)}">`,
+).join("\n");
+---
+
+<section class="embed-badges-panel mt-10 rounded-md border border-rule bg-paper-soft p-6">
+  <header class="flex items-baseline justify-between gap-4">
+    <div>
+      <h2 class="font-display text-2xl text-ink" style="font-weight: 500;">Embed in README</h2>
+      <p class="mt-1.5 text-sm text-ink-muted leading-relaxed">
+        Paste any of these snippets into your plugin&rsquo;s README so readers see live
+        installs, trust tier, audit verdict, version, and EmDash compatibility.
+      </p>
+    </div>
+    <a
+      href="https://shields.io"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="shrink-0 text-xs text-ink-soft underline underline-offset-2 decoration-rule-strong hover:text-ink hover:decoration-accent-deep transition-colors"
+    >
+      Shields.io style
+    </a>
+  </header>
+
+  {/* Live previews — these hit the real badge endpoint so publishers see exactly what readers will. */}
+  <div class="mt-5 flex flex-wrap items-center gap-2" aria-label="Badge previews">
+    {BADGE_METRICS.map((metric) => (
+      <img
+        src={buildUrl(metric)}
+        alt={buildAlt(metric)}
+        loading="lazy"
+        decoding="async"
+        height="20"
+      />
+    ))}
+  </div>
+
+  {/* All-five markdown block */}
+  <div class="mt-6">
+    <label
+      for="ebp-md-all"
+      class="block text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-2"
+    >
+      Markdown (all five)
+    </label>
+    <div class="flex items-start gap-2">
+      <textarea
+        id="ebp-md-all"
+        readonly
+        rows="5"
+        class="flex-1 rounded-md border border-rule-strong bg-paper px-3 py-2 font-mono text-xs text-ink resize-none focus:border-accent-deep focus:outline-none"
+      >{allMarkdown}</textarea>
+      <button
+        type="button"
+        data-ebp-copy-target="ebp-md-all"
+        class="flex-shrink-0 rounded border border-rule-strong bg-paper-soft px-3 py-1.5 text-xs font-medium text-ink hover:bg-paper-sunk transition-colors"
+      >Copy</button>
+    </div>
+  </div>
+
+  {/* All-five HTML block */}
+  <div class="mt-5">
+    <label
+      for="ebp-html-all"
+      class="block text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-2"
+    >
+      HTML (all five)
+    </label>
+    <div class="flex items-start gap-2">
+      <textarea
+        id="ebp-html-all"
+        readonly
+        rows="5"
+        class="flex-1 rounded-md border border-rule-strong bg-paper px-3 py-2 font-mono text-xs text-ink resize-none focus:border-accent-deep focus:outline-none"
+      >{allHtml}</textarea>
+      <button
+        type="button"
+        data-ebp-copy-target="ebp-html-all"
+        class="flex-shrink-0 rounded border border-rule-strong bg-paper-soft px-3 py-1.5 text-xs font-medium text-ink hover:bg-paper-sunk transition-colors"
+      >Copy</button>
+    </div>
+  </div>
+
+  {/* Per-badge markdown snippets — collapsed by default so the panel stays compact. */}
+  <details class="mt-5 text-sm">
+    <summary class="cursor-pointer text-xs text-ink-soft hover:text-ink transition-colors">
+      Per-badge markdown snippets
+    </summary>
+    <div class="mt-3 space-y-2">
+      {BADGE_METRICS.map((metric) => (
+        <div class="flex items-center gap-2">
+          <code class="w-28 shrink-0 text-[11px] text-ink-soft">{metric}</code>
+          <input
+            id={`ebp-md-${metric}`}
+            readonly
+            value={perBadgeMarkdown[metric]}
+            class="flex-1 rounded-md border border-rule-strong bg-paper px-2.5 py-1.5 font-mono text-xs text-ink focus:border-accent-deep focus:outline-none"
+          />
+          <button
+            type="button"
+            data-ebp-copy-target={`ebp-md-${metric}`}
+            class="flex-shrink-0 rounded border border-rule-strong bg-paper-soft px-2.5 py-1 text-[11px] font-medium text-ink hover:bg-paper-sunk transition-colors"
+          >Copy</button>
+        </div>
+      ))}
+    </div>
+  </details>
+</section>
+
+<script is:inline>
+  // Self-contained clipboard wiring. Runs once per page load and attaches
+  // a click handler to every [data-ebp-copy-target] button inside an
+  // EmbedBadgesPanel. navigator.clipboard.writeText is synchronous from
+  // the user's perspective — the brief "Copied" flip gives visual
+  // feedback because the browser offers no native toast for clipboard
+  // writes. The 1.5s window is short enough to feel responsive but long
+  // enough to register visually.
+  (function () {
+    var buttons = document.querySelectorAll("[data-ebp-copy-target]");
+    for (var i = 0; i < buttons.length; i++) {
+      var button = buttons[i];
+      button.addEventListener("click", function (event) {
+        var trigger = event.currentTarget;
+        var targetId = trigger.getAttribute("data-ebp-copy-target");
+        if (!targetId) return;
+        var target = document.getElementById(targetId);
+        if (!target) return;
+        var text = "value" in target ? target.value : target.textContent || "";
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(
+          function () {
+            var original = trigger.textContent;
+            trigger.textContent = "Copied";
+            setTimeout(function () {
+              trigger.textContent = original;
+            }, 1500);
+          },
+          function () {
+            // Clipboard permissions denied or insecure context — fall
+            // back to selecting the field so the user can Ctrl/Cmd+C.
+            if (typeof target.select === "function") target.select();
+          },
+        );
+      });
+    }
+  })();
+</script>

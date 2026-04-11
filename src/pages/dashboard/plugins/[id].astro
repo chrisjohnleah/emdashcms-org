@@ -9,6 +9,7 @@ import AuditBadge from '../../../components/AuditBadge.astro';
 import SourceBadge from '../../../components/SourceBadge.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import RoleBadge from '../../../components/RoleBadge.astro';
+import EmbedBadgesPanel from '../../../components/EmbedBadgesPanel.astro';
 import { getPluginDetail, getPluginVersions } from '../../../lib/db/queries';
 import {
   getCollaborators,
@@ -561,6 +562,15 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
             </table>
           </div>
         )}
+      </div>
+
+      <!-- Section: Embed in README -->
+      <div class="mt-12">
+        <EmbedBadgesPanel
+          pluginId={plugin.id}
+          pluginName={plugin.name}
+          origin={Astro.url.origin}
+        />
       </div>
 
       <!-- Section: Team -->
