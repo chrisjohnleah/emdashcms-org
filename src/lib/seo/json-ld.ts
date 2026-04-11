@@ -142,9 +142,8 @@ export function buildThemeJsonLd(
  * Build the site-root Organization JSON-LD payload. Emitted only on
  * the homepage; other pages inherit the BreadcrumbList / per-entity
  * schemas they need instead. `sameAs` points at the marketplace repo
- * (chrisjohnleah/emdashcms-org) — NOT the upstream EmDash CMS repo —
- * because this is the identity the marketplace asserts on its own
- * homepage.
+ * — NOT the upstream EmDash CMS repo — because this is the identity
+ * the marketplace asserts on its own homepage.
  */
 export function buildOrganizationJsonLd(): Record<string, unknown> {
   return {
