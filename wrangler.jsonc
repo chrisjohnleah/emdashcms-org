@@ -127,10 +127,23 @@
 
   // GitHub OAuth App client ID and App ID (not secrets — safe as vars)
   // TURNSTILE_SITE_KEY: create widget at dash.cloudflare.com → Turnstile (Smart placement)
-  // AUDIT_MODE: 'manual' (default) | 'auto' | 'off'
-  //   - manual: skip AI, leave version status='pending' for human moderation
-  //   - auto: run Workers AI audit (cost-bound by daily neuron budget)
-  //   - off: skip AI, auto-publish if static checks pass (use only in emergency)
+  //
+  // AUDIT_MODE governs how new plugin versions are gated on upload:
+  //   - 'auto' (current): run the static scanner + Workers AI audit as a
+  //     combined gate. Static findings are merged into the final audit
+  //     row regardless; the AI verdict decides pass/warn/fail. Neuron-budget
+  //     bound — if the daily budget is exhausted we fall back to
+  //     static-only + manual review. This gives us deterministic pattern
+  //     coverage (static) AND nuanced logic-level review (AI) in one pass.
+  //   - 'static-first': run the static scanner only, no AI on the hot path.
+  //     Blocking → rejected, soft → flagged, clean → published. AI audit
+  //     stays available via the admin "Run AI" button. Cheaper and more
+  //     deterministic, but misses logic-level issues the static scanner
+  //     can't pattern-match for (subtle data-flow exfiltration, novel
+  //     malicious patterns). Consider flipping to this if AI spend gets
+  //     uncomfortable or if we ship a paid-tier verification workflow.
+  //   - 'manual': skip AI, leave status='pending' for human moderation.
+  //   - 'off': same as manual — legacy.
   "vars": {
     "GITHUB_CLIENT_ID": "Ov23liIu0eF3FtxoIcYU",
     "GITHUB_APP_ID": "3345980",
