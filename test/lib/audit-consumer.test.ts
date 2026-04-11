@@ -524,6 +524,28 @@ describe("processAuditJob - fail-closed (AUDT-04)", () => {
     expect(version!.status).toBe("pending");
   });
 
+  it("throws TransientError on Workers AI 3050 (max retries exhausted)", async () => {
+    // Newly-launched or capacity-constrained models (e.g. gemma-4-26b-a4b
+    // in its first days on Workers AI) surface upstream overload as
+    // "3050: Max retries exhausted". Fail-closed rejection here is wrong:
+    // the request was valid, the runtime was saturated, and a queue retry
+    // a minute later is the correct recovery.
+    const mockAi = createErrorAi(
+      new Error("AiError: 3050: Max retries exhausted"),
+    );
+
+    await expect(
+      processAuditJob(makeJob(), makeBindings(mockAi)),
+    ).rejects.toThrow(TransientError);
+
+    const version = await env.DB.prepare(
+      "SELECT status FROM plugin_versions WHERE id = ?",
+    )
+      .bind(VERSION_ID)
+      .first<{ status: string }>();
+    expect(version!.status).toBe("pending");
+  });
+
   it("rejects version on non-transient AI error", async () => {
     const mockAi = createErrorAi(new Error("Model not found"));
 

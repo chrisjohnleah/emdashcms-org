@@ -180,11 +180,36 @@ async function resolveVersionId(
 
 /**
  * Check if an AI error is transient (should be retried) or permanent.
+ *
+ * Transient signals we match:
+ *  - 429 / 503 — HTTP rate limit or service unavailable
+ *  - timeout — network or model wall-clock overrun
+ *  - 3050 "Max retries exhausted" — Workers AI's own retry budget for
+ *    the upstream call gave up. This fires on newly-launched or
+ *    capacity-constrained models (e.g. gemma-4-26b-a4b in its first
+ *    days on Workers AI). Upstream capacity is the cause, not our
+ *    request, so queue-retrying a minute or two later is the right
+ *    move — not a permanent version rejection.
+ *  - 5004 / 5007 — Workers AI server-side errors; retried same as 5xx HTTP.
+ *  - capacity / overloaded — free-text capacity signals from the runtime.
+ *
+ * Everything else (invalid model, invalid request, schema mismatches) is
+ * permanent and fail-closes the version.
  */
 function isTransientAiError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const msg = err.message.toLowerCase();
-  return msg.includes("429") || msg.includes("503") || msg.includes("timeout");
+  return (
+    msg.includes("429") ||
+    msg.includes("503") ||
+    msg.includes("timeout") ||
+    msg.includes("3050") ||
+    msg.includes("max retries") ||
+    msg.includes("5004") ||
+    msg.includes("5007") ||
+    msg.includes("capacity") ||
+    msg.includes("overloaded")
+  );
 }
 
 /**
@@ -491,12 +516,15 @@ export async function processAuditJob(
       temperature: 0.1,
     }) as unknown as AiResponseEnvelope;
   } catch (err) {
-    if (isTransientAiError(err)) {
-      throw new TransientError(
-        `AI inference failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const transient = isTransientAiError(err);
+    console.error(
+      `[audit] AI call failed: plugin=${job.pluginId} version=${job.version} model=${modelId} transient=${transient} err=${errMsg}`,
+    );
+    if (transient) {
+      throw new TransientError(`AI inference failed: ${errMsg}`);
     }
-    const msg = `AI inference error: ${err instanceof Error ? err.message : String(err)}`;
+    const msg = `AI inference error: ${errMsg}`;
     await rejectAndNotify(bindings, job, versionId, msg);
     console.error(`[audit] ${msg}`);
     return { verdict: null, status: "error", neuronsUsed: 0 };
