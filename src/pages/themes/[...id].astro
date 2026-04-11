@@ -3,6 +3,8 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import { getThemeDetail } from '../../lib/db/queries';
+import { getReviewStats } from '../../lib/db/review-queries';
+import { buildThemeJsonLd } from '../../lib/seo/json-ld';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Button from '../../components/Button.astro';
 
@@ -11,6 +13,19 @@ const theme = await getThemeDetail(env.DB, id!);
 
 if (!theme) {
   Astro.response.status = 404;
+}
+
+// Structured data for AI and social discoverability. Fail-closed per
+// CLAUDE.md: a malformed builder output must never 500 the page.
+let themeJsonLd: object | undefined;
+if (theme) {
+  try {
+    const themeReviewStats = await getReviewStats(env.DB, 'theme', id!);
+    themeJsonLd = buildThemeJsonLd(theme, themeReviewStats);
+  } catch (err) {
+    console.error('[theme-detail] buildThemeJsonLd failed:', err);
+    themeJsonLd = undefined;
+  }
 }
 ---
 {!theme ? (
@@ -26,7 +41,11 @@ if (!theme) {
     </section>
   </BaseLayout>
 ) : (
-  <BaseLayout title={theme.name + " - emdashcms.org"} description={theme.shortDescription ?? theme.description ?? undefined}>
+  <BaseLayout
+    title={theme.name + " - emdashcms.org"}
+    description={theme.shortDescription ?? theme.description ?? undefined}
+    jsonLd={themeJsonLd}
+  >
     <section class="page pt-12 pb-16 md:pt-16">
 
         <a href="/themes" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Themes</a>

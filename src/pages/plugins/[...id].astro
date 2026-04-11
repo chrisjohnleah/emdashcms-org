@@ -14,6 +14,7 @@ import TrustTierBadge from '../../components/TrustTierBadge.astro';
 import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 import { renderPluginMarkdown } from '../../lib/markdown';
+import { buildPluginJsonLd } from '../../lib/seo/json-ld';
 
 const { id } = Astro.params;
 const plugin = await getPluginDetail(env.DB, id!);
@@ -90,6 +91,34 @@ if (reviewed) reviewSuccess = 'Review submitted!';
 if (updated) reviewSuccess = 'Review updated!';
 if (deleted) reviewSuccess = 'Review deleted.';
 
+// Structured data for AI and social discoverability. Computed from the
+// data already fetched above so we never pay an extra query. Wrapped in
+// try/catch because BaseLayout's emission must be fail-closed — a
+// malformed record should never 500 the detail page over metadata.
+let pluginJsonLd: object | undefined;
+if (plugin) {
+  try {
+    const latestVersionForJsonLd = versions[0]
+      ? {
+          version: versions[0].version,
+          // MarketplaceVersionSummary exposes `publishedAt` already
+          // coalesced (`published_at ?? created_at`), but the builder's
+          // typed input accepts the raw snake_case pair so the caller
+          // can distinguish them. We pass `publishedAt` as
+          // `published_at` and repeat it as `created_at` — the coalesce
+          // happens in the mapper, so either field gives the same
+          // answer at this point.
+          published_at: versions[0].publishedAt ?? null,
+          created_at: versions[0].publishedAt ?? plugin.updatedAt,
+        }
+      : null;
+    pluginJsonLd = buildPluginJsonLd(plugin, latestVersionForJsonLd, reviewStats);
+  } catch (err) {
+    console.error('[plugin-detail] buildPluginJsonLd failed:', err);
+    pluginJsonLd = undefined;
+  }
+}
+
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -123,6 +152,7 @@ const formatSize = (bytes: number) => {
     title={plugin.name + ' — emdashcms.org'}
     description={plugin.shortDescription ?? plugin.description ?? undefined}
     noindex={plugin.pluginStatus === 'revoked'}
+    jsonLd={pluginJsonLd}
   >
     <section class="page pt-12 pb-16 md:pt-16">
 

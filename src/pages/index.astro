@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState.astro';
 import Button from '../components/Button.astro';
 import AuditBadge from '../components/AuditBadge.astro';
 import { searchPlugins, searchThemes } from '../lib/db/queries';
+import { buildOrganizationJsonLd } from '../lib/seo/json-ld';
 
 const title = 'emdashcms.org — A community marketplace for EmDash plugins and themes';
 const description =
@@ -30,8 +31,12 @@ const hasAnyContent = allPlugins.length > 0 || themes.length > 0;
 
 // OAuth callback redirects banned authors here with ?banned=1
 const showBannedNotice = Astro.url.searchParams.get('banned') === '1';
+
+// Site-root Organization JSON-LD. Only emitted on the homepage so we
+// don't assert marketplace identity on every page in the site.
+const homepageJsonLd = buildOrganizationJsonLd();
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} jsonLd={homepageJsonLd}>
 
   {showBannedNotice && (
     <div class="bg-danger-soft border-b border-danger/30">
