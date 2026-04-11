@@ -1,0 +1,18 @@
+{
+  "id": "theme-helper",
+  "version": "1.0.5",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["themes.example.com"],
+  "storage": {},
+  "hooks": ["plugin:install", "plugin:activate"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/theme-helper",
+        "label": "Theme Helper",
+        "icon": "brush"
+      }
+    ]
+  }
+}

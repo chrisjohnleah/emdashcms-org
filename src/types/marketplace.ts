@@ -207,10 +207,7 @@ export interface PluginBundle {
  * from the AUDIT_MODELS registry in src/lib/audit/prompt.ts. Keys live in
  * the type layer so AuditJob can carry them without importing audit code.
  */
-export type AuditModelKey =
-  | "llama-3.2-3b"
-  | "glm-4.7-flash"
-  | "gemma-4-26b-a4b";
+export type AuditModelKey = "glm-4.7-flash" | "gemma-4-26b-a4b";
 
 export interface AuditJob {
   pluginId: string;

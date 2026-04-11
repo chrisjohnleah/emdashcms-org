@@ -40,7 +40,9 @@ pnpm-debug.log*
 .impeccable.md
 
 # audit model benchmark — local-only workspace for scripts/audit-benchmark.ts
-# Fixtures are real plugin tarballs we benchmark against; results are JSON
-# dumps with raw model output that can be noisy and change per run.
-bench-fixtures/
+# Packed .tgz bundles are regenerated from bench-fixtures/sources/ on
+# each run; result JSON dumps are noisy and per-run. The `sources/`
+# directory IS tracked (see bench-fixtures/sources/README.md) so the
+# benchmark is reproducible.
+bench-fixtures/*.tgz
 bench-results/

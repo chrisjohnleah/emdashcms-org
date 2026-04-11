@@ -1,0 +1,20 @@
+{
+  "id": "template-runner",
+  "version": "1.0.0",
+  "capabilities": [],
+  "allowedHosts": [],
+  "storage": {
+    "templates": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/templates",
+        "label": "Template Runner",
+        "icon": "code"
+      }
+    ]
+  }
+}

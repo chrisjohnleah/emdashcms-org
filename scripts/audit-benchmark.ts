@@ -106,6 +106,7 @@ interface BenchmarkResult {
   }>;
   hallucinationFlags: string[];
   rawResponsePreview: string;
+  rawResponseFull: string;
   batchPolls?: number;
 }
 
@@ -152,6 +153,11 @@ interface SyncEnvelope {
       message?: {
         content?: string | null;
         reasoning_content?: string | null;
+        // GLM-4.7-Flash also exposes `reasoning` as an alias for
+        // `reasoning_content`. Observed in the live envelope keys list:
+        //   ["annotations","audio","content","function_call","reasoning",
+        //    "reasoning_content","refusal","role","tool_calls"]
+        reasoning?: string | null;
       };
     }>;
     usage?: {
@@ -328,6 +334,7 @@ async function benchmarkModel(
     findings: [],
     hallucinationFlags: [],
     rawResponsePreview: "",
+    rawResponseFull: "",
   };
 
   const start = performance.now();
@@ -429,6 +436,7 @@ async function benchmarkModel(
       findings,
       hallucinationFlags,
       rawResponsePreview: text.slice(0, 400),
+      rawResponseFull: text,
       batchPolls: polls || undefined,
     };
   } catch (err) {

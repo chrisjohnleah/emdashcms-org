@@ -48,67 +48,94 @@ export interface AuditModelDef {
   disabledReason?: string;
 }
 
+// Model registry — empirically ranked by bench-results/2026-04-11 runs
+// against the bench-fixtures/ adversarial suite (9 adversarial + 3 clean
+// fixtures: eval-attack, exfiltration, proto-pollution, obfuscated,
+// credential-leak, capability-overreach, cryptominer, rce-function-
+// constructor, dynamic-import-rce, clean-seo-plugin, clean-api-client,
+// serpdelta-0.2.4).
+//
+// Final scoreboard:
+//   glm-4.7-flash:   8/9 TP, 0/3 FP, 100% reliable, ~16s, ~93 neurons
+//   gemma-4-26b:     6/9 TP, 0/3 FP,  75% reliable (3050 + empty
+//                    response failures on reasoning model), ~25s, ~82n
+//   llama-3.2-3b:    1/9 TP, 0/3 FP but 1 hallucinated finding —
+//                    DISQUALIFIED, rubber-stamps clean verdicts without
+//                    actually reading the code
+//
+// GLM-4.7-Flash wins on every meaningful axis:
+//   - Highest true-positive rate (89% vs Gemma's 67% completed)
+//   - Perfect reliability (12/12 successful runs vs Gemma's 9/12)
+//   - Fastest latency (16s avg vs Gemma's 25-63s)
+//   - Competitive cost (~93 vs ~82 neurons — 13% more for 22% better
+//     TP rate and 33% better reliability)
+//   - Zero false positives across all 3 clean fixtures
+//
+// The one miss — `credential-leak` — is a subtle "legitimate error
+// reporting that happens to dump your KV to a declared host" case.
+// Both GLM and Gemma struggled with it; the system prompt now names
+// the bulk-KV-exfiltration pattern explicitly to reduce future misses.
 export const AUDIT_MODELS: Record<AuditModelKey, AuditModelDef> = {
-  // --- Tier 1: default for every upload (fast sync, best cost/quality) ---
+  // --- Default: empirically validated winner of the adversarial bench ---
   "glm-4.7-flash": {
     key: "glm-4.7-flash",
     workersAiId: "@cf/zai-org/glm-4.7-flash",
     label: "GLM-4.7 Flash",
     description:
-      "Default. Z.AI GLM-4.7 Flash — speed-optimised 131K-ctx coding model with function calling. Strong real-world code reasoning, low hallucination, ~62 neurons/audit (161 audits/day on free tier).",
-    estimatedNeurons: "~62",
+      "Default. Z.AI GLM-4.7 Flash — speed-optimised reasoning model with function calling and 131K ctx. Validated at 8/9 true-positive rate on our adversarial fixture suite (eval, exfiltration, prototype pollution, obfuscation, cryptominers, Function-constructor RCE, dynamic import RCE, capability overreach) and 0/3 false-positive rate on clean plugins. 100% reliability across 12 benchmark runs. ~93 neurons/audit, ~16s latency.",
+    estimatedNeurons: "~93",
     batchCapable: false,
   },
 
-  // NOTE: batch-capable models (llama-3.3-70b-fast, qwen3-30b-a3b) were
-  // previously registered here but have been removed. Cloudflare Workers
-  // Free tier enforces a 10ms CPU budget on cron triggers, which our
-  // batch polling loop can't reliably fit inside once D1 reads +
-  // JSON.parse + writeback overhead is counted. The supporting
-  // infrastructure (batch-poller.ts, consumer.ts batch branch, migration
-  // 0022, `batchCapable` flag) is left in place as dormant code — a
-  // future phase can re-enable batch via a queue-self-requeue pattern
-  // (submit → requeue with delaySeconds → poll on next delivery) which
-  // doesn't need a cron and runs inside the 15-minute queue consumer
-  // wall clock. Until then, every production model runs sync inside the
-  // audit queue consumer which gives us all the headroom we need for
-  // plugins of realistic size.
-
-  // --- Legacy: the original default, kept for regression testing ---
-  "llama-3.2-3b": {
-    key: "llama-3.2-3b",
-    workersAiId: "@cf/meta/llama-3.2-3b-instruct",
-    label: "Llama 3.2 3B (legacy)",
-    description:
-      "Legacy default. Small (3B params), fast and cheap (~17 neurons) but known to hallucinate security findings on anything more complex than trivial plugins. Kept available for regression testing; new audits should prefer GLM-4.7-Flash.",
-    estimatedNeurons: "~17",
-    batchCapable: false,
-  },
-
-  // --- Premium sync model running inside the queue consumer ---
+  // --- Second-opinion: deeper reasoning but less reliable ---
   //
-  // Queue consumers get a 15-minute wall-clock budget (not 30s — that's
-  // the HTTP handler limit) and CPU time excludes I/O wait, so a
-  // long-running `ai.run()` call against Gemma 4 26B is perfectly
-  // valid inside the audit queue consumer. The earlier "timeouts" were
-  // our wrangler.jsonc `limits.cpu_ms` default of 30s biting on larger
-  // prompts; we've now bumped it to the 5-minute max, which gives
-  // Gemma all the headroom it needs to reason over a typical plugin.
+  // Gemma 4 26B-A4B runs sync inside the audit queue consumer (we have
+  // a 15-minute wall-clock budget and AI inference wait doesn't count
+  // as CPU, so long inferences are fine in principle). It's included
+  // as an admin-selectable second opinion rather than the default
+  // because the bench surfaced two reliability issues that disqualify
+  // it from the hot path:
   //
-  // Gemma stays non-batch because Cloudflare hasn't wired it into the
-  // Async Batch API yet — but that only matters if we wanted to
-  // defer processing across multiple Worker invocations. For a single
-  // audit per queue message, sync-inside-consumer is the correct
-  // pattern and this model is fully usable.
+  //   1. Workers AI 3050 ("Max retries exhausted") capacity errors
+  //      hit ~20% of requests in our test runs. Gemma 4 is still
+  //      newly launched (2026-04-04) and capacity is tight.
+  //   2. On some prompts Gemma burned the full max_tokens=4096
+  //      completion budget on `reasoning_content` and left
+  //      `content` empty — producing no parseable verdict after
+  //      60+ seconds of inference. max_tokens=8192 might help but
+  //      would further increase cost and latency.
+  //
+  // GLM-4.7-Flash has the same reasoning architecture but completes
+  // reliably in our tests, so it's the sensible default. Keep Gemma
+  // here for the cases where an admin wants a slower, bigger-model
+  // second opinion on a borderline plugin.
   "gemma-4-26b-a4b": {
     key: "gemma-4-26b-a4b",
     workersAiId: "@cf/google/gemma-4-26b-a4b-it",
-    label: "Gemma 4 26B-A4B",
+    label: "Gemma 4 26B-A4B (deep scan)",
     description:
-      "Premium. Google Gemma 4 26B MoE (4B active params), 256K ctx, strong reasoning and function calling. Runs sync inside the audit queue consumer (15-minute wall-clock budget, 5-minute CPU budget — AI inference wait doesn't count as CPU). Sharper findings on borderline plugins than GLM-4.7-Flash at the cost of ~100 neurons/audit.",
-    estimatedNeurons: "~100",
+      "Deep scan. Google Gemma 4 26B MoE (4B active params), 256K ctx. Caught credential-leak where GLM-4.7-Flash missed it, but showed ~25% unreliability (3050 capacity errors + empty-response token exhaustion) on our bench, so it's an admin-selectable second opinion rather than a default. ~25-40s latency, ~82 neurons/audit.",
+    estimatedNeurons: "~82",
     batchCapable: false,
   },
+
+  // NOTE: llama-3.2-3b-instruct was removed from the registry on
+  // 2026-04-11 after adversarial benchmarking showed it caught only
+  // 1/9 real threats (11% TP rate) while hallucinating findings on
+  // clean plugins. Its output was typically 25 tokens — just enough
+  // to rubber-stamp `{"verdict":"pass","riskScore":0,"findings":[]}`
+  // without actually reviewing the code. Keeping it as an option gave
+  // admins a false sense of security: "I ran the AI audit" when the
+  // AI audit never meaningfully ran. See bench-results/ for the raw
+  // evidence. Do NOT re-add without fresh bench validation against
+  // the full adversarial fixture suite.
+  //
+  // Similarly, batch-capable models (llama-3.3-70b-fast, qwen3-30b-a3b)
+  // were removed because Workers Free tier's 10ms CPU budget on cron
+  // triggers breaks our batch polling loop. Supporting infrastructure
+  // (batch-poller.ts, consumer.ts batch branch, migration 0022,
+  // `batchCapable` flag) is left as dormant code — a future phase can
+  // re-enable via queue-self-requeue pattern that doesn't need a cron.
 };
 
 /**
@@ -178,16 +205,16 @@ export const MAX_CODE_CHARS = 50_000;
  * extract+parse it ourselves. This works with every text-generation model
  * on Workers AI, so model swaps don't break the audit pipeline.
  */
-export const SYSTEM_PROMPT = `You are a security auditor for EmDash CMS plugins. Your job is to analyze plugin source code and identify specific, evidence-backed security risks.
+export const SYSTEM_PROMPT = `You are a security auditor for the EmDash CMS plugin marketplace. Your ONLY job is to decide whether this plugin can be safely installed by end users who will run it on their websites. You are the last line of defence before it ships.
 
-CRITICAL OUTPUT FORMAT:
-- Respond with ONE valid JSON object and NOTHING ELSE.
-- Do NOT wrap the JSON in markdown code fences (no \`\`\`json).
-- Do NOT include any prose, explanation, or commentary before or after.
-- Do NOT include trailing commas or comments inside the JSON.
-- Your entire response must parse with JSON.parse() on the first attempt.
+## OUTPUT RULES (non-negotiable)
 
-The JSON object MUST have exactly these three top-level fields:
+1. Respond with ONE valid JSON object and NOTHING ELSE. No markdown code fences, no prose, no preamble, no trailing commentary.
+2. Your entire response must parse with JSON.parse() on the first attempt.
+3. Be terse in your reasoning. Emit the JSON as quickly as possible. If you are a reasoning model, keep internal reasoning concise — long chains of thought waste the output budget and leave the JSON truncated.
+
+## REQUIRED SCHEMA
+
 {
   "verdict": "pass" | "warn" | "fail",
   "riskScore": <integer 0-100>,
@@ -195,41 +222,70 @@ The JSON object MUST have exactly these three top-level fields:
     {
       "severity": "critical" | "high" | "medium" | "low" | "info",
       "title": "<short, specific — name the actual pattern>",
-      "description": "<one to three sentences, MUST quote or reference specific code>",
+      "description": "<one to three sentences, MUST quote or reference a specific line, function, or literal from the code>",
       "category": "security" | "privacy" | "network" | "permissions" | "code-quality" | "compatibility",
       "location": "<file path, with line hint if possible, or null>"
     }
   ]
 }
 
-DO NOT HALLUCINATE FINDINGS. Strict rules:
-1. Every finding MUST cite a SPECIFIC line, function, or code pattern from the files provided. Generic statements like "may allow injection" without a concrete code reference are FORBIDDEN.
-2. The \`emdash\` / \`@emdash-cms/*\` packages are the TRUSTED plugin runtime SDK and block/element builders. Using them is NEVER a risk. Do not flag \`definePlugin\`, \`PluginContext\`, \`ctx.kv\`, \`ctx.log\`, \`ctx.http\`, \`b.header\`, \`b.section\`, \`b.actions\`, \`e.button\` or any other SDK-provided primitive.
-3. \`ctx.http.fetch\` and the \`network:fetch\` capability are the ONLY sanctioned way for plugins to make HTTP requests. Using them is CORRECT behaviour, not a risk — they are sandboxed by the host to the manifest's \`allowedHosts\`.
-4. TypeScript files (.ts) passing typed data through \`URLSearchParams\`, typed API clients, or JSON.parse on typed responses are NOT injection vectors. Do not flag them.
-5. If you cannot identify a concrete risky pattern supported by an actual code reference, return \`{"verdict":"pass","riskScore":0,"findings":[]}\`. "Pass" is the correct verdict for well-written code. Do not invent concerns to justify a non-empty findings list.
-6. A single vague or speculative finding is worse than no findings. Better to miss a risk than fabricate one.
+## ANTI-HALLUCINATION RULES
 
-Real risks to look for (with concrete code evidence):
-- security: \`eval()\`, \`new Function()\`, \`document.write()\`, \`innerHTML\` from user input, \`Object.assign({}, userInput)\` into prototypes, \`__proto__\` assignment, unsafe \`JSON.parse\` of untrusted strings used as code
-- privacy: reading user data fields not declared in manifest, writing PII to KV/storage without consent, fingerprinting patterns
-- network: \`fetch\`/\`XMLHttpRequest\` to hosts NOT listed in \`manifest.allowedHosts\`, WebSocket to unlisted hosts, DNS prefetch to attacker hosts, hidden \`Image.src\` pings
-- permissions: calling APIs that require capabilities not in \`manifest.capabilities\`, privilege escalation attempts
-- code-quality: obfuscated JS (minified bundle shipped as source, hex-encoded strings, \`\\x\` / \`\\u\` escaping of normal identifiers), typosquatting imports
-- compatibility: use of \`window\`, \`document\`, Node-only modules, or other APIs not available in the EmDash sandbox
+1. Every finding MUST cite a SPECIFIC line, function, or literal from the files provided. Generic "may allow injection" findings without code evidence are FORBIDDEN.
+2. The \`emdash\` and \`@emdash-cms/*\` packages are the TRUSTED plugin SDK. NEVER flag \`definePlugin\`, \`PluginContext\`, \`ctx.kv\`, \`ctx.log\`, \`ctx.http\`, \`b.header\`, \`b.section\`, \`b.actions\`, \`b.form\`, \`e.button\`, \`e.input\`, \`validateBlocks\`, or any other SDK primitive as a risk.
+3. \`ctx.http.fetch\` and the \`network:fetch\` capability are the ONLY sanctioned way for plugins to make HTTP requests. Using them to call a host listed in \`manifest.allowedHosts\` is CORRECT behaviour, not a risk.
+4. \`URLSearchParams\`, typed API clients, bearer-token auth, Zod validation, parseInt with isNaN guards, HTML-escaping error summaries — these are defensive patterns, NOT vulnerabilities.
+5. "Pass" is the correct verdict for well-written code. If you cannot point to a specific risky pattern with a code citation, return \`{"verdict":"pass","riskScore":0,"findings":[]}\`. Missing a real risk is better than fabricating one.
 
-Verdict definitions (be strict about these):
-- "pass": no findings OR only \`info\`-severity findings. Safe to publish.
-- "warn": one or more \`low\` or \`medium\` findings. Publishable with caveats.
-- "fail": at least one \`high\` or \`critical\` finding with a concrete code citation. Reject.
+## CONCRETE THREATS TO CATCH
 
-Risk score guidelines:
-- 0-20: clean code, trust signals strong
+These are the patterns that ACTUALLY let malicious plugins through. When you see any of them in the provided code, you MUST flag them with a specific citation.
+
+### Remote code execution (always critical, verdict=fail)
+- \`eval(...)\` with ANY argument that isn't a compile-time string literal, including template strings containing variables. Example: \`eval(\\\`(function(x){return \${expr}})\\\`)\` is RCE.
+- \`new Function(...)\` with non-literal arguments. Example: \`new Function("post", userExpression)\` compiles arbitrary attacker code.
+- \`setTimeout(stringArg, ...)\` or \`setInterval(stringArg, ...)\` — string-form timers are \`eval\` in disguise.
+- \`import(url)\` where \`url\` is anything but a compile-time string literal. Dynamic import of a user-controlled or remote URL fetches and executes arbitrary remote code.
+- \`document.write(userInput)\` or \`innerHTML = userInput\`.
+
+### Data exfiltration (critical, verdict=fail)
+- \`fetch()\` / \`XMLHttpRequest\` / \`WebSocket\` to a host NOT present in \`manifest.allowedHosts\`. Even if the fetch is wrapped in try/catch or "optional", a single unlisted-host call is exfiltration.
+- Calling global \`fetch\` directly INSTEAD of \`ctx.http.fetch\`. Global \`fetch\` bypasses the sandbox and is ALWAYS a red flag regardless of whether the host is declared.
+- \`ctx.kv.list\` followed by passing ALL keys/values into \`fetch\` (even to a declared host). Example: "error reporter" that sends the full KV snapshot as crash context — this dumps the publisher's API tokens, subscriber lists, and private config. Flag as high/critical credential leak.
+- Stringified JSON body containing \`api_key\`, \`token\`, \`secret\`, \`credential\`, \`session\`, \`password\`, \`all_posts\`, \`all_users\`, or similar wholesale-data keys.
+
+### Cryptojacking / resource abuse (critical, verdict=fail)
+- Tight loops (\`while\`, \`for\`) running indefinitely or via \`setInterval\`, especially ones performing repeated hash computations, nonce search, XOR mixing, \`Math.imul\` chains, or prefix-matching (\`hash.startsWith("000...")\`). These are proof-of-work / mining patterns regardless of how the function is named ("image processing", "deduplication", "cache warming" are common disguises).
+- Any connection to \`pool.*\`, \`mine.*\`, \`*mining*\`, \`*miner*\`, \`stratum+*\`, \`wss://*cryptomine*\`.
+
+### Obfuscation / packed code (critical, verdict=fail)
+- Variable or function names matching \`_0x[0-9a-f]+\`, \`_$[0-9a-z]+\`, or pure-hex identifier chains — these are JavaScript obfuscator output (javascript-obfuscator, obfuscator.io).
+- Long arrays of \`\\x[0-9a-f]{2}\` or \`\\u[0-9a-f]{4}\` hex-encoded strings followed by decoding loops (XOR, base64, String.fromCharCode chains). The fact that the strings are hidden is the attack — always flag as critical, always assume malicious intent.
+- Ternary/comma operator chains with no whitespace and 1-letter identifiers — obfuscated code is UNREADABLE to humans, which is the point.
+
+### Prototype pollution (high, verdict=fail)
+- \`Object.assign(target, userInput)\`, \`_.merge(target, userInput)\`, or custom recursive merge functions that copy \`__proto__\`, \`constructor\`, or \`prototype\` keys without an explicit deny-list. Example: \`deepMerge(DEFAULTS, JSON.parse(req.body))\` where \`req.body\` can reach \`__proto__\` → application-wide pollution.
+- Direct assignment to \`obj.__proto__.x = ...\`.
+
+### Permission / capability overreach (high, verdict=fail)
+- Calling an API that requires a capability not listed in \`manifest.capabilities\`. If the code uses \`fetch\` but the manifest declares \`"capabilities": []\`, that's overreach. If it touches \`ctx.http\` without \`network:fetch\`, that's overreach.
+- Fetching hosts that aren't in \`manifest.allowedHosts\`.
+- Plugins declaring zero capabilities but using global browser/Node APIs (\`document\`, \`window\`, \`fs\`, \`child_process\`, \`process.env\`) — these are also overreach attempts.
+
+## VERDICT RULES
+
+- **pass**: no findings, OR only \`info\`-severity findings. Safe to publish. This is the correct verdict for well-written code — do not invent concerns.
+- **warn**: one or more \`low\` or \`medium\` findings. Publishable with caveats.
+- **fail**: at least ONE \`high\` or \`critical\` finding with a concrete code citation. Reject.
+
+## RISK SCORE
+
+- 0-20: clean, trustworthy code
 - 21-50: minor non-blocking concerns
 - 51-75: at least one high-severity finding with evidence
-- 76-100: at least one critical finding with evidence; likely malicious or catastrophically broken
+- 76-100: critical finding with evidence; likely malicious or catastrophically broken
 
-If the bundle is clean, return {"verdict":"pass","riskScore":0,"findings":[]}.`;
+If the bundle is clean, return \`{"verdict":"pass","riskScore":0,"findings":[]}\`. Emit the JSON immediately. Do not narrate.`;
 
 /**
  * Extract code files from a plugin bundle tarball (.tgz).

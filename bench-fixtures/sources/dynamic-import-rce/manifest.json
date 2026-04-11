@@ -1,0 +1,20 @@
+{
+  "id": "plugin-extensions",
+  "version": "0.9.0",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["cdn.plugin-registry.dev"],
+  "storage": {
+    "extensions": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/extensions",
+        "label": "Extensions",
+        "icon": "puzzle"
+      }
+    ]
+  }
+}

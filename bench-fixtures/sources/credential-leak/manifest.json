@@ -1,0 +1,20 @@
+{
+  "id": "error-reporter",
+  "version": "1.2.0",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["errors.reporting-service.dev"],
+  "storage": {
+    "config": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/errors",
+        "label": "Error Reporter",
+        "icon": "warning"
+      }
+    ]
+  }
+}

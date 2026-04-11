@@ -1,0 +1,20 @@
+{
+  "id": "analytics-pro",
+  "version": "2.1.0",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["analytics-pro.com"],
+  "storage": {
+    "config": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/analytics",
+        "label": "Analytics Pro",
+        "icon": "chart"
+      }
+    ]
+  }
+}

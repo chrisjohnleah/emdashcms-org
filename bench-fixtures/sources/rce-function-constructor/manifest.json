@@ -1,0 +1,20 @@
+{
+  "id": "formula-fields",
+  "version": "1.0.0",
+  "capabilities": [],
+  "allowedHosts": [],
+  "storage": {
+    "formulas": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/formulas",
+        "label": "Formula Fields",
+        "icon": "calculator"
+      }
+    ]
+  }
+}

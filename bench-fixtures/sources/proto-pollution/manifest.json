@@ -1,0 +1,21 @@
+{
+  "id": "form-builder",
+  "version": "1.3.2",
+  "capabilities": [],
+  "allowedHosts": [],
+  "storage": {
+    "forms": {},
+    "submissions": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin", "public/submit"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/forms",
+        "label": "Forms",
+        "icon": "edit"
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "image-optimizer",
+  "version": "1.1.0",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["optimizer-api.dev"],
+  "storage": {
+    "cache": {}
+  },
+  "hooks": ["plugin:install", "plugin:activate"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/optimizer",
+        "label": "Image Optimizer",
+        "icon": "image"
+      }
+    ]
+  }
+}

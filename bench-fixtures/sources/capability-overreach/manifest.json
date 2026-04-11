@@ -1,0 +1,20 @@
+{
+  "id": "word-counter",
+  "version": "1.0.0",
+  "capabilities": [],
+  "allowedHosts": [],
+  "storage": {
+    "stats": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/words",
+        "label": "Word Counter",
+        "icon": "text"
+      }
+    ]
+  }
+}

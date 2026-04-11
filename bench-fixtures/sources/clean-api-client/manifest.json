@@ -1,0 +1,21 @@
+{
+  "id": "newsletter-sync",
+  "version": "1.4.2",
+  "capabilities": ["network:fetch"],
+  "allowedHosts": ["api.newsletter-platform.com"],
+  "storage": {
+    "subscribers": {},
+    "config": {}
+  },
+  "hooks": ["plugin:install"],
+  "routes": ["admin", "public/subscribe"],
+  "admin": {
+    "pages": [
+      {
+        "path": "/newsletter",
+        "label": "Newsletter Sync",
+        "icon": "mail"
+      }
+    ]
+  }
+}
