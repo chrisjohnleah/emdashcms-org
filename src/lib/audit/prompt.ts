@@ -93,18 +93,29 @@ export const AUDIT_MODELS: Record<AuditModelKey, AuditModelDef> = {
     batchCapable: false,
   },
 
-  // --- Future: waiting on Cloudflare to enable Async Batch API for Gemma ---
+  // --- Premium sync model running inside the queue consumer ---
+  //
+  // Queue consumers get a 15-minute wall-clock budget (not 30s — that's
+  // the HTTP handler limit) and CPU time excludes I/O wait, so a
+  // long-running `ai.run()` call against Gemma 4 26B is perfectly
+  // valid inside the audit queue consumer. The earlier "timeouts" were
+  // our wrangler.jsonc `limits.cpu_ms` default of 30s biting on larger
+  // prompts; we've now bumped it to the 5-minute max, which gives
+  // Gemma all the headroom it needs to reason over a typical plugin.
+  //
+  // Gemma stays non-batch because Cloudflare hasn't wired it into the
+  // Async Batch API yet — but that only matters if we wanted to
+  // defer processing across multiple Worker invocations. For a single
+  // audit per queue message, sync-inside-consumer is the correct
+  // pattern and this model is fully usable.
   "gemma-4-26b-a4b": {
     key: "gemma-4-26b-a4b",
     workersAiId: "@cf/google/gemma-4-26b-a4b-it",
     label: "Gemma 4 26B-A4B",
     description:
-      "Premium (pending). Gemma 4 26B MoE (4B active), 256K ctx, strong reasoning. Cannot currently complete sync on free-tier Workers (30s wall clock) and Cloudflare has NOT yet enabled the Async Batch API for this model. Kept in the registry so the day batch support ships, we flip `disabled` to false and it becomes a second premium option alongside Llama 3.3 70B.",
+      "Premium. Google Gemma 4 26B MoE (4B active params), 256K ctx, strong reasoning and function calling. Runs sync inside the audit queue consumer (15-minute wall-clock budget, 5-minute CPU budget — AI inference wait doesn't count as CPU). Sharper findings on borderline plugins than GLM-4.7-Flash at the cost of ~100 neurons/audit.",
     estimatedNeurons: "~100",
     batchCapable: false,
-    disabled: true,
-    disabledReason:
-      "Gemma 4 26B exceeds the 30s sync Worker wall clock on free tier, and Cloudflare has not yet enabled the Async Batch API for this model. Use Llama 3.3 70B (batch) for premium audits until Cloudflare adds batch support.",
   },
 };
 
