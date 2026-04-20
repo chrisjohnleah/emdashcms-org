@@ -106,17 +106,24 @@ export function urlEntry(u: SitemapUrl): string {
 export function buildSitemapXml(input: SitemapInput): string {
   const now = new Date().toISOString();
 
+  // Every static entry carries <lastmod>. Dynamic pages already had it,
+  // but the static ones shipped without — which hurts on two surfaces:
+  // Google's crawl scheduler has nothing to anchor re-crawls against,
+  // and AI search engines treat a lastmod-less URL as stale. Using the
+  // build timestamp is defensible because these pages are refreshed
+  // with each deploy; it's always a real upper-bound on when the
+  // content could have changed.
   const staticEntries: SitemapUrl[] = [
     { loc: `${SITE_URL}/`, lastmod: now, changefreq: "weekly", priority: "1.0" },
     { loc: `${SITE_URL}/plugins`, lastmod: now, changefreq: "daily", priority: "0.9" },
     { loc: `${SITE_URL}/themes`, lastmod: now, changefreq: "daily", priority: "0.9" },
-    { loc: `${SITE_URL}/guide`, changefreq: "monthly", priority: "0.5" },
-    { loc: `${SITE_URL}/docs/contributors`, changefreq: "monthly", priority: "0.5" },
-    { loc: `${SITE_URL}/docs/moderators`, changefreq: "monthly", priority: "0.5" },
-    { loc: `${SITE_URL}/docs/security`, changefreq: "monthly", priority: "0.5" },
-    { loc: `${SITE_URL}/privacy`, changefreq: "yearly", priority: "0.3" },
-    { loc: `${SITE_URL}/terms`, changefreq: "yearly", priority: "0.3" },
-    { loc: `${SITE_URL}/code-of-conduct`, changefreq: "yearly", priority: "0.3" },
+    { loc: `${SITE_URL}/guide`, lastmod: now, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE_URL}/docs/contributors`, lastmod: now, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE_URL}/docs/moderators`, lastmod: now, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE_URL}/docs/security`, lastmod: now, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE_URL}/privacy`, lastmod: now, changefreq: "yearly", priority: "0.3" },
+    { loc: `${SITE_URL}/terms`, lastmod: now, changefreq: "yearly", priority: "0.3" },
+    { loc: `${SITE_URL}/code-of-conduct`, lastmod: now, changefreq: "yearly", priority: "0.3" },
   ];
 
   const pluginEntries: SitemapUrl[] = input.plugins.map((p) => ({

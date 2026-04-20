@@ -129,6 +129,18 @@ describe("buildSitemapXml", () => {
     }
   });
 
+  it("emits <lastmod> on every static entry", () => {
+    // Static pages shipped without <lastmod> originally, which starves
+    // Google's crawl scheduler and makes AI search engines treat the
+    // URL as stale. Every static entry must now carry a timestamp.
+    const xml = buildSitemapXml(EMPTY_INPUT);
+    // One lastmod per static entry — the body is a URL ↔ lastmod pair,
+    // so the count should match the number of static locs exactly
+    // when the catalog is empty.
+    const lastmodCount = (xml.match(/<lastmod>/g) ?? []).length;
+    expect(lastmodCount).toBe(STATIC_LOCS.length);
+  });
+
   it("emits one <url> per plugin with the provided updated_at as <lastmod>", () => {
     const xml = buildSitemapXml({
       ...EMPTY_INPUT,

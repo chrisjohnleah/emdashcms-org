@@ -8,15 +8,41 @@ import DashboardBanner from '../components/DashboardBanner.astro';
 import { getAuthorEmailStatus } from '../lib/notifications/settings-handlers';
 import { resolveAuthorId } from '../lib/publishing/plugin-queries';
 
+interface FeedLink {
+  title: string;
+  href: string;
+  type?: 'atom' | 'rss';
+}
+
 interface Props {
   title: string;
   description?: string;
   noindex?: boolean;
   jsonLd?: object | object[];
   ogImage?: { url: string; width?: number; height?: number };
+  /**
+   * Optional override for feed autodiscovery links emitted as
+   * <link rel="alternate"> in the document head. Defaults to the three
+   * site-wide Atom feeds (plugins-new, plugins-updated, themes-new).
+   * Detail or category pages can pass a narrower list so RSS readers
+   * subscribe to the feed that matches the current view.
+   */
+  feeds?: FeedLink[];
 }
 
-const { title, description, noindex = false, jsonLd, ogImage } = Astro.props;
+const { title, description, noindex = false, jsonLd, ogImage, feeds } = Astro.props;
+
+// Default feed autodiscovery — the three top-level Atom feeds shipped
+// in Phase 14.01 (src/pages/feeds/**). Pages can override by passing
+// their own `feeds` prop (e.g. a plugin detail page pointing at that
+// plugin's updates feed once per-plugin feeds land). Keeping the
+// default inline rather than importing from a module avoids pulling
+// server-only code into the layout for such a small constant.
+const feedLinks: FeedLink[] = feeds ?? [
+  { title: 'New plugins', href: '/feeds/plugins/new.xml' },
+  { title: 'Updated plugins', href: '/feeds/plugins/updated.xml' },
+  { title: 'New themes', href: '/feeds/themes/new.xml' },
+];
 
 // Normalise jsonLd to an array so the <head> block can iterate uniformly
 // whether a page passes a single object or an array of them.
@@ -99,6 +125,15 @@ try {
     })}
 
     <meta name="theme-color" content="#fbf8f1" />
+
+    {feedLinks.map((feed) => (
+      <link
+        rel="alternate"
+        type={feed.type === 'rss' ? 'application/rss+xml' : 'application/atom+xml'}
+        title={feed.title}
+        href={feed.href}
+      />
+    ))}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
