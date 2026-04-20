@@ -3,6 +3,8 @@ import {
   buildPluginJsonLd,
   buildThemeJsonLd,
   buildOrganizationJsonLd,
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
 } from "../../../src/lib/seo/json-ld";
 import type {
   MarketplacePluginDetail,
@@ -269,5 +271,103 @@ describe("buildOrganizationJsonLd", () => {
       logo: "https://emdashcms.org/favicon.svg",
       sameAs: ["https://github.com/chrisjohnleah/emdashcms-org"],
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildBreadcrumbListJsonLd
+// ---------------------------------------------------------------------------
+
+describe("buildBreadcrumbListJsonLd", () => {
+  it("emits a BreadcrumbList with 1-indexed positions", () => {
+    const result = buildBreadcrumbListJsonLd([
+      { name: "Plugins", url: "/plugins" },
+      { name: "Content", url: "/plugins/category/content" },
+      { name: "SEO Toolkit", url: "/plugins/seo-toolkit" },
+    ]);
+
+    expect(result["@context"]).toBe("https://schema.org");
+    expect(result["@type"]).toBe("BreadcrumbList");
+    expect(result.itemListElement).toEqual([
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Plugins",
+        item: "https://emdashcms.org/plugins",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Content",
+        item: "https://emdashcms.org/plugins/category/content",
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: "SEO Toolkit",
+        item: "https://emdashcms.org/plugins/seo-toolkit",
+      },
+    ]);
+  });
+
+  it("resolves relative urls against SITE_URL and passes absolute urls through", () => {
+    const result = buildBreadcrumbListJsonLd([
+      { name: "Relative", url: "/plugins" },
+      { name: "Absolute", url: "https://example.com/foo" },
+    ]);
+    const items = result.itemListElement as Array<{ item: string }>;
+    expect(items[0].item).toBe("https://emdashcms.org/plugins");
+    expect(items[1].item).toBe("https://example.com/foo");
+  });
+
+  it("returns an empty itemListElement when given no crumbs", () => {
+    const result = buildBreadcrumbListJsonLd([]);
+    expect(result.itemListElement).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildFaqPageJsonLd
+// ---------------------------------------------------------------------------
+
+describe("buildFaqPageJsonLd", () => {
+  it("wraps each Q/A pair in Question + acceptedAnswer nodes", () => {
+    const result = buildFaqPageJsonLd([
+      { question: "Is it free?", answer: "Yes, MIT licensed." },
+      {
+        question: "How are plugins audited?",
+        answer: "Static scan plus an AI review against the manifest.",
+      },
+    ]);
+
+    expect(result["@context"]).toBe("https://schema.org");
+    expect(result["@type"]).toBe("FAQPage");
+    expect(result.mainEntity).toEqual([
+      {
+        "@type": "Question",
+        name: "Is it free?",
+        acceptedAnswer: { "@type": "Answer", text: "Yes, MIT licensed." },
+      },
+      {
+        "@type": "Question",
+        name: "How are plugins audited?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Static scan plus an AI review against the manifest.",
+        },
+      },
+    ]);
+  });
+
+  it("does not touch < characters in answers (escape is emission's job)", () => {
+    const result = buildFaqPageJsonLd([
+      { question: "Edge case?", answer: "</script><script>alert(1)</script>" },
+    ]);
+    const entities = result.mainEntity as Array<{
+      acceptedAnswer: { text: string };
+    }>;
+    expect(entities[0].acceptedAnswer.text).toBe(
+      "</script><script>alert(1)</script>",
+    );
   });
 });

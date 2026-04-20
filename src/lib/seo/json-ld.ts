@@ -155,3 +155,74 @@ export function buildOrganizationJsonLd(): Record<string, unknown> {
     sameAs: ["https://github.com/chrisjohnleah/emdashcms-org"],
   };
 }
+
+export interface Breadcrumb {
+  /** Visible label (e.g. "Plugins", "Content", "SEO Toolkit"). */
+  name: string;
+  /**
+   * Absolute or site-relative URL for the crumb. Relative paths are
+   * resolved against SITE_URL so callers can pass `/plugins` directly.
+   * Pass `undefined` for the current page — Schema.org allows the last
+   * crumb's `item` to be omitted, but Google's reference implementation
+   * prefers a value on every entry, so we always emit one.
+   */
+  url: string;
+}
+
+/**
+ * Build a BreadcrumbList JSON-LD payload for hierarchical navigation
+ * surfaces (plugin/theme detail pages, category listings). Google SGE
+ * and AI search engines use this to render breadcrumb trails in
+ * citations and to understand site structure without a full crawl.
+ *
+ * Position is 1-indexed per Schema.org. Callers should include the
+ * top-level section ("Plugins") as crumb 1, intermediate parents in
+ * order, and the current page as the final crumb.
+ */
+export function buildBreadcrumbListJsonLd(
+  crumbs: Breadcrumb[],
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((crumb, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: crumb.name,
+      item: crumb.url.startsWith("http")
+        ? crumb.url
+        : `${SITE_URL}${crumb.url}`,
+    })),
+  };
+}
+
+export interface FaqItem {
+  /** The question exactly as the user would ask it. */
+  question: string;
+  /** Plain-text answer. HTML is NOT escaped here — emission handles it. */
+  answer: string;
+}
+
+/**
+ * Build a FAQPage JSON-LD payload. Google, ChatGPT, and Perplexity
+ * cite FAQ content disproportionately often — the Princeton GEO study
+ * measured roughly a 40% visibility uplift when a page emits FAQPage
+ * alongside its primary content schema. Keep questions phrased the way
+ * a real user would ask them (not marketing-voice headlines).
+ */
+export function buildFaqPageJsonLd(
+  faqs: FaqItem[],
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+}
