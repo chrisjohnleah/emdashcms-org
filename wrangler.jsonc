@@ -108,7 +108,7 @@
   // Cron triggers:
   //  - "0 * * * *": hourly cleanup of expired rate_limits rows
   //  - "5 9 * * *": daily notification digest (09:05 UTC — D-09 in 12-CONTEXT.md)
-  //  - "5 0 * * 0": weekly digest snapshot (Sunday 00:05 UTC — D-22 in 14-CONTEXT.md)
+  //  - "5 0 * * SUN": weekly digest snapshot (Sunday 00:05 UTC — D-22 in 14-CONTEXT.md)
   //
   // NOTE: the batch-poller cron ("*/2 * * * *") was removed alongside
   // the batch-capable audit models — Workers Free tier enforces a 10ms
@@ -117,8 +117,14 @@
   // explanation and src/lib/audit/batch-poller.ts for the dormant
   // polling code. When batch is re-enabled (via a queue-self-requeue
   // pattern, not a cron), this list stays unchanged.
+  //
+  // Sunday is spelled `SUN`, not `0`. Cloudflare's schedule validator
+  // rejects `0` for DOW with "invalid cron string [code: 10100]" — the
+  // deploy on 2026-04-20 (run 24653003891) failed on this exact line.
+  // `SUN` is unambiguous and survives both Cloudflare's validator and
+  // standard POSIX cron readers.
   "triggers": {
-    "crons": ["0 * * * *", "5 9 * * *", "5 0 * * 0"]
+    "crons": ["0 * * * *", "5 9 * * *", "5 0 * * SUN"]
   },
 
   "placement": {
