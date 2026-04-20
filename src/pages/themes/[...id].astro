@@ -4,7 +4,7 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import { getThemeDetail } from '../../lib/db/queries';
 import { getReviewStats } from '../../lib/db/review-queries';
-import { buildThemeJsonLd } from '../../lib/seo/json-ld';
+import { buildThemeJsonLd, buildBreadcrumbListJsonLd } from '../../lib/seo/json-ld';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Button from '../../components/Button.astro';
 
@@ -17,11 +17,23 @@ if (!theme) {
 
 // Structured data for AI and social discoverability. Fail-closed per
 // CLAUDE.md: a malformed builder output must never 500 the page.
-let themeJsonLd: object | undefined;
+let themeJsonLd: object[] | undefined;
 if (theme) {
   try {
     const themeReviewStats = await getReviewStats(env.DB, 'theme', id!);
-    themeJsonLd = buildThemeJsonLd(theme, themeReviewStats);
+    themeJsonLd = [
+      buildThemeJsonLd(theme, themeReviewStats),
+      buildBreadcrumbListJsonLd([
+        { name: 'Themes', url: '/themes' },
+        ...(theme.category
+          ? [{
+              name: theme.category.charAt(0).toUpperCase() + theme.category.slice(1),
+              url: `/themes/category/${theme.category}`,
+            }]
+          : []),
+        { name: theme.name, url: `/themes/${theme.id}` },
+      ]),
+    ];
   } catch (err) {
     console.error('[theme-detail] buildThemeJsonLd failed:', err);
     themeJsonLd = undefined;

@@ -15,7 +15,7 @@ import EmbedBadgesPanel from '../../components/EmbedBadgesPanel.astro';
 import { getReviews, getReviewStats, getUserReview, createReview, updateReview, deleteReview } from '../../lib/db/review-queries';
 import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 import { renderPluginMarkdown } from '../../lib/markdown';
-import { buildPluginJsonLd } from '../../lib/seo/json-ld';
+import { buildPluginJsonLd, buildBreadcrumbListJsonLd } from '../../lib/seo/json-ld';
 
 const { id } = Astro.params;
 const plugin = await getPluginDetail(env.DB, id!);
@@ -96,7 +96,7 @@ if (deleted) reviewSuccess = 'Review deleted.';
 // data already fetched above so we never pay an extra query. Wrapped in
 // try/catch because BaseLayout's emission must be fail-closed — a
 // malformed record should never 500 the detail page over metadata.
-let pluginJsonLd: object | undefined;
+let pluginJsonLd: object[] | undefined;
 if (plugin) {
   try {
     const latestVersionForJsonLd = versions[0]
@@ -113,7 +113,19 @@ if (plugin) {
           created_at: versions[0].publishedAt ?? plugin.updatedAt,
         }
       : null;
-    pluginJsonLd = buildPluginJsonLd(plugin, latestVersionForJsonLd, reviewStats);
+    pluginJsonLd = [
+      buildPluginJsonLd(plugin, latestVersionForJsonLd, reviewStats),
+      buildBreadcrumbListJsonLd([
+        { name: 'Plugins', url: '/plugins' },
+        ...(plugin.category
+          ? [{
+              name: plugin.category.charAt(0).toUpperCase() + plugin.category.slice(1),
+              url: `/plugins/category/${plugin.category}`,
+            }]
+          : []),
+        { name: plugin.name, url: `/plugins/${plugin.id}` },
+      ]),
+    ];
   } catch (err) {
     console.error('[plugin-detail] buildPluginJsonLd failed:', err);
     pluginJsonLd = undefined;

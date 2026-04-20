@@ -8,6 +8,7 @@ import EmptyState from '../../../components/EmptyState.astro';
 import SearchBar from '../../../components/SearchBar.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { searchThemes } from '../../../lib/db/queries';
+import { buildBreadcrumbListJsonLd } from '../../../lib/seo/json-ld';
 
 const { slug } = Astro.params;
 const category = (slug ?? '').toLowerCase();
@@ -36,8 +37,15 @@ const titleCategory = category
 
 const title = `${titleCategory} themes - emdashcms.org`;
 const description = `Browse ${titleCategory} themes on the emdashcms.org community marketplace for EmDash CMS.`;
+
+// BreadcrumbList mirrors the visible nav so AI citations show a full
+// hierarchy (Themes → {titleCategory}) instead of a bare URL.
+const categoryJsonLd = buildBreadcrumbListJsonLd([
+  { name: 'Themes', url: '/themes' },
+  { name: titleCategory, url: `/themes/category/${category}` },
+]);
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} jsonLd={categoryJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
 
       <nav class="flex items-center gap-2 text-sm text-ink-soft mb-6" aria-label="Breadcrumb">
