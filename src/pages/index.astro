@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState.astro';
 import Button from '../components/Button.astro';
 import AuditBadge from '../components/AuditBadge.astro';
 import { searchPlugins, searchThemes } from '../lib/db/queries';
-import { buildOrganizationJsonLd } from '../lib/seo/json-ld';
+import { buildOrganizationJsonLd, buildFaqPageJsonLd } from '../lib/seo/json-ld';
 
 const title = 'emdashcms.org — A community marketplace for EmDash plugins and themes';
 const description =
@@ -34,7 +34,39 @@ const showBannedNotice = Astro.url.searchParams.get('banned') === '1';
 
 // Site-root Organization JSON-LD. Only emitted on the homepage so we
 // don't assert marketplace identity on every page in the site.
-const homepageJsonLd = buildOrganizationJsonLd();
+//
+// Paired with a FAQPage payload that mirrors the "Audited before it
+// ships" section below. The Princeton GEO study measured roughly a
+// +40% AI citation uplift on pages that carry FAQPage alongside their
+// primary schema — ChatGPT, Perplexity, and Google SGE all cite FAQ
+// answers preferentially because they're already answer-shaped. The
+// questions are phrased the way a user would actually ask them, not
+// the way our marketing heading ("Sandboxed by default") reads.
+const homepageJsonLd = [
+  buildOrganizationJsonLd(),
+  buildFaqPageJsonLd([
+    {
+      question: 'How are plugins audited before publishing on emdashcms.org?',
+      answer:
+        'Every uploaded version runs through a fail-closed pipeline: we unpack the bundle into an isolated Worker sandbox, statically scan it against its declared manifest, then have an AI reviewer read the code in context. If the audit cannot produce a clean verdict, the version is rejected — never silently published.',
+    },
+    {
+      question: 'What does "sandboxed by default" mean for EmDash plugins?',
+      answer:
+        'Plugins on emdashcms.org execute inside isolated Cloudflare Worker sandboxes and declare every capability, hook, storage, and setting they need in a manifest. The runtime only grants access to what the manifest lists, so a plugin cannot silently read or modify anything outside its declared surface.',
+    },
+    {
+      question: 'Is emdashcms.org free to use and to publish on?',
+      answer:
+        'Yes. The marketplace is free to install from and free to publish to. The marketplace code, the audit pipeline, and every verdict log live in a public MIT-licensed repository on GitHub, so the auditing is itself auditable.',
+    },
+    {
+      question: 'What happens if an AI reviewer cannot verify a plugin?',
+      answer:
+        'The version is rejected, not auto-passed. The pipeline is fail-closed by design: an unparseable or low-confidence verdict blocks the release rather than escaping through default-approval. Authors get the finding log and can address the issues before resubmitting.',
+    },
+  ]),
+];
 ---
 <BaseLayout title={title} description={description} jsonLd={homepageJsonLd}>
 
@@ -363,5 +395,36 @@ const homepageJsonLd = buildOrganizationJsonLd();
       </div>
     </div>
   </section>
+
+  <script is:inline>
+    // WebMCP — expose a single searchPlugins tool to any AI agent running
+    // in the page. Spec: https://webmachinelearning.github.io/webmcp/
+    (function () {
+      var mc = typeof navigator !== 'undefined' ? navigator.modelContext : null;
+      if (!mc || typeof mc.provideContext !== 'function') return;
+      mc.provideContext({
+        tools: [
+          {
+            name: 'searchPlugins',
+            description:
+              'Search published plugins on emdashcms.org by free-text query. Returns up to 10 results with id, name, description, install count, and audit verdict.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string', description: 'Free-text query.' },
+              },
+            },
+            execute: async function (args) {
+              var q = (args && typeof args.query === 'string') ? args.query : '';
+              var url = '/api/v1/plugins?limit=10' + (q ? '&query=' + encodeURIComponent(q) : '');
+              var res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+              if (!res.ok) throw new Error('Marketplace search failed: ' + res.status);
+              return await res.json();
+            },
+          },
+        ],
+      });
+    })();
+  </script>
 
 </BaseLayout>

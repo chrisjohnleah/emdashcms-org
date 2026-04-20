@@ -38,6 +38,23 @@ const securityHeaders = defineMiddleware(async (_ctx, next) => {
       "form-action 'self'",
     ].join("; "),
   );
+
+  // RFC 8288 Link headers — advertise agent-facing discovery surfaces on
+  // HTML pages only. JSON / XML / markdown responses already carry their
+  // own discovery semantics.
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (contentType.includes("text/html")) {
+    response.headers.set(
+      "Link",
+      [
+        '</.well-known/api-catalog>; rel="api-catalog"',
+        '</api/v1/openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json"',
+        '</docs/contributors>; rel="service-doc"; type="text/html"',
+        '</.well-known/mcp/server-card.json>; rel="related"; type="application/json"; title="MCP Server Card"',
+      ].join(", "),
+    );
+  }
+
   return response;
 });
 

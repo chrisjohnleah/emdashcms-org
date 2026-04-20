@@ -19,11 +19,23 @@ import { processNotificationBatch } from "./lib/notifications/consumer";
 import { runDailyDigest } from "./lib/notifications/digest";
 import { runWeeklyDigest } from "./lib/feeds/digest-generator";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
+import { handleWellKnown } from "./lib/agents/well-known";
+import { handleMarkdownNegotiation } from "./lib/agents/markdown";
 import type { AuditJob, NotificationJob } from "./types/marketplace";
 import type { OgJob } from "./lib/seo/og-queue";
 
 export default {
   async fetch(request, env, ctx) {
+    // Agent-readiness surfaces that need dynamic responses. Handled at the
+    // worker edge so dot-prefixed paths like /.well-known/* don't fight
+    // Astro's page resolver, and so markdown negotiation can short-circuit
+    // the full page render when an agent asks for text/markdown.
+    const wellKnown = await handleWellKnown(request, env);
+    if (wellKnown) return wellKnown;
+
+    const markdown = await handleMarkdownNegotiation(request, env);
+    if (markdown) return markdown;
+
     return handle(request, env, ctx);
   },
 

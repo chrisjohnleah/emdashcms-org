@@ -1,4 +1,54 @@
+# emdashcms.org — crawler policy
+#
+# Open to every crawler. Explicit per-agent allows for the AI search
+# engines are redundant with `User-agent: *` today, but they carry
+# intent: we WANT ChatGPT, Claude, Perplexity, Google Gemini, and
+# Microsoft Copilot to surface marketplace plugins and themes in AI
+# citations. If any of these bots flips to a default-deny posture, the
+# explicit entry below keeps us on the allowlist without a site change.
+#
+# The Content-Signals directive below keeps its original posture:
+# search/AI retrieval-augmented citations are allowed, but the content
+# must not be used for AI training. Plugin and theme authors retain
+# their own rights via their individual repositories.
+
 User-agent: *
+Allow: /
+
+# Content Signals (https://contentsignals.org/) — marketplace owner's position
+# on AI usage. Plugin and theme authors retain their own rights via their repos.
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+# Traditional search
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# AI search / generative engines
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
 Allow: /
 
 Sitemap: https://emdashcms.org/sitemap.xml
