@@ -56,6 +56,7 @@ const NEW_PLUGINS_SQL = `
   JOIN authors a ON a.id = p.author_id
   WHERE p.created_at >= ? AND p.created_at <= ?
     AND COALESCE(p.status, 'active') = 'active'
+    AND p.unlisted_at IS NULL
     AND EXISTS (
       SELECT 1 FROM plugin_versions pv
       WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
@@ -72,6 +73,8 @@ const UPDATED_VERSIONS_SQL = `
   JOIN plugins p ON p.id = pv.plugin_id
   JOIN authors a ON a.id = p.author_id
   WHERE pv.status IN ('published', 'flagged')
+    AND COALESCE(p.status, 'active') = 'active'
+    AND p.unlisted_at IS NULL
     AND COALESCE(pv.published_at, pv.created_at) >= ?
     AND COALESCE(pv.published_at, pv.created_at) <= ?
   ORDER BY COALESCE(pv.published_at, pv.created_at) DESC

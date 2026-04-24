@@ -54,6 +54,7 @@ const RECENT_PLUGINS_SQL = `
   FROM plugins p
   JOIN authors a ON p.author_id = a.id
   WHERE COALESCE(p.status, 'active') = 'active'
+    AND p.unlisted_at IS NULL
     AND EXISTS (
       SELECT 1 FROM plugin_versions pv
       WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
@@ -78,6 +79,7 @@ const RECENT_PLUGIN_VERSIONS_SQL = `
   JOIN authors a ON a.id = p.author_id
   WHERE pv.status IN ('published', 'flagged')
     AND COALESCE(p.status, 'active') = 'active'
+    AND p.unlisted_at IS NULL
   ORDER BY COALESCE(pv.published_at, pv.created_at) DESC
   LIMIT ?
 `;
@@ -109,6 +111,7 @@ const PLUGINS_BY_CATEGORY_SQL = `
   FROM plugins p
   JOIN authors a ON p.author_id = a.id
   WHERE COALESCE(p.status, 'active') = 'active'
+    AND p.unlisted_at IS NULL
     AND p.category = ?
     AND EXISTS (
       SELECT 1 FROM plugin_versions pv
