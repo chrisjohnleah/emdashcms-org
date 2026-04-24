@@ -1,0 +1,232 @@
+---
+// Owner-facing modal for marking a plugin deprecated. Native <dialog>
+// with a tiny inline script — this is a low-frequency interaction so
+// we keep it framework-free.
+//
+// Fields mirror the D-01 decision: category <select> (five enum values),
+// optional note <textarea> capped at 500 chars with a live counter, and
+// a successor typeahead that calls the authenticated candidates endpoint
+// created in Task 1. The hidden `successor_id` input is populated when
+// the user picks a suggestion; if they type free text that doesn't match
+// an id, the form posts with an empty successor_id and the server
+// silently ignores it (D-02 scope: the typeahead is a convenience, not
+// a hard gate — the server revalidates regardless).
+//
+// When the server returns a validation error from deprecatePlugin, the
+// parent page passes it in via the `error` prop and we render it above
+// the form. The parent also sets `initialOpen` so the dialog reopens on
+// error render — users don't have to re-open and re-enter everything.
+
+import type { DeprecationCategory } from '../lib/publishing/deprecation-queries';
+
+interface Props {
+  pluginId: string;
+  currentCategory: DeprecationCategory | null;
+  currentNote: string | null;
+  currentSuccessorId: string | null;
+  currentSuccessorName: string | null;
+  error?: string | null;
+  initialOpen?: boolean;
+}
+
+const {
+  pluginId,
+  currentCategory,
+  currentNote,
+  currentSuccessorId,
+  currentSuccessorName,
+  error = null,
+  initialOpen = false,
+} = Astro.props;
+
+const currentNoteLength = (currentNote ?? '').length;
+---
+<dialog
+  id="deprecate-modal"
+  class="rounded-xl border border-rule bg-paper-soft p-0 w-full max-w-xl backdrop:bg-ink/40"
+  data-initial-open={initialOpen ? 'true' : 'false'}
+>
+  <form method="POST" class="p-6 space-y-5">
+    <input type="hidden" name="_action" value="deprecate" />
+    <input type="hidden" name="plugin_id" value={pluginId} />
+
+    <header class="space-y-1">
+      <h2 class="font-display text-xl text-ink" style="font-weight: 500;">Deprecate plugin</h2>
+      <p class="text-sm text-ink-muted leading-relaxed">
+        Existing installs keep working. The public listing shows a warning banner
+        and the plugin is demoted in search. You can un-deprecate at any time.
+      </p>
+    </header>
+
+    {error && (
+      <div
+        role="alert"
+        class="rounded-md border border-danger/35 bg-danger-soft px-4 py-3 text-sm text-danger"
+      >
+        {error}
+      </div>
+    )}
+
+    <div>
+      <label for="deprecate-category" class="block text-sm font-semibold text-ink">
+        Category
+      </label>
+      <select
+        id="deprecate-category"
+        name="category"
+        required
+        class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
+      >
+        <option value="" disabled selected={currentCategory === null}>Select a reason…</option>
+        <option value="unmaintained" selected={currentCategory === 'unmaintained'}>Unmaintained — I can't support this anymore</option>
+        <option value="replaced" selected={currentCategory === 'replaced'}>Replaced — there's a successor plugin</option>
+        <option value="abandoned" selected={currentCategory === 'abandoned'}>Abandoned — not coming back</option>
+        <option value="security" selected={currentCategory === 'security'}>Security — withdrawn for security reasons</option>
+        <option value="other" selected={currentCategory === 'other'}>Other</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="deprecate-note" class="block text-sm font-semibold text-ink">
+        Note <span class="text-ink-soft font-normal">(optional)</span>
+      </label>
+      <p class="mt-1 text-xs text-ink-soft">Short plain-text note shown on the public banner. No markup.</p>
+      <textarea
+        id="deprecate-note"
+        name="note"
+        maxlength="500"
+        rows="3"
+        class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none resize-y"
+      >{currentNote ?? ''}</textarea>
+      <p class="mt-1 text-xs text-ink-soft text-right">
+        <span id="deprecate-note-count">{currentNoteLength}</span>/500
+      </p>
+    </div>
+
+    <div>
+      <label for="deprecate-successor" class="block text-sm font-semibold text-ink">
+        Successor plugin <span class="text-ink-soft font-normal">(optional)</span>
+      </label>
+      <p class="mt-1 text-xs text-ink-soft">
+        Pick a replacement plugin so users see a one-click link on the deprecation banner.
+      </p>
+      <input
+        id="deprecate-successor"
+        type="text"
+        list="deprecate-successor-options"
+        autocomplete="off"
+        placeholder="Type to search plugins…"
+        value={currentSuccessorName ?? ''}
+        data-plugin-id={pluginId}
+        class="mt-2 w-full bg-paper-soft border border-rule-strong text-ink rounded-lg px-3 py-2 text-sm focus:border-accent-deep focus:outline-none"
+      />
+      <datalist id="deprecate-successor-options"></datalist>
+      <input type="hidden" id="deprecate-successor-id" name="successor_id" value={currentSuccessorId ?? ''} />
+    </div>
+
+    <div class="flex items-center justify-end gap-3 pt-2">
+      <button
+        type="button"
+        data-close-deprecate
+        class="text-sm text-ink-muted hover:text-ink transition-colors px-3 py-2"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class="rounded-md bg-warn text-paper hover:bg-warn/90 px-4 py-2 text-sm font-medium transition-colors"
+      >
+        Deprecate plugin
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<script is:inline>
+  (function () {
+    const dlg = document.getElementById('deprecate-modal');
+    if (!(dlg instanceof HTMLDialogElement)) return;
+
+    // Open / close wiring. data-open-deprecate on trigger buttons, and
+    // a cancel button inside the form closes cleanly.
+    document.querySelectorAll('[data-open-deprecate]').forEach(function (btn) {
+      btn.addEventListener('click', function () { dlg.showModal(); });
+    });
+    dlg.querySelectorAll('[data-close-deprecate]').forEach(function (btn) {
+      btn.addEventListener('click', function () { dlg.close(); });
+    });
+
+    // Re-open on server error so users don't lose their draft. The
+    // parent page sets data-initial-open="true" when an error prop is
+    // present and the user just submitted.
+    if (dlg.getAttribute('data-initial-open') === 'true') {
+      dlg.showModal();
+    }
+
+    // Live char counter for the note textarea. Pure presentational —
+    // the server re-validates length independently.
+    const note = document.getElementById('deprecate-note');
+    const count = document.getElementById('deprecate-note-count');
+    if (note && count) {
+      note.addEventListener('input', function () {
+        count.textContent = String(note.value.length);
+      });
+    }
+
+    // Typeahead: debounced fetch against the authenticated endpoint
+    // from Task 1. Results populate the <datalist> so the browser's
+    // native dropdown does the rendering. When the user picks an
+    // option (by exact id/name match), we stash the id in the hidden
+    // input so the form submit carries a successor_id. Free-text that
+    // doesn't match just submits an empty id — server is the source
+    // of truth (D-02).
+    const successor = document.getElementById('deprecate-successor');
+    const successorId = document.getElementById('deprecate-successor-id');
+    const datalist = document.getElementById('deprecate-successor-options');
+    if (successor && successorId && datalist) {
+      const pluginId = successor.getAttribute('data-plugin-id');
+      let currentCandidates = [];
+      let t;
+      successor.addEventListener('input', function () {
+        // If the user clears the field, clear the stashed id.
+        if (successor.value.trim() === '') {
+          successorId.value = '';
+        }
+        // Match any pre-fetched candidate by the user's typed text;
+        // datalist autoselect on exact match sets value to name.
+        const match = currentCandidates.find(function (c) { return c.name === successor.value; });
+        if (match) {
+          successorId.value = match.id;
+        } else {
+          // Typed text doesn't match a cached candidate — clear id so
+          // the server doesn't bind stale data from a previous pick.
+          successorId.value = '';
+        }
+        clearTimeout(t);
+        t = setTimeout(function () {
+          const q = successor.value.trim();
+          if (q.length === 0) {
+            datalist.innerHTML = '';
+            currentCandidates = [];
+            return;
+          }
+          fetch('/api/v1/dashboard/plugins/' + encodeURIComponent(pluginId) + '/successor-candidates?q=' + encodeURIComponent(q), {
+            credentials: 'same-origin',
+          })
+            .then(function (r) { return r.ok ? r.json() : { candidates: [] }; })
+            .then(function (data) {
+              currentCandidates = data.candidates || [];
+              datalist.innerHTML = '';
+              currentCandidates.forEach(function (c) {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                opt.label = c.authorUsername ? c.name + ' — @' + c.authorUsername : c.name;
+                datalist.appendChild(opt);
+              });
+            })
+            .catch(function () { /* silent — typeahead is best-effort */ });
+        }, 200);
+      });
+    }
+  })();
+</script>

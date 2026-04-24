@@ -1,0 +1,72 @@
+---
+// Confirmation modal for the owner's Unlist / Relist toggle. Native
+// <dialog> with a tiny inline script for open/close — this is a rare
+// interaction (owners hit it once per plugin lifetime) so it doesn't
+// warrant a client framework. The trigger button lives in the parent
+// dashboard page; its `data-open` attribute binds to this dialog's id.
+//
+// Unlist and Relist share a single modal because the copy is the only
+// difference — the dashboard flips the mode based on current state so
+// owners never see both actions at once.
+
+interface Props {
+  pluginId: string;
+  pluginName: string;
+  currentlyUnlisted: boolean;
+}
+
+const { pluginId, pluginName, currentlyUnlisted } = Astro.props;
+
+const title = currentlyUnlisted ? `Relist ${pluginName}?` : `Unlist ${pluginName}?`;
+const body = currentlyUnlisted
+  ? `Relist ${pluginName} so it appears in search and categories again?`
+  : `This hides ${pluginName} from search and categories. Direct links and downloads will keep working. Continue?`;
+const submitLabel = currentlyUnlisted ? 'Relist plugin' : 'Unlist plugin';
+const action = currentlyUnlisted ? 'relist' : 'unlist';
+---
+<dialog
+  id="unlist-modal"
+  class="rounded-xl border border-rule bg-paper-soft p-0 w-full max-w-md backdrop:bg-ink/40"
+>
+  <form method="POST" class="p-6 space-y-4">
+    <input type="hidden" name="_action" value={action} />
+    <input type="hidden" name="plugin_id" value={pluginId} />
+
+    <h2 class="font-display text-lg text-ink" style="font-weight: 500;">{title}</h2>
+    <p class="text-sm text-ink-muted leading-relaxed">{body}</p>
+
+    <div class="flex items-center justify-end gap-3 pt-2">
+      <button
+        type="button"
+        data-close-unlist
+        class="text-sm text-ink-muted hover:text-ink transition-colors px-3 py-2"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        class:list={[
+          'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+          currentlyUnlisted
+            ? 'bg-accent-deep text-paper hover:bg-accent'
+            : 'bg-warn text-paper hover:bg-warn/90',
+        ]}
+      >
+        {submitLabel}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<script is:inline>
+  (function () {
+    const dlg = document.getElementById('unlist-modal');
+    if (!(dlg instanceof HTMLDialogElement)) return;
+    document.querySelectorAll('[data-open-unlist]').forEach(function (btn) {
+      btn.addEventListener('click', function () { dlg.showModal(); });
+    });
+    dlg.querySelectorAll('[data-close-unlist]').forEach(function (btn) {
+      btn.addEventListener('click', function () { dlg.close(); });
+    });
+  })();
+</script>

@@ -21,7 +21,17 @@ import {
   getPendingInvitesForPlugin,
 } from '../../../lib/auth/collaborator-queries';
 import { resolveAuthorId, updatePluginMetadata } from '../../../lib/publishing/plugin-queries';
+import {
+  deprecatePlugin,
+  undeprecatePlugin,
+  unlistPlugin,
+  relistPlugin,
+  type DeprecationCategory,
+  type DeprecatePluginError,
+} from '../../../lib/publishing/deprecation-queries';
 import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permissions';
+import DeprecateModal from '../../../components/DeprecateModal.astro';
+import UnlistModal from '../../../components/UnlistModal.astro';
 import {
   validateUrlFields,
   validateStringLengths,
@@ -61,6 +71,30 @@ let saveSuccess = false;
 let saveError = '';
 let githubSuccess = '';
 let githubError = '';
+// Dedicated state for the deprecate flow so we can reopen the modal and
+// re-render the user's draft when the server-side validator (17-01)
+// rejects the submission. Plain string -> inline banner; no modal
+// retained across other error paths.
+let deprecateError: string | null = null;
+let deprecateModalOpen = false;
+let deprecateDraft: {
+  category: DeprecationCategory | null;
+  note: string | null;
+  successorId: string | null;
+  successorName: string | null;
+} | null = null;
+
+// Map structured errors from deprecatePlugin into human copy for the
+// inline banner. Mirrors 17-01's error taxonomy.
+const DEPRECATE_ERROR_COPY: Record<DeprecatePluginError, string> = {
+  invalid_category: 'Please choose a valid deprecation reason.',
+  note_too_long: 'Your note is too long — please keep it under 500 characters.',
+  successor_self: 'A plugin cannot be its own successor.',
+  successor_deprecated: 'The selected successor is itself deprecated. Pick another.',
+  successor_unlisted: 'The selected successor is unlisted and cannot be referenced.',
+  successor_not_found: 'We could not find that successor plugin.',
+  successor_cycle: 'That successor would create a deprecation loop. Pick another.',
+};
 
 if (Astro.request.method === 'POST') {
   try {
@@ -165,6 +199,44 @@ if (Astro.request.method === 'POST') {
       const collabAuthorId = data.get('collaborator_author_id') as string;
       await removeCollaborator(env.DB, pluginId!, collabAuthorId);
       saveSuccess = true;
+    } else if (action === 'deprecate') {
+      if (!isMaintainer) throw new Error('Maintainer role required to deprecate this plugin');
+      const category = (data.get('category') as string ?? '') as DeprecationCategory;
+      const note = ((data.get('note') as string) ?? '').trim() || null;
+      const successorId = ((data.get('successor_id') as string) ?? '').trim() || null;
+      const result = await deprecatePlugin(env.DB, {
+        pluginId: pluginId!,
+        actorAuthorId: authorId,
+        category,
+        note,
+        successorId,
+      });
+      if (!result.ok) {
+        deprecateError = DEPRECATE_ERROR_COPY[result.error] ?? 'Deprecation failed — please try again.';
+        deprecateModalOpen = true;
+        deprecateDraft = {
+          category: category || null,
+          note,
+          successorId,
+          // We don't know the successor name when the server rejected —
+          // fall back to empty so the input just shows the typed text.
+          successorName: null,
+        };
+      } else {
+        return Astro.redirect(Astro.url.pathname + '?deprecated=true');
+      }
+    } else if (action === 'undeprecate') {
+      if (!isMaintainer) throw new Error('Maintainer role required to un-deprecate this plugin');
+      await undeprecatePlugin(env.DB, pluginId!, authorId);
+      return Astro.redirect(Astro.url.pathname + '?undeprecated=true');
+    } else if (action === 'unlist') {
+      if (!isMaintainer) throw new Error('Maintainer role required to unlist this plugin');
+      await unlistPlugin(env.DB, pluginId!, authorId);
+      return Astro.redirect(Astro.url.pathname + '?unlisted=true');
+    } else if (action === 'relist') {
+      if (!isMaintainer) throw new Error('Maintainer role required to relist this plugin');
+      await relistPlugin(env.DB, pluginId!);
+      return Astro.redirect(Astro.url.pathname + '?relisted=true');
     } else if (action === 'transfer-ownership' && isOwner) {
       const confirmId = (data.get('confirm_plugin_id') as string ?? '').trim();
       const newOwnerAuthorId = data.get('new_owner_author_id') as string;
@@ -190,6 +262,10 @@ if (Astro.request.method === 'POST') {
 
 // Check URL params for upload success banner (D-11)
 const uploaded = Astro.url.searchParams.get('uploaded') === 'true';
+const deprecatedFlash = Astro.url.searchParams.get('deprecated') === 'true';
+const undeprecatedFlash = Astro.url.searchParams.get('undeprecated') === 'true';
+const unlistedFlash = Astro.url.searchParams.get('unlisted') === 'true';
+const relistedFlash = Astro.url.searchParams.get('relisted') === 'true';
 
 // Load plugin data (re-fetch after potential update)
 const plugin = await getPluginDetail(env.DB, pluginId!);
@@ -258,7 +334,25 @@ const formatDate = (iso: string) =>
 
       <a href="/dashboard" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Dashboard</a>
 
-      <h1 class="mt-4 text-3xl text-ink">{plugin.name}</h1>
+      <h1 class="mt-4 text-3xl text-ink flex items-center gap-3 flex-wrap">
+        <span>{plugin.name}</span>
+        {plugin.unlisted && (
+          <span
+            class="text-xs font-medium uppercase tracking-wide text-ink-soft border border-rule rounded-full px-2.5 py-0.5 align-middle"
+            aria-label="This plugin is unlisted from public discovery"
+          >
+            Unlisted
+          </span>
+        )}
+        {plugin.deprecation && (
+          <span
+            class="text-xs font-medium uppercase tracking-wide text-warn border border-warn/35 bg-warn-soft rounded-full px-2.5 py-0.5 align-middle"
+            aria-label="This plugin is deprecated"
+          >
+            Deprecated
+          </span>
+        )}
+      </h1>
 
       {uploaded && (
         <div class="mt-6">
@@ -273,6 +367,31 @@ const formatDate = (iso: string) =>
       {saveError && (
         <div class="mt-6">
           <DashboardBanner type="error" message={'Failed to update plugin details. ' + saveError} />
+        </div>
+      )}
+      {deprecatedFlash && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message="Plugin marked as deprecated. The public listing now shows a warning banner." />
+        </div>
+      )}
+      {undeprecatedFlash && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message="Deprecation cleared. The plugin is active again." />
+        </div>
+      )}
+      {unlistedFlash && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message="Plugin unlisted from public discovery. Direct links and downloads still work." />
+        </div>
+      )}
+      {relistedFlash && (
+        <div class="mt-6">
+          <DashboardBanner type="success" message="Plugin relisted — it appears in public search and categories again." />
+        </div>
+      )}
+      {deprecateError && (
+        <div class="mt-6">
+          <DashboardBanner type="error" message={deprecateError} />
         </div>
       )}
 
@@ -674,6 +793,57 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
               <Button type="submit" variant="destructive">Transfer Ownership</Button>
             </form>
           </div>
+        </div>
+      )}
+
+      {isMaintainer && (
+        <div class="mt-12">
+          <h2 class="text-xl text-ink">Lifecycle</h2>
+          <div class="mt-4 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
+            <p class="text-sm text-ink-muted">
+              Signal to users that this plugin is no longer maintained, or hide it from
+              public discovery. Existing installs and direct links keep working in both
+              cases — these actions never break downstream sites.
+            </p>
+            <div class="flex flex-wrap gap-3">
+              {plugin.deprecation ? (
+                <form method="POST">
+                  <input type="hidden" name="_action" value="undeprecate" />
+                  <Button type="submit" variant="secondary" size="md">Un-deprecate</Button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  data-open-deprecate
+                  class="inline-flex items-center rounded-md bg-warn text-paper hover:bg-warn/90 px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  Deprecate
+                </button>
+              )}
+              <button
+                type="button"
+                data-open-unlist
+                class="inline-flex items-center rounded-md border border-rule-strong text-ink hover:bg-paper-sunk px-4 py-2 text-sm font-medium transition-colors"
+              >
+                {plugin.unlisted ? 'Relist' : 'Unlist'}
+              </button>
+            </div>
+          </div>
+
+          <DeprecateModal
+            pluginId={plugin.id}
+            currentCategory={deprecateDraft?.category ?? plugin.deprecation?.category ?? null}
+            currentNote={deprecateDraft?.note ?? plugin.deprecation?.note ?? null}
+            currentSuccessorId={deprecateDraft?.successorId ?? plugin.deprecation?.successor?.id ?? null}
+            currentSuccessorName={deprecateDraft?.successorName ?? plugin.deprecation?.successor?.name ?? null}
+            error={deprecateError}
+            initialOpen={deprecateModalOpen}
+          />
+          <UnlistModal
+            pluginId={plugin.id}
+            pluginName={plugin.name}
+            currentlyUnlisted={plugin.unlisted}
+          />
         </div>
       )}
 
