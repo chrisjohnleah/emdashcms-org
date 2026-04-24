@@ -25,8 +25,8 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^13.1.6",
-    "astro": "^6.1.2",
+    "@astrojs/cloudflare": "^13.1.10",
+    "astro": "^6.1.6",
     "jose": "^6.2.2",
     "markdown-it": "14.1.1",
     "modern-tar": "^0.7.6",
