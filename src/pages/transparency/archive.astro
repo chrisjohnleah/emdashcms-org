@@ -1,0 +1,108 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { listWeeks } from '../../lib/transparency/transparency-queries';
+
+// The cursor param is user-controlled but bound through the prepared
+// statement inside listWeeks(), so a hostile value resolves to an empty
+// page rather than SQL execution (T-15-10 / T-15-16 accepted).
+const cursor = Astro.url.searchParams.get('cursor') ?? undefined;
+const rows = await listWeeks(env.DB, cursor, 52);
+const hasMore = rows.length === 52;
+const nextCursor = hasMore ? rows[rows.length - 1].iso_week : null;
+---
+<BaseLayout
+  title="Transparency archive — emdashcms.org"
+  description="All historical transparency snapshots."
+  noindex={true}
+>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page">
+      <div class="mb-12">
+        <p class="text-sm text-ink-soft">Transparency report</p>
+        <h1 class="font-display text-4xl md:text-5xl text-ink mt-3 leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">
+          Archive
+        </h1>
+        <p class="text-sm text-ink-soft mt-2">Every weekly snapshot, newest first.</p>
+      </div>
+
+      {rows.length === 0 ? (
+        <p class="text-base text-ink-muted leading-relaxed max-w-prose">
+          No snapshots have been recorded yet. Check back after the first Sunday 00:10 UTC cron runs.
+        </p>
+      ) : (
+        <div class="overflow-x-auto -mx-4 px-4">
+          <table class="w-full border-collapse">
+            <caption class="sr-only">Historical transparency snapshots, newest first</caption>
+            <thead>
+              <tr class="border-b border-rule">
+                <th scope="col" class="text-left text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 pr-3">Week</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Submitted</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Published</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Flagged</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Rejected</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Revoked</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Reports</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 pl-3">Neurons</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const reportsTotal =
+                  r.reports_filed_security +
+                  r.reports_filed_abuse +
+                  r.reports_filed_broken +
+                  r.reports_filed_license +
+                  r.reports_filed_other;
+                return (
+                  <tr class="border-b border-rule even:bg-paper-soft">
+                    <td class="py-3 pr-3 text-sm">
+                      <a
+                        href={`/transparency/${r.iso_week}`}
+                        class="text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+                      >
+                        {r.iso_week}
+                      </a>
+                    </td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_submitted}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_published}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_flagged}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_rejected}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_revoked}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{reportsTotal}</td>
+                    <td class="py-3 pl-3 text-right font-mono text-sm text-ink tabular-nums">{r.neurons_spent}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <nav class="mt-12 flex items-center justify-between" aria-label="Archive pagination">
+        {cursor ? (
+          <a
+            href="/transparency/archive"
+            class="text-sm text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+          >
+            ← Newer
+          </a>
+        ) : (
+          <span class="text-sm text-ink-faint">← Newer</span>
+        )}
+        {nextCursor ? (
+          <a
+            href={`/transparency/archive?cursor=${nextCursor}`}
+            class="text-sm text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+          >
+            Older →
+          </a>
+        ) : (
+          <span class="text-sm text-ink-faint">Older →</span>
+        )}
+      </nav>
+    </div>
+  </section>
+</BaseLayout>

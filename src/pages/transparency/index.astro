@@ -1,0 +1,137 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  getLatestWeek,
+  getWeekByIsoWeek,
+  listWeeks,
+} from '../../lib/transparency/transparency-queries';
+import { renderTransparencyHtml } from '../../lib/transparency/render';
+import { previousWeek } from '../../lib/transparency/week-boundary';
+
+const row = await getLatestWeek(env.DB);
+const allWeeks = row ? await listWeeks(env.DB, undefined, 104) : [];
+
+// Only look up the prev-week row in D1 when we actually have a latest row —
+// otherwise the page is in its empty state and there's nothing to point at.
+const prevLabel = row ? previousWeek(row.iso_week) : null;
+const prevExists = prevLabel
+  ? !!(await getWeekByIsoWeek(env.DB, prevLabel))
+  : false;
+
+function formatSunday(isoTimestamp: string): string {
+  const d = new Date(isoTimestamp);
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function relativeTime(isoTimestamp: string): string {
+  const diffMs = Date.now() - new Date(isoTimestamp).getTime();
+  const days = Math.floor(diffMs / 86_400_000);
+  if (days < 1) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? '1 month ago' : `${months} months ago`;
+}
+---
+<BaseLayout
+  title="Transparency report — emdashcms.org"
+  description="Weekly aggregated marketplace metrics."
+  noindex={true}
+>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      {!row ? (
+        <>
+          <p class="text-sm text-ink-soft">Transparency report</p>
+          <h1 class="font-display text-4xl md:text-5xl text-ink mt-3 leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">
+            No snapshots yet
+          </h1>
+          <p class="mt-6 text-base text-ink-muted leading-relaxed max-w-prose">
+            The weekly aggregation runs every Sunday at 00:10 UTC. The first snapshot will appear here once a full week has been recorded.
+          </p>
+        </>
+      ) : (
+        <>
+          <div class="mb-12">
+            <p class="text-sm text-ink-soft">Transparency report</p>
+            <h1 class="font-display text-4xl md:text-5xl text-ink mt-3 leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">
+              Week of Sunday {formatSunday(row.week_start)}
+            </h1>
+            <p class="text-sm text-ink-soft mt-2">{row.iso_week} — Sunday 00:00 UTC to Sunday 00:00 UTC</p>
+          </div>
+
+          <nav
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8"
+            aria-label="Week navigation"
+          >
+            {prevExists && prevLabel ? (
+              <a
+                href={`/transparency/${prevLabel}`}
+                class="text-sm font-medium text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 py-2 px-3 -ml-3 transition-colors"
+              >
+                ← Previous week
+              </a>
+            ) : (
+              <span class="text-sm font-medium text-ink-faint cursor-not-allowed py-2 px-3 -ml-3">
+                ← No earlier week
+              </span>
+            )}
+            <span class="text-sm font-medium text-ink-faint cursor-not-allowed py-2 px-3 -mr-3">
+              No later week →
+            </span>
+          </nav>
+
+          <div class="emdash-divider" aria-hidden="true"></div>
+
+          <div class="space-y-12 mt-6" set:html={renderTransparencyHtml(row)} />
+
+          <p class="text-xs text-ink-soft mt-6">
+            Weeks run Sunday 00:00 UTC to Sunday 00:00 UTC — aligned with the weekly notification digest.
+          </p>
+
+          <div class="mt-16 pt-8 border-t border-rule">
+            <p class="text-sm text-ink-soft">Computed {relativeTime(row.created_at)}.</p>
+            <p class="mt-2 text-sm">
+              <a
+                href="/transparency/archive"
+                class="text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+              >
+                → See all historical snapshots
+              </a>
+            </p>
+          </div>
+
+          {allWeeks.length > 0 && (
+            <div class="mt-16">
+              <h2 class="font-display text-2xl text-ink mb-6" style="font-weight: 500;">Historical weeks</h2>
+              <div class="grid grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-2 text-sm">
+                {allWeeks.map((w) => (
+                  <a
+                    href={`/transparency/${w.iso_week}`}
+                    class:list={[
+                      'hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors',
+                      w.iso_week === row.iso_week
+                        ? 'text-accent-deep font-medium'
+                        : 'text-ink-muted',
+                    ]}
+                  >
+                    {w.iso_week}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  </section>
+</BaseLayout>

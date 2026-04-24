@@ -1,0 +1,143 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getWeekByIsoWeek } from '../../lib/transparency/transparency-queries';
+import { renderTransparencyHtml } from '../../lib/transparency/render';
+import { previousWeek, nextWeek } from '../../lib/transparency/week-boundary';
+
+// Validate the route parameter BEFORE hitting D1 — any malformed value
+// returns a 404 without burning a prepared-statement slot. Belt-and-braces
+// against T-15-09 SQL-injection surface (the query binds via prepared
+// statements too, so this is defence in depth, not the sole defence).
+const ISO_WEEK_RE = /^\d{4}-W\d{2}$/;
+const { iso_week } = Astro.params;
+const valid = typeof iso_week === 'string' && ISO_WEEK_RE.test(iso_week);
+const row = valid ? await getWeekByIsoWeek(env.DB, iso_week!) : null;
+
+if (!row) {
+  Astro.response.status = 404;
+}
+
+// Only look up neighbours when the requested row exists. Doing so for
+// invalid slugs would be wasted D1 round-trips on the error path.
+const prevLabel = row ? previousWeek(row.iso_week) : null;
+const nextLabel = row ? nextWeek(row.iso_week) : null;
+const prevExists = prevLabel
+  ? !!(await getWeekByIsoWeek(env.DB, prevLabel))
+  : false;
+const nextExists = nextLabel
+  ? !!(await getWeekByIsoWeek(env.DB, nextLabel))
+  : false;
+
+function formatSunday(isoTimestamp: string): string {
+  const d = new Date(isoTimestamp);
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+const pageTitle = row
+  ? `Transparency report · ${row.iso_week} — emdashcms.org`
+  : 'Transparency report — emdashcms.org';
+---
+<BaseLayout
+  title={pageTitle}
+  description="Archived weekly aggregated marketplace metrics."
+  noindex={true}
+>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      {!row ? (
+        <>
+          <p class="text-sm text-ink-soft">Transparency report</p>
+          <h1 class="font-display text-4xl md:text-5xl text-ink mt-3 leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">
+            That week isn't available
+          </h1>
+          <p class="mt-6 text-base text-ink-muted leading-relaxed max-w-prose">
+            We don't have a snapshot for {iso_week ?? 'that label'}. The aggregation may have been skipped during a deploy or outage.
+          </p>
+          <p class="mt-6 text-sm">
+            <a
+              href="/transparency"
+              class="text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+            >
+              Back to the latest week →
+            </a>
+          </p>
+        </>
+      ) : (
+        <>
+          <div class="mb-12">
+            <p class="text-sm text-ink-soft">Transparency report</p>
+            <h1 class="font-display text-4xl md:text-5xl text-ink mt-3 leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">
+              Week of Sunday {formatSunday(row.week_start)}
+            </h1>
+            <p class="text-sm text-ink-soft mt-2">{row.iso_week} — Sunday 00:00 UTC to Sunday 00:00 UTC</p>
+          </div>
+
+          <nav
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8"
+            aria-label="Week navigation"
+          >
+            {prevExists && prevLabel ? (
+              <a
+                href={`/transparency/${prevLabel}`}
+                class="text-sm font-medium text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 py-2 px-3 -ml-3 transition-colors"
+              >
+                ← Previous week
+              </a>
+            ) : (
+              <span class="text-sm font-medium text-ink-faint cursor-not-allowed py-2 px-3 -ml-3">
+                ← No earlier week
+              </span>
+            )}
+            {nextExists && nextLabel ? (
+              <a
+                href={`/transparency/${nextLabel}`}
+                class="text-sm font-medium text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 py-2 px-3 -mr-3 transition-colors"
+              >
+                Next week →
+              </a>
+            ) : (
+              <span class="text-sm font-medium text-ink-faint cursor-not-allowed py-2 px-3 -mr-3">
+                No later week →
+              </span>
+            )}
+          </nav>
+
+          <div class="emdash-divider" aria-hidden="true"></div>
+
+          <div class="space-y-12 mt-6" set:html={renderTransparencyHtml(row)} />
+
+          <p class="text-xs text-ink-soft mt-6">
+            Weeks run Sunday 00:00 UTC to Sunday 00:00 UTC — aligned with the weekly notification digest.
+          </p>
+
+          <div class="mt-16 pt-8 border-t border-rule">
+            <p class="text-sm">
+              <a
+                href="/transparency"
+                class="text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+              >
+                → Latest snapshot
+              </a>
+              <span class="emdash-sep mx-3" aria-hidden="true"></span>
+              <a
+                href="/transparency/archive"
+                class="text-ink-muted hover:text-ink hover:underline underline-offset-2 decoration-accent-deep decoration-1 transition-colors"
+              >
+                → See all historical snapshots
+              </a>
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  </section>
+</BaseLayout>
