@@ -1,8 +1,11 @@
 // Custom Cloudflare Worker entry point
 // - fetch:     delegates to Astro's handler for SSR pages + API endpoints
 // - scheduled: dispatches on `event.cron` — hourly rate_limits cleanup
-//              (0 * * * *), daily notification digest (5 9 * * *), and
-//              weekly digest snapshot (5 0 * * 0 — Phase 14 D-22)
+//              (0 * * * *), daily notification digest (5 9 * * *),
+//              weekly digest snapshot (5 0 * * 0 — Phase 14 D-22),
+//              weekly transparency aggregation (10 0 * * 0 — Phase 15
+//              D-04), and 5-minute uptime probe (*/5 * * * * — Phase 15
+//              D-21)
 // - queue:     dispatches batches to the audit, notifications, or OG
 //              consumer based on `batch.queue` (parallel handler
 //              pattern, D-27). OG consumption is dynamically imported
@@ -18,6 +21,8 @@ import { rejectVersion } from "./lib/audit/audit-queries";
 import { processNotificationBatch } from "./lib/notifications/consumer";
 import { runDailyDigest } from "./lib/notifications/digest";
 import { runWeeklyDigest } from "./lib/feeds/digest-generator";
+import { runWeeklyTransparency } from "./lib/transparency/cron-handler";
+import { runStatusProbes } from "./lib/status/cron-handler";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
 import { handleWellKnown } from "./lib/agents/well-known";
 import { handleMarkdownNegotiation } from "./lib/agents/markdown";
@@ -70,6 +75,23 @@ export default {
     // — any re-run for the same week overwrites the same row in place.
     if (event.cron === "5 0 * * 0") {
       ctx.waitUntil(runWeeklyDigest(env));
+      return;
+    }
+
+    // Weekly transparency aggregation at Sunday 00:10 UTC (Phase 15, D-04).
+    // Five minutes after the weekly digest cron above so any same-day
+    // audit / report writes have settled before aggregation runs.
+    // waitUntil lets the invocation ack quickly while aggregation runs.
+    if (event.cron === "10 0 * * 0") {
+      ctx.waitUntil(runWeeklyTransparency(env));
+      return;
+    }
+
+    // Status probe every 5 minutes (Phase 15, D-21). Self-probing hits
+    // the same worker's public hostname; the limitation is disclosed
+    // honestly on /status (D-31).
+    if (event.cron === "*/5 * * * *") {
+      ctx.waitUntil(runStatusProbes(env));
       return;
     }
 

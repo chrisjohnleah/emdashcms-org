@@ -36,6 +36,24 @@ const variants: Record<string, { bg: string; text: string; border: string; label
     border: 'border-danger/40',
     label: 'Revoked',
   },
+  ok: {
+    bg: 'bg-success-soft',
+    text: 'text-success',
+    border: 'border-success/30',
+    label: 'Operational',
+  },
+  degraded: {
+    bg: 'bg-warn-soft',
+    text: 'text-warn',
+    border: 'border-warn/35',
+    label: 'Degraded',
+  },
+  outage: {
+    bg: 'bg-danger-soft',
+    text: 'text-danger',
+    border: 'border-danger/35',
+    label: 'Outage',
+  },
 };
 
 const v = variants[status] || variants.pending;
