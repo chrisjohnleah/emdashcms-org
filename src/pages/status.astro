@@ -112,7 +112,7 @@ function statusForBadge(c: SurfaceView['classification']): string {
         Samples are collected every five minutes by a scheduled task running on the same infrastructure as the marketplace itself. If the Worker is down, this page also stops recording samples — so gaps in the histogram may reflect the sampler going down rather than perfect uptime. We prefer to tell you this than to sandbag a green strip.
       </p>
 
-      <div class="emdash-divider" aria-hidden="true"></div>
+      <div class="emdash-divider emdash-divider--tight" aria-hidden="true"></div>
 
       {totalSampleCount === 0 ? (
         <div class="mt-12">
@@ -143,7 +143,7 @@ function statusForBadge(c: SurfaceView['classification']): string {
                 class="w-full h-8"
                 role="img"
                 tabindex="0"
-                aria-label={`7-day uptime histogram for ${view.label}. Current status: ${view.classification}. Uptime ${view.uptimePercent === null ? 'unknown' : view.uptimePercent.toFixed(2) + ' percent'}.`}
+                aria-label={`7-day uptime histogram for ${view.label}. Current status: ${view.classification === 'unknown' ? 'no data' : view.classification}. Uptime ${view.uptimePercent === null ? 'unknown' : view.uptimePercent.toFixed(2) + ' percent'}.`}
                 preserveAspectRatio="none"
               >
                 <title>{view.label} uptime — last 7 days, 2-hour buckets</title>
