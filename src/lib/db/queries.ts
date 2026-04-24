@@ -80,6 +80,10 @@ export async function searchPlugins(
   conditions.push(
     "EXISTS (SELECT 1 FROM plugin_versions pv0 WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged'))",
   );
+  // Phase 17 (DEPR-03 + DEPR-07) — hide unlisted plugins from public
+  // discovery surfaces entirely. Deprecated plugins remain visible but
+  // are demoted via the secondary ORDER BY below.
+  conditions.push("p.unlisted_at IS NULL");
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
@@ -129,7 +133,7 @@ export async function searchPlugins(
     FROM plugins p
     JOIN authors a ON p.author_id = a.id
     ${whereClause}
-    ORDER BY ${sortDef.column} ${sortDef.dir}, p.id ${sortDef.dir}
+    ORDER BY (p.deprecated_at IS NOT NULL) ASC, ${sortDef.column} ${sortDef.dir}, p.id ${sortDef.dir}
     LIMIT ?
   `;
 
@@ -172,9 +176,18 @@ export async function getPluginDetail(
   const [pluginResult, versionResult] = await db.batch([
     db
       .prepare(
-        `SELECT p.*, a.github_username, a.avatar_url, a.verified
+        // LEFT JOIN to plugins s lets mapPluginDetail resolve the
+        // successor name + broken-chain flags in a single query. The
+        // aliased columns are what mapper reads: successor_plugin_id,
+        // successor_name, successor_deprecated_at, successor_unlisted_at.
+        `SELECT p.*, a.github_username, a.avatar_url, a.verified,
+                s.id  AS successor_plugin_id,
+                s.name AS successor_name,
+                s.deprecated_at AS successor_deprecated_at,
+                s.unlisted_at AS successor_unlisted_at
          FROM plugins p
          JOIN authors a ON p.author_id = a.id
+         LEFT JOIN plugins s ON s.id = p.successor_id
          WHERE p.id = ?
            AND (
              COALESCE(p.status, 'active') = 'revoked'
@@ -313,11 +326,14 @@ export async function getPublicPluginsByAuthor(
        JOIN authors a ON p.author_id = a.id
        WHERE p.author_id = ?
          AND COALESCE(p.status, 'active') = 'active'
+         AND p.unlisted_at IS NULL
          AND EXISTS (
            SELECT 1 FROM plugin_versions pv0
            WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged')
          )
-       ORDER BY p.installs_count DESC, p.created_at DESC`,
+       ORDER BY (p.deprecated_at IS NOT NULL) ASC,
+                p.installs_count DESC,
+                p.created_at DESC`,
     )
     .bind(authorId)
     .all();

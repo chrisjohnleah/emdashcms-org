@@ -106,6 +106,21 @@ export interface MarketplacePluginSummary {
   author: MarketplaceAuthor;
   capabilities: string[];
   keywords: string[];
+  /**
+   * Author has marked the plugin as deprecated. Existing installs keep
+   * working (bundle downloads continue) but the UI renders a visible
+   * "Deprecated" chip and default search sort demotes the row. See
+   * `MarketplacePluginDetail.deprecation` for the reason + successor.
+   */
+  deprecated: boolean;
+  /**
+   * Author has unlisted the plugin from public discovery. Unlisted
+   * plugins are filtered out of search and public listing surfaces
+   * entirely; direct `/plugins/:id` URLs and bundle downloads still
+   * work (DEPR-07). Set server-side — no consumer should ever see
+   * `unlisted: true` on a summary from a public search response.
+   */
+  unlisted: boolean;
   installCount: number;
   /**
    * Raw bundle download count — incremented on every successful GET to
@@ -145,6 +160,25 @@ export interface MarketplacePluginDetail extends MarketplacePluginSummary {
    * plugins with a clear "revoked" banner.
    */
   pluginStatus: "active" | "revoked";
+  /**
+   * Deprecation metadata — surfaced on the public plugin detail page so
+   * the warning banner can render with the owner's category + optional
+   * note and link through to the successor when one is set. Null when
+   * the plugin is not deprecated. `successor` is null when the owner
+   * did not specify one OR the stored successor is itself deprecated /
+   * unlisted (broken-chain defence — see deprecation-queries.ts).
+   */
+  deprecation: {
+    category:
+      | "unmaintained"
+      | "replaced"
+      | "abandoned"
+      | "security"
+      | "other";
+    note: string | null;
+    deprecatedAt: string;
+    successor: { id: string; name: string; url: string } | null;
+  } | null;
   latestVersion: {
     version: string;
     bundleSize: number;
@@ -200,6 +234,27 @@ export interface MarketplaceThemeDetail extends MarketplaceThemeSummary {
   license: string | null;
   screenshotCount: number;
   screenshotUrls: string[];
+}
+
+// --- Install tracking response ---
+
+/**
+ * Stable wire shape the EmDash CLI reads from
+ * `POST /api/v1/plugins/:id/installs` when a plugin is deprecated.
+ * Absent (empty-body 202) when the plugin is active. `reason` is the
+ * author's trimmed free-text note OR a human label derived from
+ * category when the author did not supply one. `successor` is embedded
+ * so the CLI can render a single "install this instead" link without a
+ * second round-trip.
+ */
+export interface InstallDeprecationWarning {
+  reason: string;
+  category: "unmaintained" | "replaced" | "abandoned" | "security" | "other";
+  successor?: { id: string; name: string; url: string };
+}
+
+export interface InstallTrackingResponse {
+  deprecationWarning: InstallDeprecationWarning | null;
 }
 
 // --- Search ---

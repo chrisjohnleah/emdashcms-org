@@ -6,6 +6,7 @@ import {
 } from "../../../../../lib/downloads/queries";
 import { errorResponse } from "../../../../../lib/api/response";
 import { checkRateLimit } from "../../../../../lib/downloads/rate-limit";
+import { getDeprecationWarning } from "../../../../../lib/publishing/deprecation-queries";
 
 export const prerender = false;
 
@@ -60,6 +61,18 @@ export const POST: APIRoute = async ({ params, request }) => {
     }
 
     await trackInstall(env.DB, pluginId, body.siteHash, body.version);
+
+    // Phase 17 (DEPR-05) — surface the CLI-facing deprecation warning
+    // when the plugin has been deprecated by its author. Active plugins
+    // still get an empty-body 202 so existing CLI builds that ignore
+    // the response body stay compatible.
+    const warning = await getDeprecationWarning(env.DB, pluginId);
+    if (warning !== null) {
+      return new Response(JSON.stringify({ deprecationWarning: warning }), {
+        status: 202,
+        headers: { "content-type": "application/json" },
+      });
+    }
 
     return new Response(null, { status: 202 });
   } catch (err) {

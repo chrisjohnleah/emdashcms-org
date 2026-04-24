@@ -132,6 +132,14 @@ export function mapPluginSummary(row: Row): MarketplacePluginSummary {
     author: mapAuthor(row),
     capabilities: JSON.parse((row.capabilities as string) || "[]"),
     keywords: JSON.parse((row.keywords as string) || "[]"),
+    // Phase 17 (DEPR-01/07) — flags default to false when the row was
+    // produced by a legacy query that did not SELECT the new columns.
+    // Every public query (searchPlugins, getPublicPluginsByAuthor,
+    // getPluginDetail) is updated to `p.*` which covers these.
+    deprecated: (row.deprecated_at as string | null) !== null
+      && row.deprecated_at !== undefined,
+    unlisted: (row.unlisted_at as string | null) !== null
+      && row.unlisted_at !== undefined,
     installCount: (row.installs_count as number) ?? 0,
     downloadCount: (row.downloads_count as number) ?? 0,
     hasIcon: iconKey !== null,
@@ -175,6 +183,47 @@ export function mapPluginDetail(
   const pluginStatus: "active" | "revoked" =
     pluginStatusRaw === "revoked" ? "revoked" : "active";
 
+  // Phase 17 (DEPR-02) — public deprecation block.
+  //
+  // Broken-chain defence: if the stored successor is itself deprecated
+  // or unlisted, we serve the deprecation object WITHOUT the successor
+  // rather than link consumers to a second dead plugin. The successor
+  // name + broken-chain flags come from a LEFT JOIN in getPluginDetail
+  // which aliases s.name -> successor_name, s.id -> successor_plugin_id,
+  // s.deprecated_at -> successor_deprecated_at, and s.unlisted_at ->
+  // successor_unlisted_at.
+  const deprecatedAtRaw = pluginRow.deprecated_at as string | null | undefined;
+  let deprecation: MarketplacePluginDetail["deprecation"] = null;
+  if (deprecatedAtRaw) {
+    const successorChainBroken =
+      (pluginRow.successor_deprecated_at as string | null) !== null ||
+      (pluginRow.successor_unlisted_at as string | null) !== null;
+    const successorId =
+      (pluginRow.successor_plugin_id as string | null) ??
+      (pluginRow.successor_id as string | null);
+    const successorName = pluginRow.successor_name as string | null;
+    const successor =
+      successorId && successorName && !successorChainBroken
+        ? {
+            id: successorId,
+            name: successorName,
+            url: `/plugins/${successorId}`,
+          }
+        : null;
+
+    deprecation = {
+      category: (pluginRow.deprecated_reason_category as
+        | "unmaintained"
+        | "replaced"
+        | "abandoned"
+        | "security"
+        | "other") ?? "other",
+      note: (pluginRow.deprecated_reason_note as string) ?? null,
+      deprecatedAt: deprecatedAtRaw,
+      successor,
+    };
+  }
+
   return {
     ...base,
     category: (pluginRow.category as string) ?? null,
@@ -182,6 +231,7 @@ export function mapPluginDetail(
     homepageUrl: (pluginRow.homepage_url as string) ?? null,
     license: (pluginRow.license as string) ?? null,
     pluginStatus,
+    deprecation,
     latestVersion,
   };
 }
