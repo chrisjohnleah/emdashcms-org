@@ -1,0 +1,168 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import { ALL_SURFACES } from '../lib/status/probe';
+import {
+  getAllSurfaces7Days,
+  type HistogramBucket,
+} from '../lib/status/status-queries';
+import {
+  buildSurfaceView,
+  type SurfaceView,
+} from '../lib/status/render';
+
+// Option 1 of the Plan 2 renderer contract: loop over surfaceViews in
+// Astro markup so <StatusBadge /> can render with real component props,
+// and emit the SVG bars inline. buildSurfaceView (from Plan 1's render.ts)
+// calls buildHistogramBuckets(samples, now, 2) internally — 84 buckets
+// × 2 hours = 168 hours = 7 days (CONTEXT D-29 corrected math).
+//
+// Tailwind v4 auto-generates `fill-success`, `fill-warn`, `fill-danger`,
+// and `fill-paper-deep` utilities from the `--color-*` custom properties
+// in src/styles/global.css (lines 22, 48-53), so the fill classes below
+// resolve at build time without any extra configuration.
+
+const SURFACE_SUBLABELS: Record<string, string> = {
+  landing: 'GET /',
+  plugins_list: 'GET /plugins',
+  plugin_detail: 'GET /plugins/{canary id}',
+  bundle: 'HEAD /api/v1/plugins/{id}/versions/{v}/bundle',
+  publishing_api: 'GET /api/v1/plugins?limit=1',
+};
+
+const samplesBySurface = await getAllSurfaces7Days(env.DB);
+const totalSampleCount = Array.from(samplesBySurface.values()).reduce(
+  (sum, list) => sum + list.length,
+  0,
+);
+
+const surfaceViews: SurfaceView[] = ALL_SURFACES.map((s) =>
+  buildSurfaceView(
+    s.name,
+    s.label,
+    SURFACE_SUBLABELS[s.name] ?? '',
+    samplesBySurface.get(s.name) ?? [],
+  ),
+);
+
+// Histogram geometry — duplicated here ONLY for the SVG viewBox attribute.
+// The actual per-bar rendering uses the same constants as Plan 1's
+// src/lib/status/render.ts so the anonymization test (which calls
+// renderStatusStrip directly) and this page stay in visual sync.
+const BAR_WIDTH = 8;
+const BAR_GAP = 2;
+const BAR_HEIGHT = 32;
+const TOTAL_WIDTH = (BAR_WIDTH + BAR_GAP) * 84 - BAR_GAP;
+
+function fillClassForStatus(worst: HistogramBucket['worstStatus']): string {
+  switch (worst) {
+    case 'ok':
+      return 'fill-success';
+    case 'slow':
+      return 'fill-warn';
+    case 'fail':
+    case 'timeout':
+      return 'fill-danger';
+    case 'missing':
+    default:
+      return 'fill-paper-deep';
+  }
+}
+
+function formatBucketTooltip(bucket: HistogramBucket): string {
+  const end = new Date(bucket.bucketEnd);
+  const yyyy = end.getUTCFullYear();
+  const mm = String(end.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(end.getUTCDate()).padStart(2, '0');
+  const hh = String(end.getUTCHours()).padStart(2, '0');
+  const mi = String(end.getUTCMinutes()).padStart(2, '0');
+  return `2h ending ${yyyy}-${mm}-${dd} ${hh}:${mi} UTC`;
+}
+
+function formatUptime(p: number | null): string {
+  if (p === null) return '— uptime';
+  return `${p.toFixed(2)}% uptime`;
+}
+
+function statusForBadge(c: SurfaceView['classification']): string {
+  // StatusBadge supports ok/degraded/outage after Plan 1. Unknown (no
+  // samples) falls back to the neutral 'pending' variant.
+  return c === 'unknown' ? 'pending' : c;
+}
+---
+<BaseLayout
+  title="Service status — emdashcms.org"
+  description="Last 7 days of uptime for the marketplace's public surfaces."
+  noindex={true}
+>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <div class="mb-12">
+        <p class="text-sm text-ink-soft">Service status</p>
+        <h1 class="font-display text-4xl md:text-5xl text-ink mt-3 leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">
+          Last 7 days
+        </h1>
+        <p class="text-sm text-ink-soft mt-2">Sampled every 5 minutes — retained 7 days</p>
+      </div>
+
+      <p class="text-sm italic text-ink-muted leading-relaxed mb-12 max-w-prose">
+        Samples are collected every five minutes by a scheduled task running on the same infrastructure as the marketplace itself. If the Worker is down, this page also stops recording samples — so gaps in the histogram may reflect the sampler going down rather than perfect uptime. We prefer to tell you this than to sandbag a green strip.
+      </p>
+
+      <div class="emdash-divider" aria-hidden="true"></div>
+
+      {totalSampleCount === 0 ? (
+        <div class="mt-12">
+          <h2 class="font-display text-2xl text-ink mb-4" style="font-weight: 500;">
+            No samples recorded yet
+          </h2>
+          <p class="text-base text-ink-muted leading-relaxed max-w-prose">
+            The probe runs every 5 minutes. Sample data will appear here within 10 minutes of first deploy.
+          </p>
+        </div>
+      ) : (
+        <div class="space-y-8 mt-6">
+          {surfaceViews.map((view) => (
+            <div class="p-6 border border-rule rounded-lg bg-paper-soft">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+                <div>
+                  <h3 class="font-display text-lg text-ink" style="font-weight: 500;">{view.label}</h3>
+                  <p class="text-sm text-ink-soft mt-1 font-mono">{view.subLabel}</p>
+                </div>
+                <div class="flex items-center gap-4">
+                  <span class="font-mono text-base text-ink tabular-nums">{formatUptime(view.uptimePercent)}</span>
+                  <StatusBadge status={statusForBadge(view.classification)} />
+                </div>
+              </div>
+
+              <svg
+                viewBox={`0 0 ${TOTAL_WIDTH} ${BAR_HEIGHT}`}
+                class="w-full h-8"
+                role="img"
+                tabindex="0"
+                aria-label={`7-day uptime histogram for ${view.label}. Current status: ${view.classification}. Uptime ${view.uptimePercent === null ? 'unknown' : view.uptimePercent.toFixed(2) + ' percent'}.`}
+                preserveAspectRatio="none"
+              >
+                <title>{view.label} uptime — last 7 days, 2-hour buckets</title>
+                {view.buckets.map((bucket, i) => (
+                  <rect
+                    x={i * (BAR_WIDTH + BAR_GAP)}
+                    y={0}
+                    width={BAR_WIDTH}
+                    height={BAR_HEIGHT}
+                    class={fillClassForStatus(bucket.worstStatus)}
+                  >
+                    <title>{formatBucketTooltip(bucket)}</title>
+                  </rect>
+                ))}
+              </svg>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+</BaseLayout>
