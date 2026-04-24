@@ -109,6 +109,8 @@
   //  - "0 * * * *": hourly cleanup of expired rate_limits rows
   //  - "5 9 * * *": daily notification digest (09:05 UTC — D-09 in 12-CONTEXT.md)
   //  - "5 0 * * SUN": weekly digest snapshot (Sunday 00:05 UTC — D-22 in 14-CONTEXT.md)
+  //  - "10 0 * * 0": weekly transparency aggregation (Sundays 00:10 UTC — 15-CONTEXT D-04)
+  //  - "*/5 * * * *": status probe every 5 minutes (15-CONTEXT D-21)
   //
   // NOTE: the batch-poller cron ("*/2 * * * *") was removed alongside
   // the batch-capable audit models — Workers Free tier enforces a 10ms
@@ -124,7 +126,7 @@
   // `SUN` is unambiguous and survives both Cloudflare's validator and
   // standard POSIX cron readers.
   "triggers": {
-    "crons": ["0 * * * *", "5 9 * * *", "5 0 * * SUN"]
+    "crons": ["0 * * * *", "5 9 * * *", "5 0 * * SUN", "10 0 * * 0", "*/5 * * * *"]
   },
 
   "placement": {
@@ -184,7 +186,9 @@
     "GITHUB_APP_ID": "3345980",
     "SUPERADMIN_GITHUB_IDS": "959104",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAC1FBCZjp5kjJ99c",
-    "AUDIT_MODE": "auto"
+    "AUDIT_MODE": "auto",
+    "SURFACE_CANARY_PLUGIN_ID": "",
+    "SURFACE_CANARY_VERSION": ""
   },
 
   // Secrets set via: wrangler secret put <NAME>
