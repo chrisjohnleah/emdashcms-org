@@ -73,8 +73,20 @@ async function seedPlugin({ id, name, installs = 0 }: SeedOpts): Promise<void> {
 }
 
 async function wipePlugin(id: string): Promise<void> {
+  // Clear FKs into plugins(id) before DELETE — successor_id on plugins
+  // itself, plus every child table (plugin_versions, installs,
+  // plugin_github_links, download_dedup). Prevents SQLITE_CONSTRAINT_FOREIGNKEY
+  // when tests share successor chains or run after install/download paths.
   await env.DB.batch([
+    env.DB
+      .prepare("UPDATE plugins SET successor_id = NULL WHERE successor_id = ?")
+      .bind(id),
     env.DB.prepare("DELETE FROM plugin_versions WHERE plugin_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM installs WHERE plugin_id = ?").bind(id),
+    env.DB
+      .prepare("DELETE FROM plugin_github_links WHERE plugin_id = ?")
+      .bind(id),
+    env.DB.prepare("DELETE FROM download_dedup WHERE plugin_id = ?").bind(id),
     env.DB.prepare("DELETE FROM plugins WHERE id = ?").bind(id),
   ]);
 }
