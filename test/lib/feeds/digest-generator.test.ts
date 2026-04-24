@@ -425,6 +425,95 @@ describe("runWeeklyDigest", () => {
     expect(versions).toEqual(["1.0.0"]);
   });
 
+  it("excludes unlisted plugins from newPlugins and updatedPlugins (Phase 17 DEPR-06 regression)", async () => {
+    await insertAuthor("a1", "alice").run();
+    await env.DB.batch([
+      insertPlugin({
+        id: "p-unlisted",
+        authorId: "a1",
+        name: "Unlisted Plugin",
+        shortDescription: "hidden",
+        category: "content",
+        createdAt: IN_WINDOW,
+      }),
+      insertPlugin({
+        id: "p-listed",
+        authorId: "a1",
+        name: "Listed Plugin",
+        shortDescription: "visible",
+        category: "content",
+        createdAt: IN_WINDOW,
+      }),
+      insertVersion({
+        id: "v-unlisted",
+        pluginId: "p-unlisted",
+        version: "1.0.0",
+        status: "published",
+        publishedAt: IN_WINDOW,
+        createdAt: IN_WINDOW,
+      }),
+      insertVersion({
+        id: "v-listed",
+        pluginId: "p-listed",
+        version: "1.0.0",
+        status: "published",
+        publishedAt: IN_WINDOW,
+        createdAt: IN_WINDOW,
+      }),
+    ]);
+    // Flip the unlisted_at flag AFTER insert so the column (nullable, default
+    // NULL) is set without changing the shared PLUGIN_SQL seed shape.
+    await env.DB.prepare("UPDATE plugins SET unlisted_at = ? WHERE id = ?")
+      .bind(IN_WINDOW, "p-unlisted")
+      .run();
+
+    await runWeeklyDigest({ DB: env.DB }, NOW_SUNDAY);
+    const row = await env.DB.prepare(
+      "SELECT manifest_json FROM weekly_digests WHERE iso_week = ?",
+    )
+      .bind(EXPECTED_SLUG)
+      .first<{ manifest_json: string }>();
+    const parsed = JSON.parse(row!.manifest_json) as WeeklyDigestManifest;
+
+    const newIds = parsed.newPlugins.map((p) => p.id);
+    expect(newIds).toContain("p-listed");
+    expect(newIds).not.toContain("p-unlisted");
+
+    const updatedPluginIds = parsed.updatedPlugins.map((u) => u.pluginId);
+    expect(updatedPluginIds).toContain("p-listed");
+    expect(updatedPluginIds).not.toContain("p-unlisted");
+  });
+
+  it("excludes updatedPlugins entries when the parent plugin has status=revoked (Rule 3 hardening)", async () => {
+    await insertAuthor("a1", "alice").run();
+    await insertPlugin({
+      id: "p-revoked",
+      authorId: "a1",
+      name: "Revoked Plugin",
+      createdAt: BEFORE_WINDOW,
+      status: "revoked",
+    }).run();
+    await insertVersion({
+      id: "v-revoked-in",
+      pluginId: "p-revoked",
+      version: "1.1.0",
+      status: "published",
+      publishedAt: IN_WINDOW,
+      createdAt: IN_WINDOW,
+    }).run();
+
+    await runWeeklyDigest({ DB: env.DB }, NOW_SUNDAY);
+    const row = await env.DB.prepare(
+      "SELECT manifest_json FROM weekly_digests WHERE iso_week = ?",
+    )
+      .bind(EXPECTED_SLUG)
+      .first<{ manifest_json: string }>();
+    const parsed = JSON.parse(row!.manifest_json) as WeeklyDigestManifest;
+
+    const updatedPluginIds = parsed.updatedPlugins.map((u) => u.pluginId);
+    expect(updatedPluginIds).not.toContain("p-revoked");
+  });
+
   it("newThemes captures themes created within the window with the active-theme filter", async () => {
     await insertAuthor("a1", "alice").run();
     await env.DB.batch([

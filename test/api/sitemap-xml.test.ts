@@ -251,6 +251,44 @@ describe("/sitemap.xml endpoint", () => {
     );
   });
 
+  it("excludes plugins with unlisted_at set and their unique category (Phase 17 DEPR-06 regression)", async () => {
+    await seedPlugin({
+      id: "active-plugin",
+      category: "editor",
+      updatedAt: "2026-03-10T10:00:00Z",
+      versionStatus: "published",
+    });
+    await seedPlugin({
+      id: "unlisted-plugin",
+      category: "analytics",
+      updatedAt: "2026-03-11T10:00:00Z",
+      versionStatus: "published",
+    });
+    // Flip unlisted_at after insert — seedPlugin doesn't bind the column so
+    // it defaults to NULL for the other seeded row.
+    await env.DB.prepare("UPDATE plugins SET unlisted_at = ? WHERE id = ?")
+      .bind("2026-03-20T10:00:00Z", "unlisted-plugin")
+      .run();
+
+    const body = await (await invoke()).text();
+
+    expect(body).toContain(
+      "<loc>https://emdashcms.org/plugins/active-plugin</loc>",
+    );
+    expect(body).not.toContain(
+      "<loc>https://emdashcms.org/plugins/unlisted-plugin</loc>",
+    );
+    // The category was unique to the unlisted plugin — it must also drop
+    // out of the DISTINCT category scan.
+    expect(body).not.toContain(
+      "<loc>https://emdashcms.org/plugins/category/analytics</loc>",
+    );
+    // Sanity: the still-active plugin's category remains.
+    expect(body).toContain(
+      "<loc>https://emdashcms.org/plugins/category/editor</loc>",
+    );
+  });
+
   it("excludes plugins whose parent row has been revoked", async () => {
     await seedPlugin({
       id: "revoked-plugin",

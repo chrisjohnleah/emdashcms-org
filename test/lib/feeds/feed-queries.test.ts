@@ -303,6 +303,53 @@ describe("listRecentPluginsForFeed", () => {
     );
   });
 
+  it("excludes plugins with unlisted_at set (Phase 17 DEPR-06 regression)", async () => {
+    await env.DB.batch([
+      insertPlugin({
+        id: "fq-p-unlisted",
+        authorId: "fq-a1",
+        name: "Unlisted",
+        category: "content",
+        createdAt: "2026-03-01T00:00:00Z",
+      }),
+      insertPlugin({
+        id: "fq-p-listed",
+        authorId: "fq-a1",
+        name: "Listed",
+        category: "content",
+        createdAt: "2026-03-02T00:00:00Z",
+      }),
+    ]);
+    await env.DB.batch([
+      insertVersion({
+        id: "fq-v-unlisted",
+        pluginId: "fq-p-unlisted",
+        version: "1.0.0",
+        status: "published",
+        publishedAt: "2026-03-01T00:00:00Z",
+        createdAt: "2026-03-01T00:00:00Z",
+      }),
+      insertVersion({
+        id: "fq-v-listed",
+        pluginId: "fq-p-listed",
+        version: "1.0.0",
+        status: "published",
+        publishedAt: "2026-03-02T00:00:00Z",
+        createdAt: "2026-03-02T00:00:00Z",
+      }),
+    ]);
+    await env.DB.prepare(
+      "UPDATE plugins SET unlisted_at = ? WHERE id = ?",
+    )
+      .bind("2026-03-15T00:00:00Z", "fq-p-unlisted")
+      .run();
+
+    const rows = await listRecentPluginsForFeed(env.DB, 50);
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain("fq-p-listed");
+    expect(ids).not.toContain("fq-p-unlisted");
+  });
+
   it("joins authors and returns authorLogin column", async () => {
     await env.DB.batch([
       insertPlugin({
@@ -461,6 +508,44 @@ describe("listRecentPluginVersionsForFeed", () => {
     const rows = await listRecentPluginVersionsForFeed(env.DB, 50);
     expect(rows).toHaveLength(0);
   });
+
+  it("excludes versions whose plugin has unlisted_at set (Phase 17 DEPR-06 regression)", async () => {
+    // Seed a second plugin alongside the default fq-pv so we can assert the
+    // unlisted one drops out while the listed one remains.
+    await insertPlugin({
+      id: "fq-pv-listed",
+      authorId: "fq-va1",
+      name: "Listed Multi",
+      category: "content",
+      createdAt: "2026-01-01T00:00:00Z",
+    }).run();
+    await env.DB.batch([
+      insertVersion({
+        id: "v-unlisted",
+        pluginId: "fq-pv",
+        version: "1.0.0",
+        status: "published",
+        publishedAt: "2026-02-01T00:00:00Z",
+        createdAt: "2026-02-01T00:00:00Z",
+      }),
+      insertVersion({
+        id: "v-listed",
+        pluginId: "fq-pv-listed",
+        version: "1.0.0",
+        status: "published",
+        publishedAt: "2026-02-02T00:00:00Z",
+        createdAt: "2026-02-02T00:00:00Z",
+      }),
+    ]);
+    await env.DB.prepare("UPDATE plugins SET unlisted_at = ? WHERE id = ?")
+      .bind("2026-03-15T00:00:00Z", "fq-pv")
+      .run();
+
+    const rows = await listRecentPluginVersionsForFeed(env.DB, 50);
+    const pluginIds = rows.map((r) => r.pluginId);
+    expect(pluginIds).toContain("fq-pv-listed");
+    expect(pluginIds).not.toContain("fq-pv");
+  });
 });
 
 describe("listRecentThemesForFeed", () => {
@@ -610,5 +695,16 @@ describe("listPluginsByCategoryForFeed", () => {
   it("returns empty array for a known-but-empty category", async () => {
     const rows = await listPluginsByCategoryForFeed(env.DB, "analytics", 50);
     expect(rows).toEqual([]);
+  });
+
+  it("excludes plugins with unlisted_at set within the requested category (Phase 17 DEPR-06 regression)", async () => {
+    await env.DB.prepare("UPDATE plugins SET unlisted_at = ? WHERE id = ?")
+      .bind("2026-03-15T00:00:00Z", "fq-c-content-a")
+      .run();
+
+    const rows = await listPluginsByCategoryForFeed(env.DB, "content", 50);
+    const ids = rows.map((r) => r.id);
+    expect(ids).toContain("fq-c-content-b");
+    expect(ids).not.toContain("fq-c-content-a");
   });
 });
