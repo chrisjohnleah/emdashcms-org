@@ -1,0 +1,304 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildArticleJsonLd,
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'EmDash vs WordPress — emdashcms.org';
+const description =
+  'EmDash CMS and WordPress both extend through plugins, but they differ on runtime, distribution, security posture, and ecosystem maturity. An honest technical comparison for engineers choosing between them.';
+const publishedAt = '2026-04-24';
+
+const jsonLd = [
+  buildArticleJsonLd({
+    headline: 'EmDash vs WordPress: an honest technical comparison',
+    description,
+    url: '/compare/emdash-vs-wordpress',
+    datePublished: publishedAt,
+    author: {
+      type: 'Organization',
+      name: 'EmDash CMS Marketplace',
+      url: 'https://emdashcms.org',
+    },
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Compare', url: '/compare' },
+    { name: 'EmDash vs WordPress', url: '/compare/emdash-vs-wordpress' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'Is EmDash a WordPress alternative?',
+      answer:
+        'It can be, but the two platforms target different priorities. WordPress has a massive plugin ecosystem, a huge talent pool, and decades of community content. EmDash has a sandboxed runtime, capability-gated plugin isolation, and a marketplace that audits every release. Pick WordPress when ecosystem scale is the top constraint; pick EmDash when plugin isolation and audit rigour matter more.',
+    },
+    {
+      question: 'Can I use WordPress plugins on EmDash?',
+      answer:
+        'No. WordPress plugins are PHP code hooking into WordPress internals. EmDash plugins are manifest-declared packages running in a sandboxed modern runtime. The extension models are not compatible and plugins must be written for each platform separately.',
+    },
+    {
+      question: 'Which has a better security model?',
+      answer:
+        'EmDash has a stronger default isolation posture: plugins declare every capability they use, the runtime denies anything the manifest does not list, and every marketplace release is scanned and AI-reviewed before publishing. WordPress relies on community review and user caution — a permissive model that depends heavily on the plugin author. Neither is magic; both can be hardened.',
+    },
+    {
+      question: 'Is EmDash faster than WordPress?',
+      answer:
+        'EmDash typically runs on modern serverless infrastructure (Cloudflare Workers, edge networks) and benefits from edge caching by default. WordPress performance depends heavily on hosting, caching, and plugin choices — well-tuned WordPress sites are fast, under-tuned ones are slow. Raw runtime speed is usually not the deciding factor.',
+    },
+    {
+      question: 'Can I migrate content from WordPress to EmDash?',
+      answer:
+        'Content migration is possible but must be scripted per-site. WordPress exports its content in WXR (an XML format). An EmDash migration plugin with read:content or write:content capability can import that XML into EmDash\'s content model. There is no one-click official migrator today.',
+    },
+  ]),
+];
+
+const comparison: Array<{ dimension: string; emdash: string; wordpress: string }> = [
+  {
+    dimension: 'Runtime',
+    emdash: 'Sandboxed worker runtime (Cloudflare Workers-class).',
+    wordpress: 'PHP, typically on shared hosting or managed WP hosts.',
+  },
+  {
+    dimension: 'Plugin isolation',
+    emdash: 'Manifest-first. Capabilities declared, runtime-enforced.',
+    wordpress: 'Permissive. Plugins run with site-level privileges.',
+  },
+  {
+    dimension: 'Plugin ecosystem size',
+    emdash: 'Emerging (dozens).',
+    wordpress: 'Massive (60,000+ on wordpress.org).',
+  },
+  {
+    dimension: 'Plugin audit',
+    emdash: 'Fail-closed: static scan + AI review on every release. Rejected if unverifiable.',
+    wordpress: 'Community review; plugins can publish without pre-publish audit.',
+  },
+  {
+    dimension: 'Install flow',
+    emdash: 'Admin dashboard only, with capability consent at install time.',
+    wordpress: 'Admin dashboard, FTP upload, or Composer. No capability consent.',
+  },
+  {
+    dimension: 'Licensing',
+    emdash: 'CMS and marketplace both MIT. Plugin licences vary per repo.',
+    wordpress: 'GPL throughout. Plugins typically GPL by inheritance.',
+  },
+  {
+    dimension: 'Versioning',
+    emdash: 'Strict semver on every plugin release.',
+    wordpress: 'Convention-based; not enforced by the platform.',
+  },
+  {
+    dimension: 'Admin UI customisation',
+    emdash: 'Plugins declare pages, widgets, field editors in the manifest.',
+    wordpress: 'Plugins hook into admin via actions/filters. No declaration required.',
+  },
+  {
+    dimension: 'Hosting constraint',
+    emdash: 'Designed for edge/serverless. 10ms-class CPU budgets per request.',
+    wordpress: 'Long-running PHP process model. Predictable but heavier per request.',
+  },
+  {
+    dimension: 'Talent pool',
+    emdash: 'Small. Modern JS/TS developers comfortable with Workers.',
+    wordpress: 'Enormous. Easy to hire or find freelance help.',
+  },
+  {
+    dimension: 'Content model',
+    emdash: 'Document-oriented, file-first, structured schemas.',
+    wordpress: 'Post/page/meta model with a relational schema underneath.',
+  },
+  {
+    dimension: 'Upgrade blast radius',
+    emdash: 'Capability-scoped. A broken plugin cannot exceed its manifest.',
+    wordpress: 'Site-wide. A broken or hostile plugin can take a site down or leak data.',
+  },
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <nav class="mb-6 text-sm text-ink-muted" aria-label="Breadcrumb">
+        <a href="/compare" class="hover:text-ink transition-colors">Compare</a>
+        <span class="mx-2 text-ink-soft">/</span>
+        <span class="text-ink-soft">EmDash vs WordPress</span>
+      </nav>
+
+      <header class="mb-10">
+        <h1 class="font-display text-4xl md:text-5xl text-ink leading-tight"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          EmDash vs WordPress
+        </h1>
+        <p class="mt-5 text-lg text-ink leading-relaxed max-w-prose">
+          EmDash CMS and WordPress are both extensible content management systems,
+          but they differ on four axes that matter when you are choosing between
+          them: runtime model, plugin distribution, security posture, and ecosystem
+          maturity. This is the honest, technical breakdown.
+        </p>
+        <p class="mt-3 text-sm text-ink-soft">
+          Written by the emdashcms.org marketplace team &mdash; biased toward EmDash
+          by virtue of this being our site, but we list the places WordPress wins
+          plainly.
+        </p>
+      </header>
+
+      <div class="space-y-12 text-ink leading-relaxed">
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-4" style="font-weight: 500;">At a glance</h2>
+          <div class="overflow-x-auto border border-rule rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="bg-paper-soft border-b border-rule">
+                <tr>
+                  <th class="text-left px-4 py-3 font-medium text-ink whitespace-nowrap">Dimension</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">EmDash</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">WordPress</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.map((row) => (
+                  <tr class="border-b border-rule last:border-b-0 align-top">
+                    <td class="px-4 py-3 font-medium text-ink whitespace-nowrap">{row.dimension}</td>
+                    <td class="px-4 py-3 text-ink-muted">{row.emdash}</td>
+                    <td class="px-4 py-3 text-ink-muted">{row.wordpress}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Runtime model</h2>
+          <p class="text-ink-muted">
+            WordPress is PHP. It runs on a long-lived process, typically on shared
+            hosting or a managed WordPress host, and its strengths come from that
+            model: predictable behaviour, cheap hosting, a huge talent pool, and
+            decades of ecosystem lock-in. Performance depends heavily on caching
+            and plugin discipline, but a well-tuned WordPress site is fast.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            EmDash runs on modern sandboxed workers &mdash; Cloudflare Workers-class
+            runtimes, designed for edge execution with strict per-request CPU
+            budgets. Cold starts are negligible; heavy work is pushed to queues.
+            The tradeoff is that EmDash plugins must be written for this model &mdash;
+            no background processes, no direct filesystem access, no long-running
+            work inline.
+          </p>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Plugin model</h2>
+          <p class="text-ink-muted">
+            This is the sharpest divergence. WordPress plugins are PHP code hooking
+            into WordPress internals through actions and filters. They run with
+            site-level privileges by default &mdash; a plugin can read the full database,
+            make arbitrary outbound requests, and modify any piece of content.
+            Trust is community-based and the plugin author&rsquo;s responsibility.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            EmDash plugins declare every capability they use in a
+            <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.json</code>
+            &mdash; network fetch, content reads, email sending, and eight other discrete
+            capabilities. The runtime denies any operation whose capability was not
+            declared, enforced at the call site, not just at install time. A plugin
+            that tries to dynamically invoke a blocked API is refused the same way
+            a static one is. There is no default-allow escape hatch.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            See <a href="/learn/capabilities" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the capabilities reference</a> for the full list.
+          </p>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Marketplace and audit</h2>
+          <p class="text-ink-muted">
+            The WordPress.org plugin directory is the world&rsquo;s largest open-source
+            plugin marketplace &mdash; 60,000+ plugins, with an initial review process
+            and community moderation. Ongoing audit is not enforced pre-publish;
+            plugin updates deploy to users once accepted by the author.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            emdashcms.org runs a <strong class="text-ink">fail-closed audit pipeline</strong>
+            on every uploaded version: the bundle is unpacked in an isolated sandbox,
+            scanned against a <a href="/docs/security" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">public ruleset</a>
+            (no <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">eval</code>,
+            no Node internals, no obvious evasion), and reviewed by an AI against
+            the manifest in context. If the audit cannot produce a clean verdict,
+            the version is rejected &mdash; not auto-passed, not deferred. Both the
+            marketplace code and every verdict log are
+            <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">public on GitHub</a>.
+          </p>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Ecosystem maturity</h2>
+          <p class="text-ink-muted">
+            WordPress wins this category plainly. The plugin ecosystem is orders of
+            magnitude larger, the theme market is commercial and competitive, and
+            hiring WordPress developers is trivial in most markets. Ten years of
+            StackOverflow answers mean nearly every question has been asked.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            EmDash is a newer platform. The plugin count is in the dozens, the
+            theme count is smaller, and the contributor base is small enough that
+            naming conventions and patterns are still crystallising. If your
+            project depends on an obscure plugin existing today, WordPress is a
+            safer bet. If you are willing to build what you need or wait for the
+            ecosystem to fill in, EmDash offers much stronger default isolation.
+          </p>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">When to pick EmDash</h2>
+          <ul class="text-ink-muted space-y-2 list-disc pl-6">
+            <li>Plugin isolation and audit matter to your stakeholders (regulated industries, handling sensitive data, multi-tenant installs).</li>
+            <li>You prefer modern, edge-executed runtimes and serverless deployment models.</li>
+            <li>You want every plugin release inspected before it ships, with a public verdict log.</li>
+            <li>You are comfortable building the parts of the ecosystem that are not there yet &mdash; or you are an early adopter by disposition.</li>
+          </ul>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">When to pick WordPress</h2>
+          <ul class="text-ink-muted space-y-2 list-disc pl-6">
+            <li>You need a specific plugin that exists in the WordPress ecosystem and nowhere else.</li>
+            <li>You need to hire quickly from a large pool.</li>
+            <li>Ecosystem maturity, documentation depth, and community size matter more than runtime isolation.</li>
+            <li>Your team already runs WordPress well and switching platforms is not justified by the gains.</li>
+          </ul>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Honest verdict</h2>
+          <p class="text-ink-muted">
+            For plugin-heavy sites where <em>which</em> plugins exist is the deciding
+            factor, WordPress is still the right answer. For projects that value
+            sandboxing, capability-gated extension, and auditable releases &mdash; and
+            are willing to trade ecosystem breadth for that &mdash; EmDash has a
+            meaningfully stronger default posture. Neither is magic; the choice
+            depends on which tradeoff you value.
+          </p>
+        </section>
+
+        <section class="max-w-prose pt-6 border-t border-rule text-sm text-ink-muted">
+          <p>
+            Updated <time datetime={publishedAt}>{publishedAt}</time>.
+            Related: <a href="/learn/plugin-system" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">how EmDash plugins work</a>
+            &middot; <a href="/learn/capabilities" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">capabilities reference</a>
+            &middot; <a href="/docs/security" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">security policy</a>.
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

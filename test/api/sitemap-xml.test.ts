@@ -147,6 +147,14 @@ const STATIC_LOCS = [
   "https://emdashcms.org/",
   "https://emdashcms.org/plugins",
   "https://emdashcms.org/themes",
+  "https://emdashcms.org/digest",
+  "https://emdashcms.org/learn",
+  "https://emdashcms.org/learn/what-is-emdash",
+  "https://emdashcms.org/learn/plugin-system",
+  "https://emdashcms.org/learn/manifest-schema",
+  "https://emdashcms.org/learn/capabilities",
+  "https://emdashcms.org/compare",
+  "https://emdashcms.org/compare/emdash-vs-wordpress",
   "https://emdashcms.org/guide",
   "https://emdashcms.org/docs/contributors",
   "https://emdashcms.org/docs/moderators",
@@ -424,7 +432,7 @@ describe("/sitemap.xml endpoint", () => {
     );
   });
 
-  it("does NOT emit digest or hook browse URLs (deferred to Phase 14 and absent today)", async () => {
+  it("does NOT emit hook browse URLs or per-digest URLs (no such routes exist today)", async () => {
     // Seed enough data that the sitemap is not trivially empty.
     await seedPlugin({
       id: "coverage",
@@ -438,7 +446,11 @@ describe("/sitemap.xml endpoint", () => {
     });
 
     const body = await (await invoke()).text();
-    expect(body).not.toContain("/digest");
+    // /digest (the archive index) IS emitted as a static entry; per-digest slug
+    // URLs (/digest/2026-W17) are not — enumerating them would require a D1
+    // scan of weekly_digests that the sitemap builder does not perform today.
+    expect(body).not.toMatch(/\/digest\/\d{4}-W\d{2}/);
+    // No /hook/* routes exist in src/pages/.
     expect(body).not.toContain("/hook");
   });
 });

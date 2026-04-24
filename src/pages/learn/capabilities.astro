@@ -1,0 +1,211 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildTechArticleJsonLd,
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'Capabilities reference — emdashcms.org';
+const description =
+  'EmDash plugins must declare each capability they use in manifest.capabilities. The runtime denies any operation whose capability was not declared. This is the full list of 11 capabilities, what each grants, and when to use which.';
+const publishedAt = '2026-04-24';
+
+const jsonLd = [
+  buildTechArticleJsonLd({
+    headline: 'EmDash capabilities reference',
+    description,
+    url: '/learn/capabilities',
+    datePublished: publishedAt,
+    author: {
+      type: 'Organization',
+      name: 'EmDash CMS Marketplace',
+      url: 'https://emdashcms.org',
+    },
+    proficiencyLevel: 'Expert',
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Learn', url: '/learn' },
+    { name: 'Capabilities reference', url: '/learn/capabilities' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'How many capabilities does EmDash define?',
+      answer:
+        'EmDash defines 11 capabilities covering network fetch (two variants), content reads and writes, media reads and writes, user reads, email sending and provision and interception, and page injection.',
+    },
+    {
+      question: 'What happens if a plugin calls an API without declaring the capability?',
+      answer:
+        'The call fails at the runtime boundary. Capability checks are enforced at the point of use, not only at install time — so even dynamically-invoked calls are denied.',
+    },
+    {
+      question: 'Do capabilities imply other capabilities?',
+      answer:
+        'Yes, in two cases: write:content implies read:content, and write:media implies read:media. Everything else must be declared individually.',
+    },
+    {
+      question: 'Is network:fetch:any dangerous?',
+      answer:
+        'It is the broadest capability and gets the most scrutiny during audit. It grants unrestricted fetch, bypassing the allowedHosts list. Plugins should prefer network:fetch with an explicit allowedHosts when at all possible.',
+    },
+  ]),
+];
+
+const capabilities: Array<{
+  name: string;
+  grants: string;
+  when: string;
+  note?: string;
+}> = [
+  {
+    name: 'network:fetch',
+    grants: 'fetch() to hostnames listed in manifest.allowedHosts.',
+    when: 'The plugin needs to talk to one or more specific third-party APIs.',
+    note: 'Requires allowedHosts. Preferred over network:fetch:any.',
+  },
+  {
+    name: 'network:fetch:any',
+    grants: 'fetch() to any hostname. Bypasses allowedHosts.',
+    when: 'The plugin genuinely needs arbitrary outbound fetch (rare).',
+    note: 'Scrutinised hard at audit. Prefer network:fetch where possible.',
+  },
+  {
+    name: 'read:content',
+    grants: 'Read any content document, field, or revision via the content API.',
+    when: 'The plugin needs to inspect existing content — SEO analysers, search indexers, export jobs.',
+  },
+  {
+    name: 'write:content',
+    grants: 'Create, update, and delete content documents. Implies read:content.',
+    when: 'The plugin mutates content — migration tools, automatic tagging, form submissions.',
+  },
+  {
+    name: 'read:media',
+    grants: 'Read media assets (images, files) from the site\'s media store.',
+    when: 'The plugin inspects or re-exports media — image-processing helpers, CDN bridges.',
+  },
+  {
+    name: 'write:media',
+    grants: 'Upload, replace, and delete media assets. Implies read:media.',
+    when: 'The plugin generates or imports media — screenshot plugins, remote-asset mirrors.',
+  },
+  {
+    name: 'read:users',
+    grants: 'Read user records (identity, roles) but not credentials.',
+    when: 'The plugin personalises output, audits actions, or fans out notifications.',
+  },
+  {
+    name: 'email:send',
+    grants: 'Send an email through the site\'s active email provider.',
+    when: 'The plugin sends transactional or editorial email.',
+  },
+  {
+    name: 'email:provide',
+    grants: 'Register as the site\'s email provider.',
+    when: 'The plugin is an email backend — Postmark, Resend, UnoSend, SMTP.',
+  },
+  {
+    name: 'email:intercept',
+    grants: 'Inspect outbound email before it sends. Can block or rewrite.',
+    when: 'The plugin audits, routes, or tests outbound mail — compliance, sandboxing, preview.',
+  },
+  {
+    name: 'page:inject',
+    grants: 'Add HTML to rendered pages via the page:metadata and page:fragments hooks.',
+    when: 'The plugin injects meta tags, scripts, schema blocks, or widgets into output.',
+  },
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <nav class="mb-6 text-sm text-ink-muted" aria-label="Breadcrumb">
+        <a href="/learn" class="hover:text-ink transition-colors">Learn</a>
+        <span class="mx-2 text-ink-soft">/</span>
+        <span class="text-ink-soft">Capabilities reference</span>
+      </nav>
+
+      <header class="mb-10">
+        <h1 class="font-display text-4xl md:text-5xl text-ink leading-tight"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Capabilities reference
+        </h1>
+        <p class="mt-5 text-lg text-ink leading-relaxed max-w-prose">
+          EmDash plugins must declare each capability they use in
+          <code class="font-mono text-[0.95em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.capabilities[]</code>.
+          The runtime denies any operation whose capability was not declared. There
+          are 11 capabilities total.
+        </p>
+        <p class="mt-3 text-sm text-ink-soft">
+          Who this is for: plugin authors choosing the minimal set to declare, and
+          site operators reviewing capability consent before install.
+        </p>
+      </header>
+
+      <div class="space-y-10">
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-4" style="font-weight: 500;">The full list</h2>
+          <div class="overflow-x-auto border border-rule rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="bg-paper-soft border-b border-rule">
+                <tr>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Capability</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Grants</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Typical use</th>
+                </tr>
+              </thead>
+              <tbody>
+                {capabilities.map((c) => (
+                  <tr class="border-b border-rule last:border-b-0 align-top">
+                    <td class="px-4 py-3 font-mono text-xs text-ink whitespace-nowrap">
+                      {c.name}
+                      {c.note && (
+                        <div class="mt-1 font-sans text-[11px] italic text-ink-soft not-italic">{c.note}</div>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 text-ink-muted">{c.grants}</td>
+                    <td class="px-4 py-3 text-ink-muted">{c.when}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Declare the minimum</h2>
+          <p class="text-ink-muted">
+            The marketplace audit is stricter on broad capabilities. A plugin that
+            declares <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">network:fetch:any</code>
+            or <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">write:content</code>
+            when a tighter capability would do gets closer review &mdash; and reviewers
+            are explicitly asked to flag over-declaration.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            Some rules of thumb:
+          </p>
+          <ul class="mt-3 text-ink-muted space-y-2 list-disc pl-6">
+            <li>Read-only where possible. Declare <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">read:content</code>, not <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">write:content</code>, unless you actually mutate.</li>
+            <li>Use <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">network:fetch</code> with <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">allowedHosts</code> rather than <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">network:fetch:any</code>, even if it means listing 20 hosts.</li>
+            <li>Do not declare a capability &ldquo;just in case&rdquo;. It becomes user-visible at install consent and reviewers will ask what uses it.</li>
+          </ul>
+        </section>
+
+        <section class="max-w-prose pt-6 border-t border-rule text-sm text-ink-muted">
+          <p>
+            Updated <time datetime={publishedAt}>{publishedAt}</time>.
+            Previous: <a href="/learn/manifest-schema" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">&larr; the manifest schema</a>
+            &middot; Next: <a href="/compare/emdash-vs-wordpress" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">EmDash vs WordPress &rarr;</a>
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

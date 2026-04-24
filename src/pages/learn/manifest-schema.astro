@@ -1,0 +1,213 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildTechArticleJsonLd,
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'The manifest.json reference — emdashcms.org';
+const description =
+  'Every EmDash plugin declares its identity, version, capabilities, hooks, storage collections, and admin surfaces in a manifest.json file. The CMS validates the manifest against a Zod schema before loading the plugin.';
+const publishedAt = '2026-04-24';
+
+const jsonLd = [
+  buildTechArticleJsonLd({
+    headline: 'The manifest.json reference for EmDash plugins',
+    description,
+    url: '/learn/manifest-schema',
+    datePublished: publishedAt,
+    author: {
+      type: 'Organization',
+      name: 'EmDash CMS Marketplace',
+      url: 'https://emdashcms.org',
+    },
+    proficiencyLevel: 'Expert',
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Learn', url: '/learn' },
+    { name: 'The manifest.json reference', url: '/learn/manifest-schema' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'What fields does an EmDash manifest.json have?',
+      answer:
+        'An EmDash manifest declares id, version, capabilities, allowedHosts, storage, hooks, routes, and optionally an admin block with entry, settingsSchema, pages, widgets, and fieldWidgets. For marketplace publishing it also carries name, description, minEmDashVersion, and changelog.',
+    },
+    {
+      question: 'What format is the plugin id?',
+      answer:
+        'The plugin id is either lowercase alphanumeric with hyphens (e.g. seo-toolkit) or a scoped name (e.g. @acme/analytics). The id is immutable — renaming a plugin requires publishing under a new id.',
+    },
+    {
+      question: 'Does EmDash require semver?',
+      answer:
+        'Yes, strict X.Y.Z semantic versioning. The marketplace rejects pre-release suffixes, build metadata, and non-numeric segments. Every published version must be a clean semver triple.',
+    },
+    {
+      question: 'Can I add custom fields to a plugin manifest?',
+      answer:
+        'No — the manifest schema is closed. Unknown fields are stripped or rejected at validation time. This keeps the audit pipeline deterministic and prevents hidden configuration drift.',
+    },
+  ]),
+];
+
+const fields: Array<{
+  name: string;
+  required: boolean;
+  type: string;
+  desc: string;
+}> = [
+  { name: 'id', required: true, type: 'string', desc: 'Plugin identity — lowercase alphanumeric + hyphens, or @scope/name. Immutable.' },
+  { name: 'version', required: true, type: 'string', desc: 'Strict semver X.Y.Z. No pre-release or build metadata.' },
+  { name: 'capabilities', required: true, type: 'PluginCapability[]', desc: 'What the plugin is allowed to do. See the capabilities reference.' },
+  { name: 'allowedHosts', required: false, type: 'string[]', desc: 'Hostnames the plugin can reach. Required when declaring network:fetch.' },
+  { name: 'storage', required: false, type: 'Record<string, { indexes, uniqueIndexes }>', desc: 'Named document collections the plugin reads/writes.' },
+  { name: 'hooks', required: false, type: 'Array<string | { name, exclusive?, priority?, timeout? }>', desc: 'Lifecycle events the plugin attaches to.' },
+  { name: 'routes', required: false, type: 'Array<string | { name, public? }>', desc: 'Named routes the plugin registers under its own namespace.' },
+  { name: 'admin.entry', required: false, type: 'string', desc: 'Entry module for admin-side plugin code.' },
+  { name: 'admin.settingsSchema', required: false, type: 'Record<string, SettingField>', desc: 'Form schema for the plugin\'s settings page. Field types: string, number, boolean, select, secret.' },
+  { name: 'admin.pages', required: false, type: '{ path, label, icon }[]', desc: 'Full admin pages the plugin adds to the dashboard.' },
+  { name: 'admin.widgets', required: false, type: '{ id, size?, title? }[]', desc: 'Dashboard widgets the plugin provides.' },
+  { name: 'admin.fieldWidgets', required: false, type: '{ name, label, fieldTypes[], elements[] }[]', desc: 'Custom field editors for the content editor.' },
+  { name: 'name', required: false, type: 'string', desc: 'Display name for the marketplace listing. Falls back to id.' },
+  { name: 'description', required: false, type: 'string', desc: 'Short description for the marketplace listing.' },
+  { name: 'minEmDashVersion', required: false, type: 'string', desc: 'Minimum EmDash core version this plugin supports.' },
+  { name: 'changelog', required: false, type: 'string', desc: 'Markdown changelog for this release. Shown on the plugin page.' },
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <nav class="mb-6 text-sm text-ink-muted" aria-label="Breadcrumb">
+        <a href="/learn" class="hover:text-ink transition-colors">Learn</a>
+        <span class="mx-2 text-ink-soft">/</span>
+        <span class="text-ink-soft">The manifest.json reference</span>
+      </nav>
+
+      <header class="mb-10">
+        <h1 class="font-display text-4xl md:text-5xl text-ink leading-tight"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          The manifest.json reference
+        </h1>
+        <p class="mt-5 text-lg text-ink leading-relaxed max-w-prose">
+          Every EmDash plugin declares its identity, version, capabilities, hooks,
+          storage collections, and admin surfaces in a
+          <code class="font-mono text-[0.95em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.json</code>
+          file. The CMS validates the manifest against a Zod schema before loading
+          the plugin &mdash; invalid manifests fail to load.
+        </p>
+        <p class="mt-3 text-sm text-ink-soft">
+          Who this is for: plugin authors writing or updating a manifest.
+        </p>
+      </header>
+
+      <div class="space-y-12 text-ink leading-relaxed">
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-4" style="font-weight: 500;">Fields</h2>
+          <div class="overflow-x-auto border border-rule rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="bg-paper-soft border-b border-rule">
+                <tr>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Field</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Required</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Type</th>
+                  <th class="text-left px-4 py-3 font-medium text-ink">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fields.map((f) => (
+                  <tr class="border-b border-rule last:border-b-0 align-top">
+                    <td class="px-4 py-3 font-mono text-xs text-ink whitespace-nowrap">{f.name}</td>
+                    <td class="px-4 py-3 text-xs">
+                      {f.required ? (
+                        <span class="text-ink font-medium">yes</span>
+                      ) : (
+                        <span class="text-ink-soft">no</span>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 font-mono text-xs text-ink-muted">{f.type}</td>
+                    <td class="px-4 py-3 text-ink-muted">{f.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-4" style="font-weight: 500;">A complete example</h2>
+          <p class="text-ink-muted mb-4">
+            A minimal-but-real SEO plugin manifest:
+          </p>
+          <div class="bg-paper-sunk rounded-lg p-5 font-mono text-sm text-ink overflow-x-auto border border-rule whitespace-pre leading-relaxed">{`{
+  "id": "seo-toolkit",
+  "version": "1.2.0",
+  "name": "SEO Toolkit",
+  "description": "Meta tags, sitemaps, and structured data for EmDash sites.",
+  "minEmDashVersion": "0.9.0",
+  "capabilities": [
+    "read:content",
+    "page:inject",
+    "network:fetch"
+  ],
+  "allowedHosts": [
+    "search.google.com"
+  ],
+  "storage": {
+    "redirects": {
+      "indexes": ["from"],
+      "uniqueIndexes": ["id"]
+    }
+  },
+  "hooks": [
+    "content:afterSave",
+    "page:metadata",
+    { "name": "cron", "priority": 10 }
+  ],
+  "routes": [
+    "sitemap.xml",
+    { "name": "robots.txt", "public": true }
+  ],
+  "admin": {
+    "entry": "dist/admin.js",
+    "settingsSchema": {
+      "siteName": { "type": "string", "label": "Site name" },
+      "ogImageDefault": { "type": "string", "label": "Default OG image URL" }
+    },
+    "pages": [
+      { "path": "/seo", "label": "SEO", "icon": "search" }
+    ]
+  },
+  "changelog": "Add BreadcrumbList schema to product pages."
+}`}</div>
+        </section>
+
+        <section class="max-w-prose">
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Rules worth internalising</h2>
+          <ul class="text-ink-muted space-y-2 list-disc pl-6">
+            <li><strong class="text-ink">The schema is closed.</strong> Unknown fields are stripped or rejected &mdash; no hidden configuration drift.</li>
+            <li><strong class="text-ink">Write capability implies the read.</strong> Declare <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">write:content</code> and you get <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">read:content</code> for free. Same for <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">write:media</code>.</li>
+            <li><strong class="text-ink">network:fetch requires allowedHosts.</strong> <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">network:fetch:any</code> is the unrestricted escape hatch and is scrutinised hard during audit.</li>
+            <li><strong class="text-ink">Version bumps are irrevocable.</strong> A published version can be flagged and unpublished, but the same semver cannot be republished with different contents.</li>
+            <li><strong class="text-ink">Hooks keep their scope.</strong> A hook fires only if its capability is also declared. Declaring <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">content:afterSave</code> without <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">read:content</code> fails validation.</li>
+          </ul>
+        </section>
+
+        <section class="max-w-prose pt-6 border-t border-rule text-sm text-ink-muted">
+          <p>
+            Updated <time datetime={publishedAt}>{publishedAt}</time>.
+            Previous: <a href="/learn/plugin-system" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">&larr; how plugins work</a>
+            &middot; Next: <a href="/learn/capabilities" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">capabilities reference &rarr;</a>
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

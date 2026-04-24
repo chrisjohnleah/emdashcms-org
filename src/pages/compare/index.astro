@@ -1,0 +1,105 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildCollectionPageJsonLd,
+  buildBreadcrumbListJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'Compare EmDash — emdashcms.org';
+const description =
+  'Honest, technical comparisons between EmDash CMS and other content management systems. Written for engineers evaluating platforms, not marketing decision-makers.';
+
+const comparisons = [
+  {
+    slug: 'emdash-vs-wordpress',
+    title: 'EmDash vs WordPress',
+    summary: 'Runtime model, plugin security posture, ecosystem maturity, and when to pick which.',
+    available: true,
+  },
+  {
+    slug: 'emdash-vs-ghost',
+    title: 'EmDash vs Ghost',
+    summary: 'Publishing-focused Ghost vs capability-gated EmDash — plugin models diverge sharply.',
+    available: false,
+  },
+  {
+    slug: 'emdash-vs-strapi',
+    title: 'EmDash vs Strapi',
+    summary: 'Headless content API vs sandboxed plugin CMS. Different problems, sometimes the same shortlist.',
+    available: false,
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'Compare EmDash — EmDash CMS Marketplace',
+    url: '/compare',
+    description,
+    items: comparisons
+      .filter((c) => c.available)
+      .map((c) => ({
+        url: `/compare/${c.slug}`,
+        name: c.title,
+      })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Compare', url: '/compare' },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <header class="mb-14">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-4">Compare</p>
+        <h1 class="font-display text-4xl md:text-5xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Honest comparisons.
+        </h1>
+        <p class="mt-5 text-lg text-ink-muted leading-relaxed max-w-prose">
+          Technical comparisons between EmDash CMS and other platforms you might be
+          evaluating. No marketing puffery, no pretending EmDash wins every category
+          &mdash; WordPress has a far larger plugin ecosystem and that matters for
+          plenty of projects. Read, decide, pick the right tool.
+        </p>
+      </header>
+
+      <ol class="border-t border-rule">
+        {comparisons.map((c) => (
+          <li class="border-b border-rule">
+            {c.available ? (
+              <a
+                href={`/compare/${c.slug}`}
+                class="group block py-7 hover:bg-paper-soft -mx-4 px-4 rounded transition-colors"
+              >
+                <h2 class="font-display text-2xl text-ink leading-tight tracking-tight group-hover:text-accent-deep transition-colors"
+                    style="font-weight: 500;">
+                  {c.title}
+                </h2>
+                <p class="mt-2 text-sm text-ink-muted leading-relaxed max-w-prose">
+                  {c.summary}
+                </p>
+              </a>
+            ) : (
+              <div class="block py-7 -mx-4 px-4 opacity-60">
+                <h2 class="font-display text-2xl text-ink-muted leading-tight tracking-tight"
+                    style="font-weight: 500;">
+                  {c.title}
+                  <span class="ml-3 text-xs uppercase tracking-wider text-ink-soft align-middle">Coming soon</span>
+                </h2>
+                <p class="mt-2 text-sm text-ink-soft leading-relaxed max-w-prose">
+                  {c.summary}
+                </p>
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+
+    </div>
+  </section>
+</BaseLayout>

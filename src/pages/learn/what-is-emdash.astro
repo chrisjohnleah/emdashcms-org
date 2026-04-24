@@ -1,0 +1,181 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildTechArticleJsonLd,
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'What is EmDash CMS? — emdashcms.org';
+const description =
+  'EmDash CMS is an open-source content management system extended by sandboxed plugins that declare every capability, hook, and storage need in a manifest. This marketplace hosts community plugins and themes, audited before each release.';
+const publishedAt = '2026-04-24';
+
+const jsonLd = [
+  buildTechArticleJsonLd({
+    headline: 'What is EmDash CMS?',
+    description,
+    url: '/learn/what-is-emdash',
+    datePublished: publishedAt,
+    author: {
+      type: 'Organization',
+      name: 'EmDash CMS Marketplace',
+      url: 'https://emdashcms.org',
+    },
+    proficiencyLevel: 'Beginner',
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Learn', url: '/learn' },
+    { name: 'What is EmDash CMS?', url: '/learn/what-is-emdash' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'What is EmDash CMS?',
+      answer:
+        'EmDash CMS is an open-source content management system that extends its core through sandboxed plugins. Each plugin declares its capabilities, hooks, and storage in a manifest file, and the runtime only grants what the manifest lists.',
+    },
+    {
+      question: 'Is EmDash CMS free?',
+      answer:
+        'Yes. EmDash CMS is free and open source. The emdashcms.org community marketplace is also free to install from and free to publish to, and the marketplace code is MIT-licensed on GitHub.',
+    },
+    {
+      question: 'What does emdashcms.org do?',
+      answer:
+        'emdashcms.org is the community marketplace for EmDash CMS plugins and themes. It hosts plugin and theme metadata, serves downloadable bundles, runs a fail-closed security audit on every uploaded version, and exposes the catalog as a browsable site, JSON API, Atom feeds, and an llms.txt index for AI crawlers.',
+    },
+    {
+      question: 'How does EmDash compare to WordPress?',
+      answer:
+        'EmDash runs on a modern sandboxed runtime rather than PHP shared hosting, and its plugin model is manifest-first rather than permissive. Plugins declare every capability they use and can only do what the manifest lists. WordPress has a far larger plugin ecosystem and longer history; EmDash is a newer platform with stronger default isolation. See /compare/emdash-vs-wordpress for the full breakdown.',
+    },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <nav class="mb-6 text-sm text-ink-muted" aria-label="Breadcrumb">
+        <a href="/learn" class="hover:text-ink transition-colors">Learn</a>
+        <span class="mx-2 text-ink-soft">/</span>
+        <span class="text-ink-soft">What is EmDash CMS?</span>
+      </nav>
+
+      <header class="mb-10">
+        <h1 class="font-display text-4xl md:text-5xl text-ink leading-tight"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          What is EmDash CMS?
+        </h1>
+        <p class="mt-5 text-lg text-ink leading-relaxed max-w-prose">
+          EmDash CMS is an open-source content management system extended by
+          sandboxed plugins that declare every capability, hook, and storage
+          need in a <code class="font-mono text-[0.95em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.json</code>
+          file. The runtime grants nothing the manifest does not list.
+        </p>
+        <p class="mt-3 text-sm text-ink-soft">
+          Who this is for: anyone evaluating EmDash, or a plugin author deciding
+          where to publish.
+        </p>
+      </header>
+
+      <div class="space-y-10 text-ink leading-relaxed max-w-prose">
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">The CMS itself</h2>
+          <p class="text-ink-muted">
+            EmDash CMS is content-first and file-based. Content, media, and configuration
+            live in the site&rsquo;s own storage (its own R2 bucket for bundles, its own
+            database for documents). Extension is the job of plugins, which are packaged,
+            versioned, and installed through the admin dashboard &mdash; not through a CLI
+            or package manager at the host level.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            The core project lives at
+            <a href="https://emdashcms.com" target="_blank" rel="noopener noreferrer" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">emdashcms.com</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">The plugin model</h2>
+          <p class="text-ink-muted">
+            Every EmDash plugin ships with a manifest that declares:
+          </p>
+          <ul class="mt-3 text-ink-muted space-y-2 list-disc pl-6">
+            <li><strong class="text-ink">Capabilities</strong> &mdash; what the plugin can do (network fetch, read or write content, send email, etc.).</li>
+            <li><strong class="text-ink">Hooks</strong> &mdash; named lifecycle points it attaches to (<code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">content:beforeSave</code>, <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">cron</code>, <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">page:metadata</code>, etc.).</li>
+            <li><strong class="text-ink">Storage</strong> &mdash; document collections and their indexes.</li>
+            <li><strong class="text-ink">Admin surfaces</strong> &mdash; settings, dashboard widgets, custom field editors.</li>
+          </ul>
+          <p class="mt-4 text-ink-muted">
+            At runtime, the plugin only gets what the manifest lists. Call a method
+            whose capability wasn&rsquo;t declared and the call fails. There is no
+            unscoped permission, no escape hatch.
+          </p>
+          <p class="mt-3 text-sm">
+            Full reference: <a href="/learn/manifest-schema" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the manifest schema</a>
+            &middot; <a href="/learn/capabilities" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the capabilities list</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">This marketplace</h2>
+          <p class="text-ink-muted">
+            <strong class="text-ink">emdashcms.org</strong> is the community marketplace
+            for EmDash plugins and themes. It hosts:
+          </p>
+          <ul class="mt-3 text-ink-muted space-y-2 list-disc pl-6">
+            <li>A browsable <a href="/plugins" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">plugin directory</a> and <a href="/themes" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">theme directory</a>.</li>
+            <li>A JSON API that any EmDash site calls during install.</li>
+            <li>A <a href="/docs/security" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">fail-closed audit pipeline</a> &mdash; every uploaded version is unpacked, statically scanned, and AI-reviewed before it ships.</li>
+            <li>Atom feeds for new and updated items, plus a weekly <a href="/digest" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">digest</a> of everything that landed.</li>
+          </ul>
+          <p class="mt-4 text-ink-muted">
+            The marketplace is free to use, free to publish to, and
+            <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">MIT-licensed on GitHub</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">How installs work</h2>
+          <p class="text-ink-muted">
+            There is no <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">emdash</code>
+            CLI for installing plugins. A site operator opens the EmDash admin panel,
+            navigates to <strong class="text-ink">Plugins &rarr; Marketplace</strong>,
+            reviews the capabilities the plugin requests, and clicks Install. The CMS
+            downloads the bundle from emdashcms.org into the site&rsquo;s own storage
+            and reports a successful install back to the marketplace for aggregate
+            install counts.
+          </p>
+          <p class="mt-3 text-sm">
+            Deeper reference: <a href="/learn/plugin-system" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">how EmDash plugins work</a>
+            &middot; <a href="/guide" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the manual install guide</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Why it exists</h2>
+          <p class="text-ink-muted">
+            WordPress set the template for CMS plugins: a huge ecosystem,
+            permissive-by-default, audited only by community attention. EmDash takes
+            the opposite starting point &mdash; a manifest-first, capability-gated model
+            where the runtime refuses what wasn&rsquo;t declared, and a marketplace that
+            treats every release as something to inspect before publishing. Smaller
+            ecosystem today; stronger default isolation.
+          </p>
+        </section>
+
+        <section class="pt-6 border-t border-rule text-sm text-ink-muted">
+          <p>
+            Updated <time datetime={publishedAt}>{publishedAt}</time>.
+            Next: <a href="/learn/plugin-system" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">how EmDash plugins work &rarr;</a>
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>

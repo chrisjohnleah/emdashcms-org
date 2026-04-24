@@ -1,0 +1,99 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildCollectionPageJsonLd,
+  buildBreadcrumbListJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'Learn — emdashcms.org';
+const description =
+  'Short reference pages for the pieces of EmDash CMS that matter — the plugin system, the manifest schema, the capability vocabulary, and the security model that gates every release on the marketplace.';
+
+const articles = [
+  {
+    slug: 'what-is-emdash',
+    title: 'What is EmDash CMS?',
+    summary: 'A one-page overview of the CMS, the plugin model, and where this marketplace fits.',
+  },
+  {
+    slug: 'plugin-system',
+    title: 'How EmDash plugins work',
+    summary: 'Sandboxed packages, declared capabilities, the manifest contract, and the admin-dashboard install flow.',
+  },
+  {
+    slug: 'manifest-schema',
+    title: 'The manifest.json reference',
+    summary: 'Every field a plugin must declare — capabilities, hooks, storage, admin surfaces, and versioning rules.',
+  },
+  {
+    slug: 'capabilities',
+    title: 'Capabilities reference',
+    summary: 'The 11 capabilities a plugin can request, what each grants, and which hooks they unlock.',
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'Learn — EmDash CMS Marketplace',
+    url: '/learn',
+    description,
+    items: articles.map((a) => ({
+      url: `/learn/${a.slug}`,
+      name: a.title,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Learn', url: '/learn' },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <header class="mb-14">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-4">Learn</p>
+        <h1 class="font-display text-4xl md:text-5xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Understand <span class="italic" style="font-weight: 300;">EmDash</span>.
+        </h1>
+        <p class="mt-5 text-lg text-ink-muted leading-relaxed max-w-prose">
+          Short, accurate reference pages for the pieces of EmDash CMS that matter
+          to plugin authors, site operators, and anyone evaluating the platform.
+          No marketing, no long-form &ldquo;getting started&rdquo; &mdash; just the
+          facts you need.
+        </p>
+      </header>
+
+      <ol class="border-t border-rule">
+        {articles.map((a) => (
+          <li class="border-b border-rule">
+            <a
+              href={`/learn/${a.slug}`}
+              class="group block py-7 hover:bg-paper-soft -mx-4 px-4 rounded transition-colors"
+            >
+              <h2 class="font-display text-2xl text-ink leading-tight tracking-tight group-hover:text-accent-deep transition-colors"
+                  style="font-weight: 500;">
+                {a.title}
+              </h2>
+              <p class="mt-2 text-sm text-ink-muted leading-relaxed max-w-prose">
+                {a.summary}
+              </p>
+            </a>
+          </li>
+        ))}
+      </ol>
+
+      <div class="mt-14 text-sm text-ink-muted">
+        <p>
+          Looking for competitive comparisons? See <a href="/compare" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the Compare section</a>.
+          Looking to publish? Start with <a href="/docs/contributors" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the contributor guide</a>.
+        </p>
+      </div>
+
+    </div>
+  </section>
+</BaseLayout>

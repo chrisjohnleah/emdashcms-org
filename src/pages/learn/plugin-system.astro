@@ -1,0 +1,224 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import {
+  buildTechArticleJsonLd,
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
+} from '../../lib/seo/json-ld';
+
+const title = 'How EmDash plugins work — emdashcms.org';
+const description =
+  'An EmDash plugin is a sandboxed package that extends the CMS by declaring every capability, hook, storage, and admin surface it uses in a manifest. The runtime only grants what the manifest lists, and the marketplace audits every release before it ships.';
+const publishedAt = '2026-04-24';
+
+const jsonLd = [
+  buildTechArticleJsonLd({
+    headline: 'How EmDash plugins work',
+    description,
+    url: '/learn/plugin-system',
+    datePublished: publishedAt,
+    author: {
+      type: 'Organization',
+      name: 'EmDash CMS Marketplace',
+      url: 'https://emdashcms.org',
+    },
+    proficiencyLevel: 'Beginner',
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Learn', url: '/learn' },
+    { name: 'How EmDash plugins work', url: '/learn/plugin-system' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'How do EmDash plugins execute?',
+      answer:
+        'EmDash plugins run inside isolated sandboxes and are only granted the capabilities their manifest declares. Calls to undeclared APIs fail at the runtime boundary — there is no default-allow path.',
+    },
+    {
+      question: 'How do I install an EmDash plugin?',
+      answer:
+        'Installs happen through the EmDash admin dashboard at Plugins > Marketplace. The CMS downloads the bundle, copies it into the site\'s own storage, and reports a successful install back to the marketplace. There is no emdash CLI for plugin installs.',
+    },
+    {
+      question: 'What\'s in an EmDash plugin bundle?',
+      answer:
+        'A bundle is a tarball containing the compiled plugin code, a manifest.json that declares capabilities, hooks, storage, and admin surfaces, and any static assets the plugin needs. Every version is scanned and AI-reviewed before it becomes downloadable.',
+    },
+    {
+      question: 'What happens if a plugin tries to do something its manifest did not declare?',
+      answer:
+        'The call fails at the runtime boundary. The capability system is enforced at the point of use, not just at install time, so even a plugin that tries to dynamically invoke a blocked API is denied.',
+    },
+    {
+      question: 'How is a plugin audit decided?',
+      answer:
+        'Every uploaded version goes through a fail-closed pipeline: the bundle is unpacked in an isolated worker, scanned against a public ruleset for the obvious failure modes (eval, Function constructor, Node child_process, and so on), then reviewed by an AI against the manifest in context. If the audit cannot produce a clean verdict, the version is rejected — never silently published.',
+    },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-20 md:pt-16">
+    <div class="page-narrow">
+
+      <nav class="mb-6 text-sm text-ink-muted" aria-label="Breadcrumb">
+        <a href="/learn" class="hover:text-ink transition-colors">Learn</a>
+        <span class="mx-2 text-ink-soft">/</span>
+        <span class="text-ink-soft">How EmDash plugins work</span>
+      </nav>
+
+      <header class="mb-10">
+        <h1 class="font-display text-4xl md:text-5xl text-ink leading-tight"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          How EmDash plugins work
+        </h1>
+        <p class="mt-5 text-lg text-ink leading-relaxed max-w-prose">
+          An EmDash plugin is a sandboxed package that extends the CMS by declaring
+          every capability, hook, storage collection, and admin surface it uses in a
+          <code class="font-mono text-[0.95em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.json</code>
+          file. The runtime grants nothing the manifest does not list.
+        </p>
+        <p class="mt-3 text-sm text-ink-soft">
+          Who this is for: plugin authors, site operators reviewing a plugin before
+          installing, and anyone curious about how the isolation model actually works.
+        </p>
+      </header>
+
+      <div class="space-y-10 text-ink leading-relaxed max-w-prose">
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">The contract</h2>
+          <p class="text-ink-muted">
+            EmDash plugins are <strong class="text-ink">manifest-first</strong>. Before
+            the CMS loads a plugin, it validates its <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.json</code>
+            against a strict schema. The manifest becomes the plugin&rsquo;s public
+            contract:
+          </p>
+          <ul class="mt-3 text-ink-muted space-y-2 list-disc pl-6">
+            <li>Identity &mdash; <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">id</code> (lowercase <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">name</code> or <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">@scope/name</code>) and <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">version</code> (strict semver).</li>
+            <li>Capabilities &mdash; the operations the plugin is allowed to perform.</li>
+            <li>Storage &mdash; named document collections with their indexes.</li>
+            <li>Hooks &mdash; lifecycle events the plugin attaches to.</li>
+            <li>Admin surfaces &mdash; settings UI, dashboard pages, widgets, field editors.</li>
+          </ul>
+          <p class="mt-4 text-ink-muted">
+            If the manifest is invalid or the capabilities listed cannot be granted,
+            the plugin does not load. Full reference:
+            <a href="/learn/manifest-schema" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the manifest schema</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Capabilities and enforcement</h2>
+          <p class="text-ink-muted">
+            EmDash defines a fixed vocabulary of <strong class="text-ink">11 capabilities</strong>
+            covering network fetch, content reads and writes, media reads and writes,
+            user reads, email sending and interception, and page injection. A plugin
+            must list each capability it uses in
+            <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">manifest.capabilities[]</code>.
+          </p>
+          <p class="mt-3 text-ink-muted">
+            Enforcement happens at the runtime boundary, not only at install time.
+            A plugin that calls a method whose capability it didn&rsquo;t declare gets
+            an error, not a silent succeed. There is no default-allow path.
+          </p>
+          <p class="mt-3 text-sm">
+            Full list: <a href="/learn/capabilities" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the capabilities reference</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Hooks</h2>
+          <p class="text-ink-muted">
+            Plugins attach to named lifecycle hooks the CMS exposes. A hook can be
+            listed as a plain string or as an object with an optional exclusivity,
+            priority, and timeout:
+          </p>
+          <div class="mt-4 bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule whitespace-pre leading-relaxed">{`"hooks": [
+  "content:beforeSave",
+  { "name": "cron", "priority": 10, "timeout": 30000 }
+]`}</div>
+          <p class="mt-3 text-ink-muted">
+            Current hook names cover plugin lifecycle
+            (<code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">plugin:install</code>,
+            <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">plugin:activate</code>,
+            etc.), content events (<code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">content:beforeSave</code>,
+            <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">content:afterSave</code>),
+            media events, email interception, comments, cron, and per-page metadata
+            and fragment extension.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">Storage</h2>
+          <p class="text-ink-muted">
+            Storage is declarative: a plugin lists the document collections it needs
+            and any indexes it relies on. The CMS provisions the collection and
+            enforces the schema. A plugin cannot read or write a collection it did
+            not declare.
+          </p>
+          <div class="mt-4 bg-paper-sunk rounded-lg p-4 font-mono text-sm text-ink overflow-x-auto border border-rule whitespace-pre leading-relaxed">{`"storage": {
+  "redirects": {
+    "indexes": ["from"],
+    "uniqueIndexes": ["id"]
+  }
+}`}</div>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">The install flow</h2>
+          <p class="text-ink-muted">
+            There is no <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">emdash</code>
+            CLI for plugin installs. The install flow goes entirely through the CMS
+            admin dashboard:
+          </p>
+          <ol class="mt-3 text-ink-muted space-y-2 list-decimal pl-6">
+            <li>Site admin opens <strong class="text-ink">Plugins &rarr; Marketplace</strong> in EmDash admin.</li>
+            <li>Picks a plugin, reviews the capabilities it requests, and clicks <strong class="text-ink">Install</strong>.</li>
+            <li>EmDash core calls the marketplace API to download the bundle (<code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">/api/v1/plugins/:id/versions/:version/bundle</code>).</li>
+            <li>The bundle is copied into the site&rsquo;s own R2 storage. The marketplace is a distribution channel, not a runtime dependency.</li>
+            <li>On success, the CMS calls <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">reportInstall</code>, which POSTs a hashed site identifier to <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">/api/v1/plugins/:id/installs</code> &mdash; fire-and-forget, never throws.</li>
+          </ol>
+          <p class="mt-4 text-ink-muted">
+            Browser ZIP downloads count as downloads but not as installs &mdash; install
+            counts on the marketplace only go up when a live EmDash site actually
+            completes a successful install flow.
+          </p>
+          <p class="mt-3 text-sm">
+            Also see: <a href="/guide" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the manual install guide</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="font-display text-2xl text-ink mb-3" style="font-weight: 500;">The audit</h2>
+          <p class="text-ink-muted">
+            Every version uploaded to emdashcms.org passes through a <strong class="text-ink">fail-closed audit pipeline</strong>
+            before it becomes downloadable:
+          </p>
+          <ol class="mt-3 text-ink-muted space-y-2 list-decimal pl-6">
+            <li>The bundle is unpacked inside an isolated worker sandbox.</li>
+            <li>A static scanner checks the code against a public ruleset (no <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">eval</code>, no <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">new Function</code>, no <code class="font-mono text-[0.9em] bg-paper-sunk px-1.5 py-0.5 rounded">child_process</code>, and so on).</li>
+            <li>An AI reviewer reads the code against the declared manifest, looking for capability drift and obvious risks.</li>
+            <li>If the audit cannot reach a clean verdict, the version is rejected. Never auto-passed.</li>
+          </ol>
+          <p class="mt-4 text-ink-muted">
+            The verdict is visible on every plugin page and the full ruleset lives in
+            <a href="/docs/security" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the security policy</a>.
+          </p>
+        </section>
+
+        <section class="pt-6 border-t border-rule text-sm text-ink-muted">
+          <p>
+            Updated <time datetime={publishedAt}>{publishedAt}</time>.
+            Previous: <a href="/learn/what-is-emdash" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">&larr; what is EmDash CMS?</a>
+            &middot; Next: <a href="/learn/manifest-schema" class="text-ink underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">the manifest schema &rarr;</a>
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </section>
+</BaseLayout>
