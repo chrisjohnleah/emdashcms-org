@@ -1,0 +1,99 @@
+---
+// Public-facing deprecation banner rendered at the top of the plugin
+// detail page when `plugin.deprecation != null`. The banner stays
+// visible to anonymous visitors — deprecation is a public signal, not a
+// privileged view. Existing downloads and version history continue to
+// render below (DEPR-04): we warn, we don't hide.
+//
+// Palette matches DashboardBanner's warn tokens — warm editorial
+// warning, not alarm red. Heading uses <h2> so it slots below the page's
+// <h1> title without creating an outline gap. `role="alert"` is set on
+// the container so assistive tech announces the warning on first paint.
+//
+// Note (`deprecation.note`) is rendered via plain interpolation; Astro
+// auto-escapes, and we deliberately avoid `set:html` here so user-
+// supplied copy cannot smuggle markup (T-17-12 in the 17-02 threat
+// register).
+
+import type { DeprecationCategory } from '../lib/publishing/deprecation-queries';
+
+interface Props {
+  deprecation: {
+    category: DeprecationCategory;
+    note: string | null;
+    deprecatedAt: string;
+    successor: { id: string; name: string; url: string } | null;
+  };
+}
+
+const { deprecation } = Astro.props;
+
+// Mirrors the CLI wire-format labels so the banner copy a visitor sees
+// matches what `emdash install` prints. The label map is defined here
+// to keep this component self-contained — 17-01 owns the wire copy, and
+// the dashboard modal has its own short-form labels.
+const CATEGORY_LABEL: Record<DeprecationCategory, string> = {
+  unmaintained: 'no longer maintained',
+  replaced: 'has been replaced',
+  abandoned: 'abandoned by its author',
+  security: 'withdrawn for security reasons',
+  other: 'deprecated',
+};
+
+const reasonLabel = CATEGORY_LABEL[deprecation.category];
+const hasSuccessor = deprecation.successor !== null;
+
+// We surface a muted "Successor unavailable" note when the author chose
+// a `replaced` category but the stored successor is currently
+// deprecated/unlisted/gone. 17-01's mapper nulls the successor in that
+// case; we mirror the intent here so the reader isn't left wondering
+// where the promised replacement went.
+const showBrokenSuccessorNote = !hasSuccessor && deprecation.category === 'replaced';
+---
+<aside
+  role="alert"
+  class="mb-8 rounded-md border border-warn/35 bg-warn-soft px-5 py-4 text-warn"
+>
+  <div class="flex items-start gap-3">
+    <svg
+      class="w-5 h-5 shrink-0 mt-0.5"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+    <div class="min-w-0">
+      <h2 class="font-display text-lg leading-tight" style="font-weight: 500;">
+        This plugin has been deprecated by its author.
+      </h2>
+      <p class="mt-1.5 text-sm leading-relaxed">
+        <span class="font-medium">Reason:</span> {reasonLabel}
+        {deprecation.note && (
+          <>
+            {' — '}<span class="italic">&ldquo;{deprecation.note}&rdquo;</span>
+          </>
+        )}
+      </p>
+      {hasSuccessor && deprecation.successor && (
+        <p class="mt-2 text-sm leading-relaxed">
+          A successor is available:
+          {' '}
+          <a
+            href={deprecation.successor.url}
+            class="font-medium underline underline-offset-2 hover:text-warn/80"
+          >
+            {deprecation.successor.name}
+          </a>
+        </p>
+      )}
+      {showBrokenSuccessorNote && (
+        <p class="mt-2 text-sm leading-relaxed text-warn/70" data-testid="successor-unavailable">
+          Successor unavailable.
+        </p>
+      )}
+    </div>
+  </div>
+</aside>

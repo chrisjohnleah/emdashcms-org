@@ -1,0 +1,16 @@
+---
+// Small inline pill rendered next to a plugin name wherever a deprecated
+// plugin surfaces in public lists or cards. Purely presentational — the
+// caller decides when to mount it based on `plugin.deprecated`.
+//
+// Palette echoes DashboardBanner.astro's warn tokens (warm warning, not
+// alarm red) so deprecated plugins read as "slow down" rather than
+// "danger". Accessible label is explicit so screen readers don't read
+// the chip as a bare word next to the title.
+---
+<span
+  class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium border bg-warn-soft text-warn border-warn/35 align-middle"
+  aria-label="Deprecated plugin"
+>
+  Deprecated
+</span>

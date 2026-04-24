@@ -1,6 +1,7 @@
 ---
 import type { MarketplacePluginSummary } from '../types/marketplace';
 import AuditBadge from './AuditBadge.astro';
+import DeprecatedChip from './DeprecatedChip.astro';
 import TrustTierBadge from './TrustTierBadge.astro';
 
 interface Props {
@@ -51,7 +52,12 @@ const downloads = plugin.downloadCount.toLocaleString();
     ]}
     style="font-weight: 500;"
   >
-    {plugin.name}
+    <span>{plugin.name}</span>
+    {plugin.deprecated && (
+      <>
+        {' '}<DeprecatedChip />
+      </>
+    )}
   </h3>
 
   {description && (

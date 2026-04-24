@@ -7,6 +7,7 @@ import type { MarketplaceVersionSummary } from '../../types/marketplace';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Button from '../../components/Button.astro';
 import AuditBadge from '../../components/AuditBadge.astro';
+import PluginDeprecationBanner from '../../components/PluginDeprecationBanner.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import StarRating from '../../components/StarRating.astro';
 import TrustSignals from '../../components/TrustSignals.astro';
@@ -182,6 +183,10 @@ const formatSize = (bytes: number) => {
     ogImage={pluginOgImage}
   >
     <section class="page pt-12 pb-16 md:pt-16">
+
+      {plugin.deprecation && (
+        <PluginDeprecationBanner deprecation={plugin.deprecation} />
+      )}
 
       {plugin.pluginStatus === 'revoked' && (
         <div class="mb-10 rounded-md border border-danger/35 bg-danger-soft p-5">
