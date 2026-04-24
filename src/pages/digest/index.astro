@@ -1,0 +1,124 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { parseIsoWeekSlug, formatHumanRange } from '../../lib/feeds/iso-week';
+import type { WeeklyDigestManifest } from '../../lib/feeds/digest-generator';
+import {
+  buildCollectionPageJsonLd,
+  buildBreadcrumbListJsonLd,
+} from '../../lib/seo/json-ld';
+
+// D-31 / T-14-05: archive pages are effectively immutable — serve from edge
+// for an hour on the client, one day on the CDN, and serve stale for a week
+// while revalidating. Keeps bad-bot crawls off D1.
+Astro.response.headers.set(
+  'cache-control',
+  'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
+);
+
+interface IndexRow {
+  iso_week: string;
+  generated_at: string;
+  counts: WeeklyDigestManifest['counts'];
+  humanRange: string;
+}
+
+let rows: IndexRow[] = [];
+try {
+  // Defensive LIMIT 100 per research §9.2 / T-14-05 — unbounded scans grow
+  // with the archive. 100 weeks ≈ 2 years of history is plenty for the
+  // index landing page.
+  const result = await env.DB.prepare(
+    `SELECT iso_week, generated_at, manifest_json
+     FROM weekly_digests
+     ORDER BY iso_week DESC
+     LIMIT 100`,
+  ).all<{ iso_week: string; generated_at: string; manifest_json: string }>();
+
+  rows = (result.results ?? []).map((r) => {
+    const manifest = JSON.parse(r.manifest_json) as WeeklyDigestManifest;
+    const week = parseIsoWeekSlug(r.iso_week);
+    return {
+      iso_week: r.iso_week,
+      generated_at: r.generated_at,
+      counts: manifest.counts,
+      humanRange: week ? formatHumanRange(week) : r.iso_week,
+    };
+  });
+} catch (err) {
+  // Banners/listings are cosmetic — a transient D1 error should never 500
+  // the page. Fall through to the empty state.
+  console.error('[digest/index] query failed:', err);
+}
+
+function countsLine(c: WeeklyDigestManifest['counts']): string {
+  if (c.newPlugins === 0 && c.updatedPlugins === 0 && c.newThemes === 0) {
+    return 'Quiet week';
+  }
+  const parts: string[] = [];
+  if (c.newPlugins > 0) {
+    parts.push(`${c.newPlugins} new plugin${c.newPlugins === 1 ? '' : 's'}`);
+  }
+  if (c.updatedPlugins > 0) {
+    parts.push(`${c.updatedPlugins} update${c.updatedPlugins === 1 ? '' : 's'}`);
+  }
+  if (c.newThemes > 0) {
+    parts.push(`${c.newThemes} new theme${c.newThemes === 1 ? '' : 's'}`);
+  }
+  return parts.join(' · ');
+}
+const digestIndexJsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'Weekly digest — EmDash CMS Marketplace',
+    url: '/digest',
+    description: 'Archive of weekly snapshots for the EmDash community marketplace.',
+    items: rows.slice(0, 25).map((row) => ({
+      url: `/digest/${row.iso_week}`,
+      name: row.humanRange,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Digest', url: '/digest' },
+  ]),
+];
+---
+<BaseLayout
+  title="Weekly digest — emdashcms.org"
+  description="Archive of weekly snapshots for the EmDash community marketplace. Every Sunday, a new permanent page."
+  jsonLd={digestIndexJsonLd}
+>
+  <div class="page py-12">
+    <header class="mb-10">
+      <h1 class="font-display text-4xl md:text-5xl text-ink">Weekly digest</h1>
+      <p class="mt-3 text-lg text-ink/70 max-w-prose">
+        Every Sunday at 00:05 UTC, a permanent page captures the week's new and updated plugins and themes across the marketplace.
+      </p>
+    </header>
+
+    {rows.length === 0 ? (
+      <EmptyState
+        heading="No digests yet"
+        body="The first weekly digest lands next Sunday at 00:05 UTC."
+      />
+    ) : (
+      <ol class="divide-y divide-rule border-t border-b border-rule">
+        {rows.map((row) => (
+          <li class="py-5">
+            <a href={`/digest/${row.iso_week}`} class="block group">
+              <div class="font-display text-2xl text-ink group-hover:underline">
+                {row.humanRange}
+              </div>
+              <div class="text-sm text-ink-muted mt-1">
+                {row.iso_week} · {countsLine(row.counts)}
+              </div>
+            </a>
+          </li>
+        ))}
+      </ol>
+    )}
+  </div>
+</BaseLayout>

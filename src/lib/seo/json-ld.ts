@@ -226,3 +226,198 @@ export function buildFaqPageJsonLd(
     })),
   };
 }
+
+/**
+ * Build a WebSite JSON-LD payload with a SearchAction target.
+ *
+ * Emitted only on the homepage. Google uses this to render a sitelinks
+ * search box directly in SERP results — users land on `/plugins?query=...`
+ * and hit the live catalog search without a double click. The `{search_term_string}`
+ * placeholder is the Schema.org-reserved token the SERP fills in.
+ */
+export function buildWebSiteJsonLd(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "EmDash CMS Marketplace",
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/plugins?query={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+}
+
+export interface ArticleJsonLdInput {
+  headline: string;
+  description?: string;
+  url: string;
+  datePublished: string;
+  dateModified?: string;
+  /** Optional hero image URL. Pass the OG image URL when the page has one. */
+  image?: string;
+  /** Author name — Organization when site-authored, Person when authored by a user. */
+  author: { type: "Organization" | "Person"; name: string; url?: string };
+}
+
+/**
+ * Build an Article JSON-LD payload for editorial content (digests,
+ * Learn essays, Compare posts). `dateModified` defaults to
+ * `datePublished` so freshness signals are present even on a first
+ * publish. The publisher is always the marketplace itself with the
+ * site favicon as logo.
+ */
+export function buildArticleJsonLd(
+  input: ArticleJsonLdInput,
+): Record<string, unknown> {
+  const url = input.url.startsWith("http")
+    ? input.url
+    : `${SITE_URL}${input.url}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: input.headline,
+    ...(input.description ? { description: input.description } : {}),
+    url,
+    datePublished: input.datePublished,
+    dateModified: input.dateModified ?? input.datePublished,
+    ...(input.image ? { image: input.image } : {}),
+    author: {
+      "@type": input.author.type,
+      name: input.author.name,
+      ...(input.author.url ? { url: input.author.url } : {}),
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "EmDash CMS Marketplace",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/favicon.svg`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
+  };
+}
+
+/**
+ * Build a TechArticle JSON-LD payload for Learn pillar pages.
+ * TechArticle is the canonical type for developer/reference documentation
+ * and is the type AI engines weight most heavily for technical how-to
+ * extraction.
+ */
+export function buildTechArticleJsonLd(
+  input: ArticleJsonLdInput & { proficiencyLevel?: "Beginner" | "Expert" },
+): Record<string, unknown> {
+  const base = buildArticleJsonLd(input);
+  base["@type"] = "TechArticle";
+  if (input.proficiencyLevel) {
+    base.proficiencyLevel = input.proficiencyLevel;
+  }
+  return base;
+}
+
+export interface PersonJsonLdInput {
+  name: string;
+  url: string;
+  image?: string;
+  /** Additional identity URLs (GitHub, website, social). */
+  sameAs?: string[];
+}
+
+/**
+ * Build a Person JSON-LD payload for author profile pages. Used
+ * alongside ProfilePage so AI engines and Google's knowledge graph
+ * resolve the entity without guessing.
+ */
+export function buildPersonJsonLd(
+  input: PersonJsonLdInput,
+): Record<string, unknown> {
+  const url = input.url.startsWith("http") ? input.url : `${SITE_URL}${input.url}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: input.name,
+    url,
+    ...(input.image ? { image: input.image } : {}),
+    ...(input.sameAs && input.sameAs.length > 0 ? { sameAs: input.sameAs } : {}),
+  };
+}
+
+export interface ProfilePageJsonLdInput {
+  name: string;
+  url: string;
+  dateCreated?: string;
+  mainEntity: PersonJsonLdInput;
+}
+
+/**
+ * Build a ProfilePage JSON-LD payload. Wraps a Person as its
+ * `mainEntity` so crawlers understand this page represents that
+ * person's profile, not a random article about them.
+ */
+export function buildProfilePageJsonLd(
+  input: ProfilePageJsonLdInput,
+): Record<string, unknown> {
+  const url = input.url.startsWith("http") ? input.url : `${SITE_URL}${input.url}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    name: input.name,
+    url,
+    ...(input.dateCreated ? { dateCreated: input.dateCreated } : {}),
+    mainEntity: {
+      "@type": "Person",
+      name: input.mainEntity.name,
+      url: input.mainEntity.url.startsWith("http")
+        ? input.mainEntity.url
+        : `${SITE_URL}${input.mainEntity.url}`,
+      ...(input.mainEntity.image ? { image: input.mainEntity.image } : {}),
+      ...(input.mainEntity.sameAs && input.mainEntity.sameAs.length > 0
+        ? { sameAs: input.mainEntity.sameAs }
+        : {}),
+    },
+  };
+}
+
+export interface CollectionPageItem {
+  url: string;
+  name: string;
+}
+
+/**
+ * Build a CollectionPage JSON-LD payload for index pages (digest
+ * archive, Learn index, Compare index). Pairs naturally with an
+ * `ItemList` to enumerate the contained items.
+ */
+export function buildCollectionPageJsonLd(input: {
+  name: string;
+  url: string;
+  description?: string;
+  items: CollectionPageItem[];
+}): Record<string, unknown> {
+  const url = input.url.startsWith("http") ? input.url : `${SITE_URL}${input.url}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: input.name,
+    url,
+    ...(input.description ? { description: input.description } : {}),
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: input.items.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.name,
+        url: item.url.startsWith("http") ? item.url : `${SITE_URL}${item.url}`,
+      })),
+    },
+  };
+}

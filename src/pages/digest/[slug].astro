@@ -1,0 +1,172 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import DigestRow from '../../components/DigestRow.astro';
+import { parseIsoWeekSlug, formatHumanRange } from '../../lib/feeds/iso-week';
+import type { WeeklyDigestManifest } from '../../lib/feeds/digest-generator';
+import {
+  buildArticleJsonLd,
+  buildBreadcrumbListJsonLd,
+} from '../../lib/seo/json-ld';
+
+const rawSlug = Astro.params.slug ?? '';
+
+// T-14-03: regex-gate the slug BEFORE any D1 query. parseIsoWeekSlug itself
+// enforces /^\d{4}-W\d{2}$/ plus semantic week-range validation (rejects
+// 2026-W54, 2025-W53 when the year has 52 ISO weeks, etc). Path-traversal,
+// URL-encoded traversal, empty string, and SQL-injection payloads all fail
+// the regex and return HTTP 404 inline.
+const slugRegex = /^\d{4}-W\d{2}$/;
+const validFormat = slugRegex.test(rawSlug);
+const week = validFormat ? parseIsoWeekSlug(rawSlug) : null;
+
+let manifest: WeeklyDigestManifest | null = null;
+let generatedAt: string | null = null;
+let notFound = !validFormat || week === null;
+
+if (!notFound) {
+  try {
+    const row = await env.DB.prepare(
+      'SELECT manifest_json, generated_at FROM weekly_digests WHERE iso_week = ? LIMIT 1',
+    )
+      .bind(rawSlug)
+      .first<{ manifest_json: string; generated_at: string }>();
+    if (!row) {
+      notFound = true;
+    } else {
+      manifest = JSON.parse(row.manifest_json) as WeeklyDigestManifest;
+      generatedAt = row.generated_at;
+    }
+  } catch (err) {
+    console.error(`[digest/${rawSlug}] query failed:`, err);
+    notFound = true;
+  }
+}
+
+if (notFound) {
+  Astro.response.status = 404;
+}
+
+// D-31 / T-14-05: single cache-control value for both 200 and 404 branches.
+// Archive pages are immutable; a 404 against a well-formed slug is stable
+// too (the slug→row mapping won't change until an operator backfills), so
+// caching 404s is safe and keeps bad-bot crawls off D1.
+Astro.response.headers.set(
+  'cache-control',
+  'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
+);
+
+const humanTitle = week ? formatHumanRange(week) : rawSlug;
+const pageTitle = notFound
+  ? 'Digest not found — emdashcms.org'
+  : `${humanTitle} — weekly digest`;
+
+const counts = manifest?.counts;
+const quietWeek =
+  manifest !== null &&
+  counts !== undefined &&
+  counts.newPlugins === 0 &&
+  counts.updatedPlugins === 0 &&
+  counts.newThemes === 0;
+
+// Article + BreadcrumbList schema. Only emit on found digests — 404
+// responses are noindex and do not need structured data.
+const digestDescription = manifest && counts
+  ? (quietWeek
+      ? `Weekly snapshot for ${humanTitle}: a quiet week with no new or updated items.`
+      : `Weekly snapshot for ${humanTitle}: ${counts.newPlugins} new plugin${counts.newPlugins === 1 ? '' : 's'}, ${counts.updatedPlugins} plugin update${counts.updatedPlugins === 1 ? '' : 's'}, ${counts.newThemes} new theme${counts.newThemes === 1 ? '' : 's'} on the EmDash CMS community marketplace.`)
+  : undefined;
+
+const digestJsonLd = !notFound && generatedAt ? [
+  buildArticleJsonLd({
+    headline: `${humanTitle} — weekly digest`,
+    description: digestDescription,
+    url: `/digest/${rawSlug}`,
+    datePublished: generatedAt,
+    dateModified: generatedAt,
+    author: { type: 'Organization', name: 'EmDash CMS Marketplace', url: 'https://emdashcms.org' },
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Digest', url: '/digest' },
+    { name: humanTitle, url: `/digest/${rawSlug}` },
+  ]),
+] : undefined;
+---
+<BaseLayout title={pageTitle} description={digestDescription} jsonLd={digestJsonLd}>
+  <div class="page py-12">
+    {notFound ? (
+      <EmptyState
+        heading="Digest not found"
+        body="No digest has been archived for that week."
+        linkHref="/digest"
+        linkText="Browse all digests"
+      />
+    ) : (
+      <article>
+        <header class="mb-10">
+          <p class="text-sm uppercase tracking-wider text-ink-muted">{rawSlug}</p>
+          <h1 class="font-display text-4xl md:text-5xl text-ink mt-2">{humanTitle}</h1>
+        </header>
+
+        {quietWeek ? (
+          <p class="text-lg text-ink/70">Quiet week — no new or updated items.</p>
+        ) : (
+          <div class="space-y-12">
+            {manifest!.newPlugins.length > 0 && (
+              <section>
+                <h2 class="font-display text-2xl text-ink mb-4">New plugins</h2>
+                <div>
+                  {manifest!.newPlugins.map((p) => (
+                    <DigestRow
+                      title={p.name}
+                      href={`/plugins/${p.id}`}
+                      author={p.authorLogin}
+                      description={p.shortDescription}
+                      category={p.category}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {manifest!.updatedPlugins.length > 0 && (
+              <section>
+                <h2 class="font-display text-2xl text-ink mb-4">Updated plugins</h2>
+                <div>
+                  {manifest!.updatedPlugins.map((p) => (
+                    <DigestRow
+                      title={p.name}
+                      href={`/plugins/${p.pluginId}`}
+                      author={p.authorLogin}
+                      version={p.version}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {manifest!.newThemes.length > 0 && (
+              <section>
+                <h2 class="font-display text-2xl text-ink mb-4">New themes</h2>
+                <div>
+                  {manifest!.newThemes.map((t) => (
+                    <DigestRow
+                      title={t.name}
+                      href={`/themes/${t.id}`}
+                      author={t.authorLogin}
+                      description={t.shortDescription}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+      </article>
+    )}
+  </div>
+</BaseLayout>

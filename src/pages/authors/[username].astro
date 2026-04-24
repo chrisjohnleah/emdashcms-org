@@ -11,6 +11,10 @@ import {
   getPublicPluginsByAuthor,
   getPublicThemesByAuthor,
 } from '../../lib/db/queries';
+import {
+  buildProfilePageJsonLd,
+  buildBreadcrumbListJsonLd,
+} from '../../lib/seo/json-ld';
 
 const { username } = Astro.params;
 
@@ -41,8 +45,31 @@ const title = author
 const description = author
   ? `Plugins and themes published by ${author.githubUsername} on the emdashcms.org community marketplace.`
   : undefined;
+
+// Person + ProfilePage + BreadcrumbList schema. Only emitted when the
+// author resolves — the 404 branch is noindex and does not need LD.
+const authorJsonLd = author
+  ? [
+      buildProfilePageJsonLd({
+        name: author.githubUsername,
+        url: `/authors/${author.githubUsername}`,
+        dateCreated: author.createdAt,
+        mainEntity: {
+          name: author.githubUsername,
+          url: `/authors/${author.githubUsername}`,
+          image: author.avatarUrl ?? undefined,
+          sameAs: [`https://github.com/${author.githubUsername}`],
+        },
+      }),
+      buildBreadcrumbListJsonLd([
+        { name: 'Home', url: '/' },
+        { name: 'Authors', url: `/authors/${author.githubUsername}` },
+        { name: author.githubUsername, url: `/authors/${author.githubUsername}` },
+      ]),
+    ]
+  : undefined;
 ---
-<BaseLayout title={title} description={description} noindex={!author}>
+<BaseLayout title={title} description={description} noindex={!author} jsonLd={authorJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
 
       {!author ? (

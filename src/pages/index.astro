@@ -9,7 +9,7 @@ import EmptyState from '../components/EmptyState.astro';
 import Button from '../components/Button.astro';
 import AuditBadge from '../components/AuditBadge.astro';
 import { searchPlugins, searchThemes } from '../lib/db/queries';
-import { buildOrganizationJsonLd, buildFaqPageJsonLd } from '../lib/seo/json-ld';
+import { buildOrganizationJsonLd, buildFaqPageJsonLd, buildWebSiteJsonLd } from '../lib/seo/json-ld';
 
 const title = 'emdashcms.org — A community marketplace for EmDash plugins and themes';
 const description =
@@ -44,6 +44,7 @@ const showBannedNotice = Astro.url.searchParams.get('banned') === '1';
 // the way our marketing heading ("Sandboxed by default") reads.
 const homepageJsonLd = [
   buildOrganizationJsonLd(),
+  buildWebSiteJsonLd(),
   buildFaqPageJsonLd([
     {
       question: 'How are plugins audited before publishing on emdashcms.org?',
