@@ -6,7 +6,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Button from '../../../components/Button.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import TurnstileWidget from '../../../components/TurnstileWidget.astro';
-import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit, updatePluginIconKey } from '../../../lib/publishing/plugin-queries';
+import { resolveAuthorId, registerPlugin, createVersion, checkUploadRateLimit, updatePluginIconKey, findChecksumCollision, getAuthorPluginSlugs } from '../../../lib/publishing/plugin-queries';
+import { findSimilarPlugin } from '../../../lib/publishing/name-similarity';
 import { validateImageUpload, storeImageInR2, MIME_TO_EXT } from '../../../lib/publishing/image-storage';
 import { KNOWN_CATEGORIES } from '../../../lib/api/validation';
 import { validateBundle } from '../../../lib/publishing/bundle-validator';
@@ -35,6 +36,7 @@ type WizardStep = 1 | 2;
 let currentStep: WizardStep = 1;
 let errors: Record<string, string> = {};
 let globalError = '';
+let globalErrorAction: { href: string; label: string } | null = null;
 let globalSuccess = '';
 
 // Metadata fields carried across steps
@@ -58,6 +60,14 @@ let formValues = {
 let githubInstalled = false;
 let githubRepos: GitHubRepo[] = [];
 let githubError = '';
+
+// Step 1 soft-gate: when a near-duplicate of one of the author's
+// existing plugins is detected, we stay on step 1 and ask them to
+// acknowledge with a hidden field on resubmit. This is intentionally
+// non-blocking — legitimate authors with similar plugin lines (e.g.
+// `auth-google`, `auth-github`) can proceed by acknowledging.
+let similarPluginWarning: { matchedId: string; matchedName: string; ratio: number } | null = null;
+let acknowledgedSimilarId = '';
 
 // Slugs only — same as theme register, WordPress-style. Legacy scoped
 // plugins (e.g. @rankshield/emdash-security) keep working at upload time
@@ -119,6 +129,7 @@ if (Astro.request.method === 'POST') {
 
   // Always read metadata from form (may be hidden fields on step 2)
   readMetadata(data);
+  acknowledgedSimilarId = (data.get('acknowledged_similar') as string ?? '').trim();
 
   if (step === '1') {
     // --- Step 1: Validate metadata ---
@@ -129,11 +140,34 @@ if (Astro.request.method === 'POST') {
         errors.id = 'A plugin with this ID already exists.';
         currentStep = 1;
       } else {
-        // Validation passed: advance to step 2
-        currentStep = 2;
+        // Soft-gate: warn if the proposed id/name is suspiciously
+        // close to one of the author's own existing plugins. Catches
+        // the lazy-rename pattern where someone whose audit failed
+        // tries to slip the same project under a tweaked slug
+        // instead of uploading a new version against the existing
+        // plugin record. Bypassable with explicit acknowledgment.
         const authorId = await resolveAuthorId(env.DB, author.githubId);
         if (authorId) {
-          await loadGitHubState(authorId);
+          const ownSlugs = await getAuthorPluginSlugs(env.DB, authorId);
+          const match = findSimilarPlugin(
+            { id: formValues.id, name: formValues.name },
+            ownSlugs,
+          );
+          if (match && acknowledgedSimilarId !== match.candidate.id) {
+            similarPluginWarning = {
+              matchedId: match.candidate.id,
+              matchedName: match.candidate.name,
+              ratio: match.ratio,
+            };
+            currentStep = 1;
+          } else {
+            // Validation passed: advance to step 2
+            currentStep = 2;
+            await loadGitHubState(authorId);
+          }
+        } else {
+          // No author row — let the next step surface the auth error.
+          currentStep = 2;
         }
       }
     } else {
@@ -174,8 +208,28 @@ if (Astro.request.method === 'POST') {
             // Validate the bundle FIRST so we can derive capabilities from
             // the manifest before touching D1. No rollback path needed.
             const result = await validateBundle(tarballBytes, formValues.id);
+            const collision = result.checksum
+              ? await findChecksumCollision(env.DB, result.checksum, authorId)
+              : null;
             if (!result.valid) {
               globalError = 'Bundle validation failed: ' + (result.errors?.join('; ') ?? 'Unknown error');
+              await loadGitHubState(authorId);
+            } else if (collision) {
+              // Cross-plugin content dedup. The bundle bytes already exist
+              // under another plugin slug. Same-author collisions get a
+              // friendly redirect to the upload page so they end up adding
+              // a new version on the canonical plugin instead of forking
+              // the slug. Different-author collisions get a generic
+              // message — we don't reveal which plugin they collided with.
+              if (collision.ownedBySameAuthor) {
+                globalError = `This bundle is byte-identical to your existing plugin "${collision.pluginName}". Upload it as a new version on that plugin instead — the audit will re-run automatically.`;
+                globalErrorAction = {
+                  href: `/dashboard/plugins/${encodeURIComponent(collision.pluginId)}/upload`,
+                  label: `Upload new version of ${collision.pluginName}`,
+                };
+              } else {
+                globalError = 'This exact bundle has already been registered under another plugin. If you believe this is a mistake, contact support.';
+              }
               await loadGitHubState(authorId);
             } else {
               const keywordsArray = formValues.keywords
@@ -368,7 +422,20 @@ const inputError = `${inputBase} border-danger`;
       {/* --- Global messages --- */}
       {globalError && (
         <div class="mt-6">
-          <DashboardBanner type="error" message={globalError} />
+          <DashboardBanner type="error" message={globalError}>
+            <span>{globalError}</span>
+            {globalErrorAction && (
+              <>
+                {' '}
+                <a
+                  href={globalErrorAction.href}
+                  class="font-semibold underline decoration-rule-strong hover:decoration-current"
+                >
+                  {globalErrorAction.label}
+                </a>
+              </>
+            )}
+          </DashboardBanner>
         </div>
       )}
       {globalSuccess && (
@@ -379,8 +446,27 @@ const inputError = `${inputBase} border-danger`;
 
       {/* =============================== STEP 1 =============================== */}
       {currentStep === 1 && (
+        <>
+          <p class="mt-6 text-xs text-ink-soft">
+            Updating an existing plugin? <a href="/dashboard" class="underline decoration-rule-strong hover:text-ink">See your plugins</a> and upload a new version there — keeps everything under one record and re-audits automatically.
+          </p>
+
+          {similarPluginWarning && (
+            <div class="mt-4">
+              <DashboardBanner type="warn" message="">
+                <p class="font-semibold">Looks similar to one of your existing plugins.</p>
+                <p class="mt-1">
+                  This is close to <a href={`/dashboard/plugins/${encodeURIComponent(similarPluginWarning.matchedId)}`} class="underline decoration-rule-strong hover:decoration-current">{similarPluginWarning.matchedName}</a>. If this is genuinely a different plugin, submit again to confirm. If it's the same project with a tweaked name, <a href={`/dashboard/plugins/${encodeURIComponent(similarPluginWarning.matchedId)}/upload`} class="underline decoration-rule-strong hover:decoration-current font-semibold">upload a new version on the existing plugin</a> instead.
+                </p>
+              </DashboardBanner>
+            </div>
+          )}
+
         <form method="POST" class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-5">
           <input type="hidden" name="_step" value="1" />
+          {similarPluginWarning && (
+            <input type="hidden" name="acknowledged_similar" value={similarPluginWarning.matchedId} />
+          )}
 
           {/* Plugin ID */}
           <div>
@@ -511,6 +597,7 @@ const inputError = `${inputBase} border-danger`;
             Continue to Version Setup
           </Button>
         </form>
+        </>
       )}
 
       {/* =============================== STEP 2 =============================== */}
