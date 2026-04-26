@@ -100,6 +100,9 @@ const severityStyle = (severity: string) => {
               <Button type="submit" variant="primary" size="md">Restore</Button>
             </form>
           )}
+          <form method="POST" data-admin-action="merge" data-plugin-id={encodeURIComponent(plugin.id)}>
+            <Button type="submit" variant="secondary" size="md" title="Collapse this plugin into a canonical sibling — hides it from listings but keeps the row for audit trail">Merge into…</Button>
+          </form>
           <form method="POST" data-admin-action="delete" data-plugin-id={encodeURIComponent(plugin.id)}>
             <Button type="submit" variant="destructive" size="md">Delete</Button>
           </form>
@@ -443,16 +446,34 @@ document.querySelectorAll('[data-admin-action]').forEach((form) => {
     if (!pluginId) return;
     if (action === 'delete' && !confirm(`Permanently delete "${pluginId}"? This cannot be undone.`)) return;
     if (action === 'revoke' && !confirm(`Revoke "${pluginId}"? It will be hidden from public listings.`)) return;
+
+    let body: BodyInit | undefined;
+    let headers: HeadersInit | undefined;
+    if (action === 'merge') {
+      const target = prompt(
+        `Merge "${decodeURIComponent(pluginId)}" into another plugin.\n\nEnter the canonical plugin ID to merge into (must belong to the same author):`,
+      );
+      if (target === null) return;
+      const trimmed = target.trim();
+      if (!trimmed) {
+        alert('Target plugin ID is required.');
+        return;
+      }
+      if (!confirm(`Merge "${decodeURIComponent(pluginId)}" into "${trimmed}"? The original will be hidden from listings.`)) return;
+      body = JSON.stringify({ targetPluginId: trimmed });
+      headers = { 'Content-Type': 'application/json' };
+    }
+
     const url = action === 'delete'
       ? `/api/v1/admin/plugins/${pluginId}`
       : `/api/v1/admin/plugins/${pluginId}/${action}`;
     const method = action === 'delete' ? 'DELETE' : 'POST';
-    const res = await fetch(url, { method });
+    const res = await fetch(url, { method, body, headers });
     if (res.ok) {
       window.location.reload();
     } else {
-      const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
-      alert(`Failed: ${body.error}`);
+      const responseBody = await res.json().catch(() => ({ error: 'Unknown error' })) as { error: string };
+      alert(`Failed: ${responseBody.error}`);
     }
   });
 });

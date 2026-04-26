@@ -84,6 +84,9 @@ export async function searchPlugins(
   // discovery surfaces entirely. Deprecated plugins remain visible but
   // are demoted via the secondary ORDER BY below.
   conditions.push("p.unlisted_at IS NULL");
+  // Phase 18 — merged-away plugins (collapsed duplicates) stay in D1
+  // for audit trail but are hidden from every public surface.
+  conditions.push("p.merged_into IS NULL");
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
@@ -189,6 +192,7 @@ export async function getPluginDetail(
          JOIN authors a ON p.author_id = a.id
          LEFT JOIN plugins s ON s.id = p.successor_id
          WHERE p.id = ?
+           AND p.merged_into IS NULL
            AND (
              COALESCE(p.status, 'active') = 'revoked'
              OR EXISTS (
@@ -327,6 +331,7 @@ export async function getPublicPluginsByAuthor(
        WHERE p.author_id = ?
          AND COALESCE(p.status, 'active') = 'active'
          AND p.unlisted_at IS NULL
+         AND p.merged_into IS NULL
          AND EXISTS (
            SELECT 1 FROM plugin_versions pv0
            WHERE pv0.plugin_id = p.id AND pv0.status IN ('published', 'flagged')
@@ -429,6 +434,7 @@ export async function getPluginsByAuthor(
          ORDER BY pv.created_at DESC LIMIT 1) AS latest_status
       FROM plugins p
       WHERE p.author_id = ?
+        AND p.merged_into IS NULL
       ORDER BY p.updated_at DESC`,
     )
     .bind(authorId)

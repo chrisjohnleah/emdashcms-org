@@ -160,6 +160,7 @@ export async function searchSuccessorCandidates(
        WHERE p.id != ?
          AND p.deprecated_at IS NULL
          AND p.unlisted_at IS NULL
+         AND p.merged_into IS NULL
          AND (p.name LIKE ? COLLATE NOCASE OR p.id LIKE ? COLLATE NOCASE)
          AND EXISTS (
            SELECT 1 FROM plugin_versions pv

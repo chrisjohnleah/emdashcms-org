@@ -85,6 +85,94 @@ export async function setPluginStatus(
   return result.meta.changes > 0;
 }
 
+export type MergePluginsResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Collapse `sourcePluginId` into `targetPluginId`. The source row stays
+ * in D1 (so historical links and audit trail survive) but is hidden
+ * from listings via `merged_into IS NOT NULL`. Install counts are
+ * summed onto the target. Both plugins must belong to the same
+ * author — cross-author merges require a separate admin-driven
+ * dispute path that's out of scope here.
+ *
+ * Idempotent on the action itself (re-running with the same source
+ * is a no-op-ish UPDATE) but the caller should not depend on that;
+ * the endpoint surfaces a clear error when the source is already
+ * merged so admins don't double-emit notifications.
+ */
+export async function mergePlugins(
+  db: D1Database,
+  sourcePluginId: string,
+  targetPluginId: string,
+  adminAuthorId: string,
+): Promise<MergePluginsResult> {
+  if (sourcePluginId === targetPluginId) {
+    return { ok: false, error: "Cannot merge a plugin into itself." };
+  }
+
+  const source = await db
+    .prepare(
+      `SELECT id, author_id, installs_count, merged_into FROM plugins WHERE id = ?`,
+    )
+    .bind(sourcePluginId)
+    .first<{
+      id: string;
+      author_id: string;
+      installs_count: number;
+      merged_into: string | null;
+    }>();
+  if (!source) return { ok: false, error: "Source plugin not found." };
+  if (source.merged_into) {
+    return {
+      ok: false,
+      error: `Source is already merged into ${source.merged_into}.`,
+    };
+  }
+
+  const target = await db
+    .prepare(`SELECT id, author_id, merged_into FROM plugins WHERE id = ?`)
+    .bind(targetPluginId)
+    .first<{ id: string; author_id: string; merged_into: string | null }>();
+  if (!target) return { ok: false, error: "Target plugin not found." };
+  if (target.merged_into) {
+    return {
+      ok: false,
+      error: `Target is itself merged into ${target.merged_into}; pick the canonical row.`,
+    };
+  }
+  if (target.author_id !== source.author_id) {
+    return {
+      ok: false,
+      error: "Source and target must belong to the same author.",
+    };
+  }
+
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE plugins
+         SET installs_count = installs_count + ?,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = ?`,
+      )
+      .bind(source.installs_count, targetPluginId),
+    db
+      .prepare(
+        `UPDATE plugins
+         SET merged_into = ?,
+             merged_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+             merged_by = ?,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = ?`,
+      )
+      .bind(targetPluginId, adminAuthorId, sourcePluginId),
+  ]);
+
+  return { ok: true };
+}
+
 export async function deletePlugin(
   db: D1Database,
   pluginId: string,

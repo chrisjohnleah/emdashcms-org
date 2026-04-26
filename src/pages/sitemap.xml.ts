@@ -55,6 +55,7 @@ async function fetchPluginsKeyset(db: D1Database): Promise<CatalogRow[]> {
     FROM plugins
     WHERE COALESCE(status, 'active') = 'active'
       AND unlisted_at IS NULL
+      AND merged_into IS NULL
       AND EXISTS (
         SELECT 1 FROM plugin_versions pv
         WHERE pv.plugin_id = plugins.id
@@ -122,6 +123,7 @@ async function fetchPluginCategories(db: D1Database): Promise<CategoryRow[]> {
        WHERE category IS NOT NULL
          AND COALESCE(status, 'active') = 'active'
          AND unlisted_at IS NULL
+      AND merged_into IS NULL
          AND EXISTS (
            SELECT 1 FROM plugin_versions pv
            WHERE pv.plugin_id = plugins.id
