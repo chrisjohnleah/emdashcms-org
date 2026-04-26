@@ -363,3 +363,67 @@ export async function incrementRetryCount(
     .bind(versionId)
     .run();
 }
+
+// --- Content Dedup ---
+
+export interface ChecksumMatch {
+  pluginId: string;
+  pluginName: string;
+  authorId: string;
+  ownedBySameAuthor: boolean;
+}
+
+/**
+ * Look up any prior version (across all plugins) that shares the given
+ * tarball checksum. Used at registration time to block byte-identical
+ * resubmissions under a fresh slug — observed in production where
+ * authors worked around audit failures by re-registering instead of
+ * uploading a corrected version against the existing plugin.
+ *
+ * Skips versions belonging to merged-away plugins so a previously
+ * collapsed duplicate doesn't permanently poison the slug.
+ */
+export async function findChecksumCollision(
+  db: D1Database,
+  checksum: string,
+  uploaderAuthorId: string,
+): Promise<ChecksumMatch | null> {
+  const row = await db
+    .prepare(
+      `SELECT p.id AS plugin_id, p.name AS plugin_name, p.author_id
+       FROM plugin_versions pv
+       JOIN plugins p ON p.id = pv.plugin_id
+       WHERE pv.checksum = ?
+         AND p.merged_into IS NULL
+       LIMIT 1`,
+    )
+    .bind(checksum)
+    .first<{ plugin_id: string; plugin_name: string; author_id: string }>();
+
+  if (!row) return null;
+  return {
+    pluginId: row.plugin_id,
+    pluginName: row.plugin_name,
+    authorId: row.author_id,
+    ownedBySameAuthor: row.author_id === uploaderAuthorId,
+  };
+}
+
+/**
+ * Fetch the author's own plugin slugs and names for client-side similarity
+ * checks at registration. Excludes merged-away plugins so the author isn't
+ * blocked by their own collapsed duplicates.
+ */
+export async function getAuthorPluginSlugs(
+  db: D1Database,
+  authorId: string,
+): Promise<{ id: string; name: string }[]> {
+  const result = await db
+    .prepare(
+      `SELECT id, name FROM plugins
+       WHERE author_id = ? AND merged_into IS NULL`,
+    )
+    .bind(authorId)
+    .all<{ id: string; name: string }>();
+  return result.results ?? [];
+}
