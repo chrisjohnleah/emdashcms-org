@@ -81,6 +81,7 @@ async function tryEmitAuditNotification(
   riskScore: number,
   findingCount: number,
   errorMessage?: string,
+  topFindings?: { severity: string; title: string }[],
 ): Promise<void> {
   if (!bindings.notifQueue) return;
   try {
@@ -97,6 +98,7 @@ async function tryEmitAuditNotification(
       riskScore,
       findingCount,
       errorMessage,
+      topFindings,
     });
   } catch (err) {
     console.error(
@@ -261,6 +263,34 @@ function staticFindingToMarketplace(f: StaticFinding): MarketplaceAuditFinding {
   };
 }
 
+const SEVERITY_RANK: Record<string, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  info: 4,
+};
+
+/**
+ * Pick the N most severe findings for inclusion in notification
+ * payloads. Stable for ties — preserves source order so authors see
+ * the same first-3 the dashboard would show. Defensive against
+ * unknown severity strings (treated as least severe).
+ */
+function pickTopFindings(
+  findings: { severity: string; title: string }[],
+  limit = 3,
+): { severity: string; title: string }[] {
+  return [...findings]
+    .sort(
+      (a, b) =>
+        (SEVERITY_RANK[a.severity.toLowerCase()] ?? 99) -
+        (SEVERITY_RANK[b.severity.toLowerCase()] ?? 99),
+    )
+    .slice(0, limit)
+    .map((f) => ({ severity: f.severity, title: f.title }));
+}
+
 /**
  * Compute a coarse risk score from static findings alone, used when no
  * AI verdict is available. Each high finding adds 25, medium 10, low 3,
@@ -414,6 +444,8 @@ export async function processAuditJob(
         "fail",
         staticScore,
         staticFindings.length,
+        undefined,
+        pickTopFindings(staticFindings.map(staticFindingToMarketplace)),
       );
       return { verdict: null, status: "complete", neuronsUsed: 0 };
     }
@@ -456,6 +488,8 @@ export async function processAuditJob(
       hasSoftFindings ? "warn" : "pass",
       staticScore,
       staticFindings.length,
+      undefined,
+      pickTopFindings(staticFindings.map(staticFindingToMarketplace)),
     );
     return { verdict: null, status: "complete", neuronsUsed: 0 };
   }
@@ -813,6 +847,8 @@ export async function processAuditJob(
     parsed.verdict,
     parsed.riskScore,
     mergedFindings.length,
+    undefined,
+    pickTopFindings(mergedFindings),
   );
 
   return { verdict: parsed.verdict, status: "complete", neuronsUsed };

@@ -43,6 +43,12 @@ export interface EmitAuditNotificationParams {
   riskScore: number;
   findingCount: number;
   errorMessage?: string;
+  /**
+   * Up to 3 highest-severity findings, surfaced in the audit_fail
+   * email body so the publisher can act without round-tripping to
+   * the dashboard. Caller is responsible for slicing + ordering.
+   */
+  topFindings?: { severity: string; title: string }[];
 }
 
 function verdictToEventType(
@@ -110,6 +116,7 @@ export async function emitAuditNotification(
           riskScore: params.riskScore,
           findingCount: params.findingCount,
           errorMessage: params.errorMessage ?? null,
+          topFindings: params.topFindings ?? [],
         },
       };
       await enqueueNotificationJob(queue, job);

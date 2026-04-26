@@ -121,7 +121,26 @@ function renderForJob(job: NotificationJob): RenderedEmail {
   const dashboardUrl = `${DASHBOARD_BASE}/settings/notifications`;
 
   switch (job.eventType) {
-    case "audit_fail":
+    case "audit_fail": {
+      // Build a per-plugin upload URL so the email's primary CTA goes
+      // directly to the upload-new-version page on this plugin — the
+      // intended remediation path. Falls back to the generic dashboard
+      // URL only if the entityId is somehow missing from the job.
+      const uploadUrl = job.entityId
+        ? `${DASHBOARD_BASE}/plugins/${encodeURIComponent(job.entityId)}/upload`
+        : dashboardUrl;
+      const rawFindings = Array.isArray(payload.topFindings)
+        ? (payload.topFindings as unknown[])
+        : [];
+      const topFindings = rawFindings
+        .filter(
+          (f): f is { severity: unknown; title: unknown } =>
+            typeof f === "object" && f !== null,
+        )
+        .map((f) => ({
+          severity: String(f.severity ?? "info"),
+          title: String(f.title ?? "Untitled finding"),
+        }));
       return renderAuditFail({
         pluginName: String(payload.pluginName ?? ""),
         version: String(payload.version ?? ""),
@@ -129,7 +148,10 @@ function renderForJob(job: NotificationJob): RenderedEmail {
         riskScore: Number(payload.riskScore ?? 0),
         findingCount: Number(payload.findingCount ?? 0),
         dashboardUrl,
+        uploadUrl,
+        topFindings,
       });
+    }
     case "audit_error":
       return renderAuditError({
         pluginName: String(payload.pluginName ?? ""),

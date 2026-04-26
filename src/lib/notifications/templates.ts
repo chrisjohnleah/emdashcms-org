@@ -76,19 +76,45 @@ export interface AuditFailParams {
   riskScore: number;
   findingCount: number;
   dashboardUrl: string;
+  /** Top 3 findings to preview inline so the author has actionable
+   *  context without needing to click through to the dashboard. */
+  topFindings?: { severity: string; title: string }[];
+  /** Direct link to upload a corrected version against this plugin.
+   *  Optional for backwards compatibility — falls back to dashboardUrl. */
+  uploadUrl?: string;
 }
 
 export function renderAuditFail(p: AuditFailParams): RenderedEmail {
   const name = escapeHtml(p.pluginName);
   const ver = escapeHtml(p.version);
   const url = escapeHtml(p.dashboardUrl);
+  const upload = escapeHtml(p.uploadUrl ?? p.dashboardUrl);
+
+  const findingsHtml = p.topFindings && p.topFindings.length > 0
+    ? `<p style="margin: 16px 0 8px;"><strong>Top findings:</strong></p>
+<ul>
+${p.topFindings
+  .map(
+    (f) =>
+      `  <li><strong>${escapeHtml(f.severity.toUpperCase())}</strong> &mdash; ${escapeHtml(f.title)}</li>`,
+  )
+  .join("\n")}
+</ul>`
+    : "";
+
+  const findingsText = p.topFindings && p.topFindings.length > 0
+    ? `\nTop findings:\n${p.topFindings.map((f) => `  - ${f.severity.toUpperCase()} — ${f.title}`).join("\n")}\n`
+    : "";
+
   const body = `<h1 style="font-size: 20px; margin: 0 0 16px;">Audit failed for ${name} ${ver}</h1>
 <p>The automated code audit returned a <strong>fail</strong> verdict. This version has been rejected — no downloads are being served.</p>
 <ul>
   <li>Risk score: ${p.riskScore}/100</li>
   <li>Findings: ${p.findingCount}</li>
 </ul>
-<p><a href="${url}">Review findings in the dashboard</a></p>`;
+${findingsHtml}
+<p>When you've made changes, <a href="${upload}">upload a new version on the same plugin</a> &mdash; the audit re-runs automatically. Don't register a new plugin for the fix; that creates a duplicate.</p>
+<p><a href="${url}">Review full findings in the dashboard</a></p>`;
   return {
     subject: `[EmDash] audit fail: ${p.pluginName} ${p.version}`,
     html: htmlShell(body),
@@ -98,7 +124,10 @@ The automated code audit returned a fail verdict. This version has been rejected
 
 - Risk score: ${p.riskScore}/100
 - Findings: ${p.findingCount}
+${findingsText}
+When you've made changes, upload a new version on the same plugin — the audit re-runs automatically. Don't register a new plugin for the fix; that creates a duplicate.
 
+Upload a fix: ${p.uploadUrl ?? p.dashboardUrl}
 Review in dashboard: ${p.dashboardUrl}${textFooter()}`,
   };
 }
