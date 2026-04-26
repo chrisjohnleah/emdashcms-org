@@ -647,6 +647,17 @@ document.getElementById('repo_select')?.addEventListener('change', function (thi
           )}
         </div>
 
+        {versions.length > 0 && versions[0].status === 'rejected' && isMaintainer && (
+          <div class="mt-4">
+            <DashboardBanner type="warn" message="">
+              <p class="font-semibold">Your latest version was rejected.</p>
+              <p class="mt-1">
+                Make changes locally, then <a href={'/dashboard/plugins/' + encodeURIComponent(pluginId!) + '/upload'} class="underline decoration-rule-strong hover:decoration-current font-semibold">upload a fixed version</a> on this plugin — the audit re-runs automatically. Don't register a new plugin for the fix; that creates a duplicate.
+              </p>
+            </DashboardBanner>
+          </div>
+        )}
+
         {versions.length === 0 ? (
           <p class="mt-4 text-sm text-ink-muted">No versions uploaded yet.</p>
         ) : (

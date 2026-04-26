@@ -140,22 +140,33 @@ const severityClasses = (severity: string) => {
             </div>
 
             {versionDetail.status === 'rejected' && (
-              <div class="mt-4 pt-4 border-t border-rule flex items-center justify-between">
+              <div class="mt-4 pt-4 border-t border-rule flex items-center justify-between gap-4">
                 <p class="text-sm text-ink-muted">
                   {versionDetail.retryCount} of 3 retry attempts used
                 </p>
                 {versionDetail.latestAuditModel === 'static-only' ? (
-                  <p class="text-sm text-ink-soft">
-                    Static-scanner rejection — upload a corrected bundle.
-                  </p>
-                ) : isMaintainer && versionDetail.retryCount < 3 ? (
-                  <form method="POST" class="inline">
-                    <Button type="submit" variant="destructive" size="md">
-                      Retry Audit
+                  isMaintainer ? (
+                    <Button href={`/dashboard/plugins/${encodeURIComponent(pluginId!)}/upload`} variant="primary" size="md">
+                      Upload a fixed version
                     </Button>
-                  </form>
-                ) : versionDetail.retryCount >= 3 ? (
-                  <p class="text-sm text-danger">Maximum retries reached. Upload a new version.</p>
+                  ) : (
+                    <p class="text-sm text-ink-soft">Static-scanner rejection — a maintainer needs to upload a corrected bundle.</p>
+                  )
+                ) : isMaintainer && versionDetail.retryCount < 3 ? (
+                  <div class="flex items-center gap-2">
+                    <form method="POST" class="inline">
+                      <Button type="submit" variant="destructive" size="md">
+                        Retry Audit
+                      </Button>
+                    </form>
+                    <Button href={`/dashboard/plugins/${encodeURIComponent(pluginId!)}/upload`} variant="secondary" size="md">
+                      Upload a fixed version
+                    </Button>
+                  </div>
+                ) : versionDetail.retryCount >= 3 && isMaintainer ? (
+                  <Button href={`/dashboard/plugins/${encodeURIComponent(pluginId!)}/upload`} variant="primary" size="md">
+                    Upload a fixed version
+                  </Button>
                 ) : null}
               </div>
             )}
