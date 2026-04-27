@@ -158,6 +158,28 @@ const description = 'Everything you need to know to publish a plugin or theme on
         </ul>
       </section>
 
+      <!-- CLI publish -->
+      <section class="mb-16" id="publish-from-the-cli">
+        <h2 class="text-2xl text-ink mt-12 mb-4">Publish from the CLI</h2>
+        <p class="text-ink-muted mb-4 max-w-prose">
+          The upstream <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">emdash</code> CLI on npm can publish straight to this marketplace when you point it at <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">--registry https://emdashcms.org</code>. Authentication uses GitHub's device flow — the CLI prints a code, you authorise once in the browser, and credentials are cached locally.
+        </p>
+        <p class="text-ink-muted mb-4 max-w-prose">
+          One-time login:
+        </p>
+        <pre class="text-sm bg-paper-sunk text-ink rounded-lg p-4 mb-4 overflow-x-auto"><code>npx emdash plugin login --registry https://emdashcms.org</code></pre>
+        <p class="text-ink-muted mb-4 max-w-prose">
+          Bundle and publish from your plugin directory:
+        </p>
+        <pre class="text-sm bg-paper-sunk text-ink rounded-lg p-4 mb-4 overflow-x-auto"><code>npx emdash plugin bundle
+npx emdash plugin publish --registry https://emdashcms.org</code></pre>
+        <ul class="list-disc pl-6 space-y-1.5 text-sm text-ink-muted max-w-prose">
+          <li>Credentials are cached per registry — your emdashcms.org login is independent from any session you have with the upstream <code class="text-ink bg-paper-sunk px-1 rounded">marketplace.emdashcms.com</code>.</li>
+          <li>The CLI hits the same audit pipeline as dashboard uploads and the GitHub auto-submit flow — no shortcuts.</li>
+          <li>Same rate limits apply: 5 uploads/day per author, 10 audit runs/day.</li>
+        </ul>
+      </section>
+
       <!-- Version management -->
       <section class="mb-16">
         <h2 class="text-2xl text-ink mt-12 mb-4">Version management</h2>

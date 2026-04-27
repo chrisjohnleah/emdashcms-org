@@ -127,6 +127,10 @@ if (Astro.request.method === 'POST') {
         Upload Version
       </h1>
 
+      <p class="mt-3 text-sm text-ink-soft max-w-prose">
+        Prefer the terminal? Run <code class="text-ink bg-paper-sunk px-1 rounded">npx emdash plugin publish --registry https://emdashcms.org</code> — see the <a href="/docs/contributors#publish-from-the-cli" class="text-ink underline hover:opacity-80">CLI publishing docs</a>.
+      </p>
+
       {error && (
         <div class="mt-6">
           <DashboardBanner type="error" message={error} />
