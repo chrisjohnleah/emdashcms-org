@@ -28,7 +28,12 @@ export const GET: APIRoute = () => {
       clientId: env.GITHUB_CLIENT_ID,
     },
     marketplace: {
-      deviceTokenEndpoint: "/api/v1/auth/device/token",
+      // The CLI completes the GitHub device flow itself, then POSTs the
+      // resulting GitHub access_token here for a marketplace JWT. This
+      // is NOT the RFC 8628 token endpoint (that lives at
+      // /api/v1/auth/device/token and is advertised separately for
+      // agents that want a server-side device-flow proxy).
+      deviceTokenEndpoint: "/api/v1/auth/cli/exchange",
     },
   });
 };

@@ -30,7 +30,7 @@ describe("GET /api/v1/auth/discovery", () => {
     expect(typeof body.github.clientId).toBe("string");
 
     expect(body.marketplace.deviceTokenEndpoint).toBe(
-      "/api/v1/auth/device/token",
+      "/api/v1/auth/cli/exchange",
     );
   });
 });
