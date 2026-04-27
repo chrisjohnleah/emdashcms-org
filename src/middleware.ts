@@ -1,7 +1,7 @@
 import { defineMiddleware, sequence } from "astro:middleware";
 import { env } from "cloudflare:workers";
 import { verifySessionToken } from "./lib/auth/jwt";
-import { getSessionToken } from "./lib/auth/session";
+import { getBearerToken, getSessionToken } from "./lib/auth/session";
 import { isProtectedRoute } from "./lib/auth/protected-routes";
 import { checkRateLimit } from "./lib/downloads/rate-limit";
 import { errorResponse } from "./lib/api/response";
@@ -72,6 +72,13 @@ const csrfProtection = defineMiddleware(async ({ request, url }, next) => {
   // Device code flow is for non-browser clients (CLI). It uses a short-lived
   // user_code and HMAC-style token exchange — no cookies, no CSRF surface.
   if (url.pathname.startsWith("/api/v1/auth/device/")) return next();
+
+  // Bearer-authenticated requests are non-browser clients (the upstream
+  // `emdash` CLI, server-to-server callers). They don't ride on cookies,
+  // so the cookie-confused-deputy attack CSRF defends against doesn't
+  // exist for them. Skipping the Origin check lets the CLI publish from
+  // any host without us having to enumerate them.
+  if (getBearerToken(request)) return next();
 
   const isMutationTarget =
     url.pathname.startsWith("/dashboard") ||
@@ -190,7 +197,14 @@ const rateLimit = defineMiddleware(async ({ request, url }, next) => {
 
 const auth = defineMiddleware(
   async ({ request, cookies, locals, url, redirect }, next) => {
-    const token = getSessionToken(cookies);
+    // Cookie session takes precedence — that's the dashboard's normal
+    // path. Fall back to a Bearer token from the Authorization header so
+    // the upstream `emdash` CLI (and any other non-browser caller) can
+    // authenticate against the same protected endpoints.
+    const cookieToken = getSessionToken(cookies);
+    const headerToken = cookieToken ? null : getBearerToken(request);
+    const token = cookieToken ?? headerToken;
+
     if (token) {
       try {
         const payload = await verifySessionToken(token);
@@ -200,7 +214,10 @@ const auth = defineMiddleware(
           username: payload.username,
         };
       } catch {
-        cookies.delete("session", { path: "/" });
+        // Cookie source: clear the bad cookie so the user re-authenticates
+        // on the next page load. Header source: just leave locals.author
+        // unset — the CLI will see a 401 and prompt re-login.
+        if (cookieToken) cookies.delete("session", { path: "/" });
       }
     }
 

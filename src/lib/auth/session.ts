@@ -34,6 +34,19 @@ export function getSessionToken(cookies: AstroCookies): string | null {
 }
 
 /**
+ * Extract a Bearer token from an `Authorization` header, or null if the
+ * header is missing or doesn't use the Bearer scheme. Used to pick up
+ * non-cookie sessions from CLI clients (e.g. the upstream `emdash` CLI).
+ */
+export function getBearerToken(request: Request): string | null {
+  const header = request.headers.get("Authorization");
+  if (!header) return null;
+  const [scheme, token] = header.split(" ", 2);
+  if (scheme !== "Bearer" || !token) return null;
+  return token;
+}
+
+/**
  * Clear the session cookie (logout).
  */
 export function clearSessionCookie(cookies: AstroCookies): void {
