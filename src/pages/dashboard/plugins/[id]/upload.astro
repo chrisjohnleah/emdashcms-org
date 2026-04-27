@@ -49,7 +49,7 @@ if (Astro.request.method === 'POST') {
     const tsResult = await verifyTurnstile(tsToken, env.TURNSTILE_SECRET_KEY, tsIp);
     if (!tsResult.success) throw new Error('Challenge verification failed. Please try again.');
 
-    const file = data.get('tarball');
+    const file = data.get('bundle');
     if (!(file instanceof File)) {
       throw new Error('Please select a .tgz file to upload.');
     }
@@ -135,16 +135,16 @@ if (Astro.request.method === 'POST') {
 
       <form method="POST" enctype="multipart/form-data" class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
         <div>
-          <label for="tarball" class="block text-sm font-semibold text-ink">
+          <label for="bundle" class="block text-sm font-semibold text-ink">
             Plugin bundle (.tgz) *
           </label>
           <p class="mt-1 text-xs text-ink-soft">
-            Upload a .tgz tarball built with emdash plugin build
+            Upload a .tgz tarball built with emdash plugin bundle
           </p>
           <input
             type="file"
-            id="tarball"
-            name="tarball"
+            id="bundle"
+            name="bundle"
             accept=".tgz,application/gzip"
             aria-required="true"
             class="mt-2 block w-full text-sm text-ink-muted file:mr-4 file:rounded-lg file:border-0 file:bg-paper-sunk file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:bg-paper-deep focus:outline-none"

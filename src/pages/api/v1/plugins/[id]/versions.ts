@@ -72,14 +72,13 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
       );
     }
 
-    // Step 6: Parse multipart form
+    // Step 6: Parse multipart form. Field name is "bundle" — matches the
+    // upstream emdash CLI's `formData.append("bundle", ...)` and the
+    // dashboard's hidden form field.
     const formData = await request.formData();
-    const file = formData.get("tarball");
+    const file = formData.get("bundle");
     if (!(file instanceof File))
-      return errorResponse(
-        400,
-        "Missing tarball file in form field 'tarball'",
-      );
+      return errorResponse(400, "Missing bundle file in form field 'bundle'");
 
     // Steps 7-11: Validate bundle (compressed size, extract, manifest, constraints, supply chain)
     const tarballBytes = await file.arrayBuffer();
@@ -139,12 +138,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     });
     await recordAuthorAuditUsage(env.DB, authorId);
 
-    // Step 16: Return 202 Accepted
+    // Step 16: Return 202 Accepted. checksum + bundleSize are surfaced so
+    // the upstream emdash CLI can echo them after a successful publish.
     return jsonResponse(
       {
         id: versionId,
         version: versionStr,
         status: "pending",
+        checksum: validation.checksum!,
+        bundleSize: validation.stats!.compressedSize,
         message: "Version uploaded, audit queued",
       },
       202,
