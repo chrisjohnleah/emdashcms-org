@@ -73,6 +73,12 @@ const csrfProtection = defineMiddleware(async ({ request, url }, next) => {
   // user_code and HMAC-style token exchange — no cookies, no CSRF surface.
   if (url.pathname.startsWith("/api/v1/auth/device/")) return next();
 
+  // CLI auth bootstrap (access_token → marketplace JWT). Same threat model
+  // as device flow: no cookies sent, no cookie-confused-deputy risk. The
+  // request body is a bearer GitHub access_token validated against GitHub
+  // before we issue anything.
+  if (url.pathname.startsWith("/api/v1/auth/cli/")) return next();
+
   // Bearer-authenticated requests are non-browser clients (the upstream
   // `emdash` CLI, server-to-server callers). They don't ride on cookies,
   // so the cookie-confused-deputy attack CSRF defends against doesn't
