@@ -38,6 +38,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Ensure assets directory exists for vitest-pool-workers
+        # wrangler.jsonc points `assets.directory` at `dist/client`,
+        # which Astro only creates during `astro build`. Tests run
+        # before the build step, so vitest-pool-workers boots against
+        # a non-existent directory and fails with "The directory
+        # specified by the assets.directory field does not exist"
+        # unless we pre-create it. Mirrors the same step in deploy.yml.
+        run: mkdir -p dist/client
+
       - name: Run tests
         run: npm test
 

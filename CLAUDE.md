@@ -89,3 +89,5 @@ npm run db:seed       # apply seeds/dev.sql locally
 - Schema alignment needed 14 extra columns the initial migration missed
 - STACK.md recommended Hono but ARCHITECTURE.md research overruled it — always verify against codebase
 - .planning/ and .vscode/ must stay in .gitignore — were accidentally committed early on
+- Always apply migrations through `wrangler d1 migrations apply` (local AND remote in the same task) — never via `wrangler d1 execute --file=migrations/...`. Raw `execute` runs the SQL but doesn't insert into `d1_migrations`, so the next `migrations apply` re-runs the file and CI fails with "duplicate column" / "table already exists". Recovery is a manual `INSERT INTO d1_migrations (name) VALUES (...)` against the affected DB.
+- CI workflow (.github/workflows/ci.yml) must `mkdir -p dist/client` before `npm test` — vitest-pool-workers reads wrangler.jsonc and refuses to boot if `assets.directory` doesn't exist. deploy.yml already has this step; keep them in sync.
