@@ -1,4 +1,16 @@
 /**
+ * RBAC for plugin/theme write endpoints. `checkPluginAccess` and
+ * `hasRole` are the public surface — every write route imports from
+ * here.
+ *
+ * The Member identity model (every authenticated user) lives in
+ * `src/lib/members/`. This file imports from there for read-side
+ * queries (`isMemberAuthor`) but does NOT move `checkPluginAccess` —
+ * its `author_id` parameter name matches the D1 column to keep the
+ * wire-aligned naming intentional. See MEMB-07.
+ */
+
+/**
  * Centralized RBAC permission helper for plugin and theme access control.
  *
  * Replaces inline getPluginOwner/getThemeOwner checks across all write endpoints
@@ -68,3 +80,15 @@ export async function checkPluginAccess(
 
   return { found: true, role: collab?.role ?? null };
 }
+
+// --- Member-identity delegation (Phase 23 / MEMB-01, MEMB-02) ---
+//
+// Re-exported so RBAC callers asking "is this member ANY kind of
+// content owner?" can do so without importing two paths. The
+// implementation lives in src/lib/members/derived-roles.ts; the
+// re-export here exists only for ergonomics and to make the delegation
+// discoverable from the RBAC entry-point file. checkPluginAccess SQL,
+// signature, and behaviour are unchanged — see MEMB-07.
+export { isAuthor as isMemberAuthor } from "../members/derived-roles";
+export type { MemberId, AuthorId } from "../members/types";
+
