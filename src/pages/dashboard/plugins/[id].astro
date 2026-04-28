@@ -30,6 +30,7 @@ import {
   type DeprecatePluginError,
 } from '../../../lib/publishing/deprecation-queries';
 import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permissions';
+import { purgeBadges } from '../../../lib/badges/purge';
 import DeprecateModal from '../../../components/DeprecateModal.astro';
 import UnlistModal from '../../../components/UnlistModal.astro';
 import {
@@ -223,19 +224,27 @@ if (Astro.request.method === 'POST') {
           successorName: null,
         };
       } else {
+        // Best-effort regional cache purge so the lifecycle badge does
+        // not stay stale at the edge for ≤1 hour after the state flip
+        // (D-12, D-15). purgeBadges swallows per-URL errors internally
+        // — correctness does not depend on it succeeding.
+        await purgeBadges(new URL(Astro.request.url).origin, pluginId!);
         return Astro.redirect(Astro.url.pathname + '?deprecated=true');
       }
     } else if (action === 'undeprecate') {
       if (!isMaintainer) throw new Error('Maintainer role required to un-deprecate this plugin');
       await undeprecatePlugin(env.DB, pluginId!, authorId);
+      await purgeBadges(new URL(Astro.request.url).origin, pluginId!);
       return Astro.redirect(Astro.url.pathname + '?undeprecated=true');
     } else if (action === 'unlist') {
       if (!isMaintainer) throw new Error('Maintainer role required to unlist this plugin');
       await unlistPlugin(env.DB, pluginId!, authorId);
+      await purgeBadges(new URL(Astro.request.url).origin, pluginId!);
       return Astro.redirect(Astro.url.pathname + '?unlisted=true');
     } else if (action === 'relist') {
       if (!isMaintainer) throw new Error('Maintainer role required to relist this plugin');
       await relistPlugin(env.DB, pluginId!);
+      await purgeBadges(new URL(Astro.request.url).origin, pluginId!);
       return Astro.redirect(Astro.url.pathname + '?relisted=true');
     } else if (action === 'transfer-ownership' && isOwner) {
       const confirmId = (data.get('confirm_plugin_id') as string ?? '').trim();

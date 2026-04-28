@@ -234,13 +234,14 @@ describe("badges/render", () => {
 // ---------------------------------------------------------------------------
 
 describe("badges/metrics", () => {
-  it("BADGE_METRICS exposes the five locked metric names in the D-01 order", () => {
+  it("BADGE_METRICS exposes the locked metric names in order, with lifecycle appended (Phase 22)", () => {
     expect([...BADGE_METRICS]).toEqual([
       "installs",
       "version",
       "trust-tier",
       "audit-verdict",
       "compat",
+      "lifecycle",
     ]);
   });
 
@@ -264,6 +265,8 @@ describe("badges/metrics", () => {
     latestAuditVerdict: null,
     latestAuditModel: null,
     minEmDashVersion: null,
+    deprecatedAt: null,
+    unlistedAt: null,
     ...overrides,
   });
 
@@ -401,6 +404,8 @@ describe("badges/getBadgeData", () => {
     expect(data.latestAuditVerdict).toBeNull();
     expect(data.latestAuditModel).toBeNull();
     expect(data.minEmDashVersion).toBeNull();
+    expect(data.deprecatedAt).toBeNull();
+    expect(data.unlistedAt).toBeNull();
   });
 
   it("hydrates every metric field for a seeded plugin", async () => {
@@ -412,6 +417,8 @@ describe("badges/getBadgeData", () => {
     expect(data.latestAuditVerdict).toBe("pass");
     expect(data.latestAuditModel).toBe("@cf/google/gemma-4-26b-a4b-it");
     expect(data.minEmDashVersion).toBe("1.2.0");
+    expect(data.deprecatedAt).toBeNull();
+    expect(data.unlistedAt).toBeNull();
   });
 
   it("hydrates a scoped-id plugin with null min_emdash_version", async () => {
@@ -438,13 +445,15 @@ describe("badges/getBadgeData", () => {
 // ---------------------------------------------------------------------------
 
 describe("badges/purge", () => {
-  it("calls caches.default.delete for all five metric URLs", async () => {
+  it("calls caches.default.delete for every BADGE_METRICS URL", async () => {
     const deleteSpy = vi
       .spyOn(caches.default, "delete")
       .mockResolvedValue(true);
     try {
       await purgeBadges("https://emdashcms.org", "myplugin");
-      expect(deleteSpy).toHaveBeenCalledTimes(5);
+      // Drive the assertion off BADGE_METRICS so future additions
+      // automatically extend coverage (EHAA-08, D-13).
+      expect(deleteSpy).toHaveBeenCalledTimes(BADGE_METRICS.length);
       const urls = deleteSpy.mock.calls.map((c) => c[0]);
       expect(urls).toEqual(
         BADGE_METRICS.map(
@@ -462,7 +471,7 @@ describe("badges/purge", () => {
       .mockResolvedValue(true);
     try {
       await purgeBadges("https://emdashcms.org", "@scope/name");
-      expect(deleteSpy).toHaveBeenCalledTimes(5);
+      expect(deleteSpy).toHaveBeenCalledTimes(BADGE_METRICS.length);
       for (const [url] of deleteSpy.mock.calls) {
         expect(url).toContain("%40scope%2Fname");
       }
@@ -481,7 +490,7 @@ describe("badges/purge", () => {
       await expect(
         purgeBadges("https://emdashcms.org", "myplugin"),
       ).resolves.toBeUndefined();
-      expect(deleteSpy).toHaveBeenCalledTimes(5);
+      expect(deleteSpy).toHaveBeenCalledTimes(BADGE_METRICS.length);
     } finally {
       deleteSpy.mockRestore();
     }
@@ -671,7 +680,7 @@ describe("embed panel mount", () => {
     expect(openTags.length).toBe(1);
   });
 
-  it("EmbedBadgesPanel renders live <img> previews for all five metrics", () => {
+  it("EmbedBadgesPanel renders live <img> previews for every BADGE_METRICS entry", () => {
     // The preview block maps over BADGE_METRICS and emits an <img>.
     expect(embedPanelSource).toMatch(/<img/);
     expect(embedPanelSource).toMatch(/BADGE_METRICS\.map/);

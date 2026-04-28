@@ -49,6 +49,7 @@ const perBadgeMarkdown: Record<BadgeMetric, string> = {
   "trust-tier": `![${buildAlt("trust-tier")}](${buildUrl("trust-tier")})`,
   "audit-verdict": `![${buildAlt("audit-verdict")}](${buildUrl("audit-verdict")})`,
   compat: `![${buildAlt("compat")}](${buildUrl("compat")})`,
+  lifecycle: `![${buildAlt("lifecycle")}](${buildUrl("lifecycle")})`,
 };
 
 const allMarkdown = BADGE_METRICS.map((m) => perBadgeMarkdown[m]).join("\n");
@@ -63,7 +64,7 @@ const allHtml = BADGE_METRICS.map(
       <h2 class="font-display text-2xl text-ink" style="font-weight: 500;">Embed in README</h2>
       <p class="mt-1.5 text-sm text-ink-muted leading-relaxed">
         Paste any of these snippets into your plugin&rsquo;s README so readers see live
-        installs, trust tier, audit verdict, version, and EmDash compatibility.
+        installs, trust tier, audit verdict, version, EmDash compatibility, and lifecycle.
       </p>
     </div>
     <a
@@ -89,13 +90,13 @@ const allHtml = BADGE_METRICS.map(
     ))}
   </div>
 
-  {/* All-five markdown block */}
+  {/* All-metrics markdown block */}
   <div class="mt-6">
     <label
       for="ebp-md-all"
       class="block text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-2"
     >
-      Markdown (all five)
+      Markdown (all six)
     </label>
     <div class="flex items-start gap-2">
       <textarea
@@ -112,13 +113,13 @@ const allHtml = BADGE_METRICS.map(
     </div>
   </div>
 
-  {/* All-five HTML block */}
+  {/* All-metrics HTML block */}
   <div class="mt-5">
     <label
       for="ebp-html-all"
       class="block text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-2"
     >
-      HTML (all five)
+      HTML (all six)
     </label>
     <div class="flex items-start gap-2">
       <textarea
