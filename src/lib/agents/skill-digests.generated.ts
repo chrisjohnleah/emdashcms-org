@@ -7,5 +7,5 @@
  * after editing any SKILL.md.
  */
 
-// Source: public/.well-known/agent-skills/marketplace-search/SKILL.md (2078 bytes)
-export const MARKETPLACE_SEARCH_SHA256 = "9668e6083191cbe188d02ecba72fc405809025473970eede7d6bf2d2690f0045";
+// Source: public/.well-known/agent-skills/marketplace-search/SKILL.md (3987 bytes)
+export const MARKETPLACE_SEARCH_SHA256 = "2fc5cbc3ccc55707c14dba5c128c4737d2c9ddbea0a950e288dcb2ebea5d8e75";
