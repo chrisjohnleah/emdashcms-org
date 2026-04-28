@@ -3,7 +3,10 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getWeekByIsoWeek } from '../../lib/transparency/transparency-queries';
+import {
+  getWeekByIsoWeek,
+  getLifecycleMetricsStartWeek,
+} from '../../lib/transparency/transparency-queries';
 import { renderTransparencyHtml } from '../../lib/transparency/render';
 import { previousWeek, nextWeek } from '../../lib/transparency/week-boundary';
 
@@ -15,6 +18,10 @@ const ISO_WEEK_RE = /^\d{4}-W\d{2}$/;
 const { iso_week } = Astro.params;
 const valid = typeof iso_week === 'string' && ISO_WEEK_RE.test(iso_week);
 const row = valid ? await getWeekByIsoWeek(env.DB, iso_week!) : null;
+
+// Lifecycle metric start week — null when no row has non-zero lifecycle
+// counters yet (D-08, footnote omitted in that case).
+const startWeek = row ? await getLifecycleMetricsStartWeek(env.DB) : null;
 
 if (!row) {
   Astro.response.status = 404;
@@ -113,7 +120,7 @@ const pageTitle = row
 
           <div class="emdash-divider" aria-hidden="true"></div>
 
-          <div class="space-y-12 mt-6" set:html={renderTransparencyHtml(row)} />
+          <div class="space-y-12 mt-6" set:html={renderTransparencyHtml(row, startWeek)} />
 
           <p class="text-xs text-ink-soft mt-6">
             Weeks run Sunday 00:00 UTC to Sunday 00:00 UTC — aligned with the weekly notification digest.

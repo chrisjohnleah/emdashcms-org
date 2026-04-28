@@ -208,7 +208,10 @@ describe("renderTransparencyHtml — page-layer rendered output", () => {
     // not fall inside that window, every counter is zero but the row is
     // still written — the renderer's headings are what matters here.
     expect(row).not.toBeNull();
-    const html = renderTransparencyHtml(row!);
+    // Pass `null` for startWeek — this assertion is about section
+    // headings and counter values, not the lifecycle footnote (which has
+    // its own dedicated tests below).
+    const html = renderTransparencyHtml(row!, null);
 
     expect(html).toContain("Submissions");
     expect(html).toContain("Audit outcomes");

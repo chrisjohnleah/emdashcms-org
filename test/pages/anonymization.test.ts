@@ -54,7 +54,11 @@ describe("Phase 15 end-to-end anonymization guard", () => {
   it("renderTransparencyHtml output contains zero identifying tokens", async () => {
     const row = await getLatestWeek(env.DB);
     expect(row).not.toBeNull();
-    const html = renderTransparencyHtml(row!);
+    // Pass `null` for startWeek — the existing Phase 15 floor test asserts
+    // the anonymisation invariant without exercising the Phase 22-02
+    // lifecycle footnote (extended TRNS-05 coverage lives in
+    // test/pages/transparency.test.ts).
+    const html = renderTransparencyHtml(row!, null);
     for (const token of IDENTIFYING_TOKENS) {
       expect(html).not.toContain(token);
     }

@@ -3,7 +3,10 @@ export const prerender = false;
 
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { listWeeks } from '../../lib/transparency/transparency-queries';
+import {
+  getLifecycleMetricsStartWeek,
+  listWeeks,
+} from '../../lib/transparency/transparency-queries';
 
 // The cursor param is user-controlled but bound through the prepared
 // statement inside listWeeks(), so a hostile value resolves to an empty
@@ -12,6 +15,11 @@ const cursor = Astro.url.searchParams.get('cursor') ?? undefined;
 const rows = await listWeeks(env.DB, cursor, 52);
 const hasMore = rows.length === 52;
 const nextCursor = hasMore ? rows[rows.length - 1].iso_week : null;
+
+// Lifecycle metric start week — null when no row has non-zero lifecycle
+// counters yet. The footnote (D-08) is omitted entirely in that case
+// rather than printing a placeholder.
+const startWeek = await getLifecycleMetricsStartWeek(env.DB);
 ---
 <BaseLayout
   title="Transparency archive — emdashcms.org"
@@ -44,6 +52,8 @@ const nextCursor = hasMore ? rows[rows.length - 1].iso_week : null;
                 <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Flagged</th>
                 <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Rejected</th>
                 <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Revoked</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Deprecated</th>
+                <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Unlisted</th>
                 <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 px-3">Reports</th>
                 <th scope="col" class="text-right text-xs font-semibold uppercase tracking-wider text-ink-soft py-3 pl-3">Neurons</th>
               </tr>
@@ -71,6 +81,8 @@ const nextCursor = hasMore ? rows[rows.length - 1].iso_week : null;
                     <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_flagged}</td>
                     <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_rejected}</td>
                     <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.versions_revoked}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.deprecations_count}</td>
+                    <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{r.unlists_count}</td>
                     <td class="py-3 px-3 text-right font-mono text-sm text-ink tabular-nums">{reportsTotal}</td>
                     <td class="py-3 pl-3 text-right font-mono text-sm text-ink tabular-nums">{r.neurons_spent}</td>
                   </tr>
@@ -80,6 +92,13 @@ const nextCursor = hasMore ? rows[rows.length - 1].iso_week : null;
           </table>
         </div>
       )}
+
+      {startWeek ? (
+        <p class="text-sm text-ink-soft italic mt-4">
+          Lifecycle metrics began the week of {startWeek}. Earlier weeks show 0 for the
+          Deprecated and Unlisted columns by design — the metric is forward-only.
+        </p>
+      ) : null}
 
       <nav class="mt-12 flex items-center justify-between" aria-label="Archive pagination">
         {cursor ? (

@@ -5,6 +5,7 @@ import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import {
   getLatestWeek,
+  getLifecycleMetricsStartWeek,
   getWeekByIsoWeek,
   listWeeks,
 } from '../../lib/transparency/transparency-queries';
@@ -13,6 +14,10 @@ import { previousWeek } from '../../lib/transparency/week-boundary';
 
 const row = await getLatestWeek(env.DB);
 const allWeeks = row ? await listWeeks(env.DB, undefined, 104) : [];
+
+// Lifecycle metric start week — null when no row has non-zero lifecycle
+// counters yet (D-08, footnote omitted in that case).
+const startWeek = row ? await getLifecycleMetricsStartWeek(env.DB) : null;
 
 // Only look up the prev-week row in D1 when we actually have a latest row —
 // otherwise the page is in its empty state and there's nothing to point at.
@@ -92,7 +97,7 @@ function relativeTime(isoTimestamp: string): string {
 
           <div class="emdash-divider" aria-hidden="true"></div>
 
-          <div class="space-y-12 mt-6" set:html={renderTransparencyHtml(row)} />
+          <div class="space-y-12 mt-6" set:html={renderTransparencyHtml(row, startWeek)} />
 
           <p class="text-xs text-ink-soft mt-6">
             Weeks run Sunday 00:00 UTC to Sunday 00:00 UTC — aligned with the weekly notification digest.

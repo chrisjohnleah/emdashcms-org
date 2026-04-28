@@ -9,10 +9,18 @@ import type { TransparencyWeekRow } from "./transparency-queries";
  * entity tables are seeded with identifying values.
  *
  * Plan 2's `/transparency/index.astro` and `/transparency/[iso_week].astro`
- * consume this via `set:html={renderTransparencyHtml(row)}` inside the
- * BaseLayout chrome.
+ * consume this via `set:html={renderTransparencyHtml(row, startWeek)}`
+ * inside the BaseLayout chrome.
+ *
+ * `startWeek` is the earliest ISO week with non-zero lifecycle counters,
+ * resolved by the caller via `getLifecycleMetricsStartWeek` (Phase 22-02,
+ * D-09 — keeps the renderer pure). When `null`, the lifecycle footnote
+ * is omitted entirely (D-08 — no placeholder text).
  */
-export function renderTransparencyHtml(row: TransparencyWeekRow): string {
+export function renderTransparencyHtml(
+  row: TransparencyWeekRow,
+  startWeek: string | null,
+): string {
   const weekOf = row.iso_week;
   return `
     <section class="space-y-3">
@@ -86,6 +94,27 @@ export function renderTransparencyHtml(row: TransparencyWeekRow): string {
           </tr>
         </tbody>
       </table>
+    </section>
+    <section class="space-y-3">
+      <h2 class="font-display text-2xl text-ink" style="font-weight: 500;">Ecosystem health</h2>
+      <table class="w-full text-left text-sm">
+        <caption class="sr-only">Lifecycle events for the week of ${weekOf}</caption>
+        <tbody>
+          <tr class="border-b border-rule">
+            <th scope="row" class="py-2 text-ink-soft font-normal">Plugins deprecated</th>
+            <td class="py-2 text-ink font-mono tabular-nums text-right">${row.deprecations_count}</td>
+          </tr>
+          <tr class="border-b border-rule">
+            <th scope="row" class="py-2 text-ink-soft font-normal">Plugins unlisted</th>
+            <td class="py-2 text-ink font-mono tabular-nums text-right">${row.unlists_count}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${
+        startWeek
+          ? `<p class="text-sm text-ink-soft italic mt-2">Lifecycle metrics began the week of ${startWeek}.</p>`
+          : ""
+      }
     </section>
     <section class="space-y-3">
       <h2 class="font-display text-2xl text-ink" style="font-weight: 500;">AI cost</h2>

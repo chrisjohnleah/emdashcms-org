@@ -56,7 +56,10 @@ describe("anonymization", () => {
     await runWeeklyTransparency(env);
     const row = await getLatestWeek(env.DB);
     expect(row).not.toBeNull();
-    const html = renderTransparencyHtml(row!);
+    // Pass `null` for startWeek — the existing TRNS-05 test asserts the
+    // anonymisation invariant on the renderer's numeric output without
+    // exercising the lifecycle footnote (covered by Phase 22-02 tests).
+    const html = renderTransparencyHtml(row!, null);
     for (const token of IDENTIFYING_TOKENS) {
       expect(html.includes(token), `rendered HTML contained ${token}`).toBe(
         false,
