@@ -40,6 +40,13 @@ export interface TransparencyWeekRow {
   reports_resolved: number;
   reports_dismissed: number;
   neurons_spent: number;
+  // Phase 22-01 (EHAA-01): event-in-window counters from plugins.deprecated_at
+  // / plugins.unlisted_at. D-02 caveat: undeprecatePlugin clears
+  // deprecated_at = NULL, so a deprecate→undeprecate inside the same
+  // week reads as zero events. Pinned by a unit test; do NOT add an
+  // event log to "fix" this (out of scope per CONTEXT D-02).
+  deprecations_count: number;
+  unlists_count: number;
   created_at: string;
 }
 
@@ -169,6 +176,30 @@ export async function computeWeeklySnapshot(
     .bind(weekStartDate, weekEndDate)
     .first<{ total: number }>();
 
+  // Lifecycle events filed in window (Phase 22-01, D-01). Mirrors the
+  // versions_submitted pattern. D-02 caveat: undeprecatePlugin clears
+  // deprecated_at, so a deprecate→undeprecate inside the same week
+  // reads as zero events here — pinned by a unit test; out of scope
+  // to "fix" via an event log. D-03: bind via weekStart / weekEnd
+  // ISO strings (NOT the YYYY-MM-DD slices reserved for audit_budget).
+  const deprecationsRow = await db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM plugins
+       WHERE deprecated_at IS NOT NULL
+         AND deprecated_at >= ? AND deprecated_at < ?`,
+    )
+    .bind(weekStart, weekEnd)
+    .first<{ c: number }>();
+
+  const unlistsRow = await db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM plugins
+       WHERE unlisted_at IS NOT NULL
+         AND unlisted_at >= ? AND unlisted_at < ?`,
+    )
+    .bind(weekStart, weekEnd)
+    .first<{ c: number }>();
+
   return {
     iso_week: isoWeek,
     week_start: weekStart,
@@ -186,6 +217,8 @@ export async function computeWeeklySnapshot(
     reports_resolved: reportsResolved,
     reports_dismissed: reportsDismissed,
     neurons_spent: neuronsRow?.total ?? 0,
+    deprecations_count: deprecationsRow?.c ?? 0,
+    unlists_count: unlistsRow?.c ?? 0,
   };
 }
 
@@ -198,6 +231,7 @@ export async function upsertTransparencyWeek(
   db: D1Database,
   row: TransparencyWeekSnapshot,
 ): Promise<void> {
+  // 18 columns / 18 placeholders / 18 bind args — keep aligned (D-15).
   await db
     .prepare(
       `INSERT OR REPLACE INTO transparency_weeks
@@ -205,8 +239,9 @@ export async function upsertTransparencyWeek(
          versions_flagged, versions_rejected, versions_revoked,
          reports_filed_security, reports_filed_abuse, reports_filed_broken,
          reports_filed_license, reports_filed_other, reports_resolved,
-         reports_dismissed, neurons_spent)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         reports_dismissed, neurons_spent,
+         deprecations_count, unlists_count)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       row.iso_week,
@@ -225,6 +260,8 @@ export async function upsertTransparencyWeek(
       row.reports_resolved,
       row.reports_dismissed,
       row.neurons_spent,
+      row.deprecations_count,
+      row.unlists_count,
     )
     .run();
 }
@@ -249,6 +286,26 @@ export async function getWeekByIsoWeek(
     .bind(isoWeek)
     .first<TransparencyWeekRow>();
   return row ?? null;
+}
+
+/**
+ * `getLifecycleMetricsStartWeek` — earliest ISO week where lifecycle
+ * counters were non-zero. Used by the transparency renderer
+ * (Phase 22-02) to print a "Lifecycle metrics began the week of
+ * {iso_week}" footnote. Returns null when no row qualifies — the
+ * renderer omits the footnote in that case (CONTEXT D-08).
+ */
+export async function getLifecycleMetricsStartWeek(
+  db: D1Database,
+): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT iso_week FROM transparency_weeks
+       WHERE deprecations_count > 0 OR unlists_count > 0
+       ORDER BY iso_week ASC LIMIT 1`,
+    )
+    .first<{ iso_week: string }>();
+  return row?.iso_week ?? null;
 }
 
 /**
