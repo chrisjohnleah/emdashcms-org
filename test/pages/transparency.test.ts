@@ -15,12 +15,18 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:test";
-import { seedTransparencyFixture } from "../fixtures/transparency-seed";
+import {
+  IDENTIFYING_TOKENS,
+  seedTransparencyFixture,
+} from "../fixtures/transparency-seed";
 import { runWeeklyTransparency } from "../../src/lib/transparency/cron-handler";
 import {
+  computeWeeklySnapshot,
   getLatestWeek,
   getWeekByIsoWeek,
   listWeeks,
+  upsertTransparencyWeek,
+  type TransparencyWeekRow,
 } from "../../src/lib/transparency/transparency-queries";
 import { renderTransparencyHtml } from "../../src/lib/transparency/render";
 import {
@@ -222,5 +228,173 @@ describe("renderTransparencyHtml — page-layer rendered output", () => {
     expect(html).toContain(String(row!.versions_submitted));
     expect(html).toContain(String(row!.versions_published));
     expect(html).toContain(String(row!.neurons_spent));
+  });
+});
+
+/**
+ * Phase 22-02 — "Ecosystem health" section coverage.
+ *
+ * Pins:
+ *   - TRNS-05 anonymisation invariant extends to the new section even when
+ *     plugin rows bear identifying names AND populated deprecated_at /
+ *     unlisted_at (D-11).
+ *   - Both lifecycle counters surface in the rendered HTML from a backfilled
+ *     snapshot (EHAA-03 rendering half).
+ *   - Footnote presence/absence is pinned both ways (D-08, EHAA-04).
+ */
+describe("Phase 22-02 Ecosystem health section", () => {
+  beforeEach(async () => {
+    await resetTables();
+  });
+
+  /**
+   * Build a TransparencyWeekRow literal for renderer-only tests. No D1
+   * round-trip needed; mirrors the production row shape exactly.
+   */
+  function fixedRow(
+    overrides: Partial<TransparencyWeekRow> = {},
+  ): TransparencyWeekRow {
+    return {
+      iso_week: "2026-W17",
+      week_start: "2026-04-26T00:00:00.000Z",
+      week_end: "2026-05-03T00:00:00.000Z",
+      versions_submitted: 0,
+      versions_published: 0,
+      versions_flagged: 0,
+      versions_rejected: 0,
+      versions_revoked: 0,
+      reports_filed_security: 0,
+      reports_filed_abuse: 0,
+      reports_filed_broken: 0,
+      reports_filed_license: 0,
+      reports_filed_other: 0,
+      reports_resolved: 0,
+      reports_dismissed: 0,
+      neurons_spent: 0,
+      deprecations_count: 0,
+      unlists_count: 0,
+      created_at: "2026-05-03T00:10:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("TRNS-05 anonymisation invariant holds for the Ecosystem health section", async () => {
+    // Seed identifying-named plugin rows whose deprecated_at / unlisted_at
+    // fall inside a known window. The TRNS-05 contract: even when these
+    // rows exist, renderTransparencyHtml output must contain zero
+    // identifying tokens — only the integer counters cross the boundary.
+    const weekStart = new Date(Date.UTC(2026, 3, 5, 0, 0, 0)); // Sun 2026-04-05
+    const isoWeek = isoWeekLabelFor(weekStart);
+    const inWindowIso = new Date(
+      weekStart.getTime() + 2 * 86_400_000,
+    ).toISOString(); // Tuesday 00:00 UTC inside window
+
+    // Reuse the broader seed so the existing TRNS-05 tokens are present
+    // alongside the lifecycle-specific identifying values.
+    await seedTransparencyFixture(env.DB, { weekStart });
+
+    // Three plugins with identifying names; one deprecated, one unlisted,
+    // one neither. Use unique ids that do NOT collide with the seed
+    // fixture's PLUGIN_A / PLUGIN_B.
+    const AUTHOR_A = "author-id-TEST-bobby";
+    await env.DB.batch([
+      env.DB
+        .prepare(
+          `INSERT INTO plugins (id, author_id, name, description, capabilities, keywords, installs_count, created_at, updated_at, deprecated_at)
+           VALUES (?, ?, ?, ?, '[]', '[]', 0, ?, ?, ?)`,
+        )
+        .bind(
+          "plugin-id-TEST-lifecycle-a",
+          AUTHOR_A,
+          "christophers-personal-plugin",
+          "Christopher Special",
+          "2026-01-02T00:00:00Z",
+          "2026-01-02T00:00:00Z",
+          inWindowIso,
+        ),
+      env.DB
+        .prepare(
+          `INSERT INTO plugins (id, author_id, name, description, capabilities, keywords, installs_count, created_at, updated_at, unlisted_at)
+           VALUES (?, ?, ?, ?, '[]', '[]', 0, ?, ?, ?)`,
+        )
+        .bind(
+          "plugin-id-TEST-lifecycle-b",
+          AUTHOR_A,
+          "org-internal-tool",
+          "Org Internal Tool",
+          "2026-01-02T00:00:00Z",
+          "2026-01-02T00:00:00Z",
+          inWindowIso,
+        ),
+      env.DB
+        .prepare(
+          `INSERT INTO plugins (id, author_id, name, description, capabilities, keywords, installs_count, created_at, updated_at)
+           VALUES (?, ?, ?, ?, '[]', '[]', 0, ?, ?)`,
+        )
+        .bind(
+          "plugin-id-TEST-lifecycle-c",
+          AUTHOR_A,
+          "normal-plugin",
+          "Normal Plugin",
+          "2026-01-02T00:00:00Z",
+          "2026-01-02T00:00:00Z",
+        ),
+    ]);
+
+    const snapshot = await computeWeeklySnapshot(env.DB, isoWeek);
+    await upsertTransparencyWeek(env.DB, snapshot);
+    const row = await getWeekByIsoWeek(env.DB, isoWeek);
+    expect(row).not.toBeNull();
+    // Sanity: the lifecycle counters reflect the seed (1 deprecation, 1
+    // unlist) — confirms the test exercises the new section meaningfully.
+    expect(row!.deprecations_count).toBe(1);
+    expect(row!.unlists_count).toBe(1);
+
+    const html = renderTransparencyHtml(row!, "2026-W17");
+
+    // Augment the existing IDENTIFYING_TOKENS list with the lifecycle
+    // fixture rows' identifying values. Any leakage of any of these into
+    // the renderer's output is a TRNS-05 invariant violation.
+    const lifecycleTokens = [
+      "christophers-personal-plugin",
+      "Christopher Special",
+      "org-internal-tool",
+      "Org Internal Tool",
+      "plugin-id-TEST-lifecycle-a",
+      "plugin-id-TEST-lifecycle-b",
+      "plugin-id-TEST-lifecycle-c",
+    ];
+    for (const token of [...IDENTIFYING_TOKENS, ...lifecycleTokens]) {
+      expect(
+        html.includes(token),
+        `rendered HTML contained identifying token: ${token}`,
+      ).toBe(false);
+    }
+  });
+
+  it("Ecosystem health section renders both counters from a backfilled snapshot", () => {
+    const row = fixedRow({ deprecations_count: 4, unlists_count: 2 });
+    const html = renderTransparencyHtml(row, "2026-W17");
+
+    expect(html).toContain("Ecosystem health");
+    expect(html).toContain("Plugins deprecated");
+    expect(html).toContain("Plugins unlisted");
+    // Each counter value appears wrapped in a tabular-nums <td> — assert
+    // on the closing-tag context to avoid false matches against any other
+    // place a "4" or "2" might land in the HTML.
+    expect(html).toContain(">4</td>");
+    expect(html).toContain(">2</td>");
+  });
+
+  it("Footnote renders when startWeek is provided", () => {
+    const row = fixedRow({ deprecations_count: 1, unlists_count: 1 });
+    const html = renderTransparencyHtml(row, "2026-W17");
+    expect(html).toContain("Lifecycle metrics began the week of 2026-W17");
+  });
+
+  it("Footnote is omitted when startWeek is null", () => {
+    const row = fixedRow({ deprecations_count: 1, unlists_count: 1 });
+    const html = renderTransparencyHtml(row, null);
+    expect(html.includes("Lifecycle metrics began")).toBe(false);
   });
 });
