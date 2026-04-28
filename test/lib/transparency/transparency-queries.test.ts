@@ -30,12 +30,18 @@ import {
   upsertTransparencyWeek,
   getLatestWeek,
   getWeekByIsoWeek,
+  getLifecycleMetricsStartWeek,
   listWeeks,
 } from "../../../src/lib/transparency/transparency-queries";
 import { seedTransparencyFixture } from "../../fixtures/transparency-seed";
 
 const TEST_WEEK_START = new Date(Date.UTC(2026, 3, 5, 0, 0, 0));
 const TEST_ISO_WEEK = "2026-W14"; // ISO week of Sunday Apr 5 2026
+const TEST_WEEK_END = new Date(Date.UTC(2026, 3, 12, 0, 0, 0));
+
+// Plugin ids from the shared transparency-seed fixture.
+const PLUGIN_A = "plugin-id-TEST-f3a9c1";
+const PLUGIN_B = "plugin-id-TEST-9k2bcd";
 
 async function clearTables() {
   await env.DB.exec(
@@ -159,5 +165,207 @@ describe("getLatestWeek / getWeekByIsoWeek / listWeeks", () => {
   it("listWeeks honours a cursor (returns weeks strictly older than the cursor)", async () => {
     const rows = await listWeeks(env.DB, "2026-W14");
     expect(rows.map((r) => r.iso_week)).toEqual(["2026-W13", "2026-W12"]);
+  });
+});
+
+describe("computeWeeklySnapshot — lifecycle counters (Phase 22-01, EHAA-01)", () => {
+  beforeEach(async () => {
+    await clearTables();
+    await seedTransparencyFixture(env.DB, { weekStart: TEST_WEEK_START });
+  });
+
+  it("counts deprecations filed inside the window (D-01)", async () => {
+    // Two plugins deprecated inside the window — Mon and Wed 12:00 UTC.
+    const monday = new Date(TEST_WEEK_START);
+    monday.setUTCDate(monday.getUTCDate() + 1);
+    monday.setUTCHours(12, 0, 0, 0);
+    const wednesday = new Date(TEST_WEEK_START);
+    wednesday.setUTCDate(wednesday.getUTCDate() + 3);
+    wednesday.setUTCHours(12, 0, 0, 0);
+
+    await env.DB.batch([
+      env.DB
+        .prepare(`UPDATE plugins SET deprecated_at = ? WHERE id = ?`)
+        .bind(monday.toISOString(), PLUGIN_A),
+      env.DB
+        .prepare(`UPDATE plugins SET deprecated_at = ? WHERE id = ?`)
+        .bind(wednesday.toISOString(), PLUGIN_B),
+    ]);
+
+    const snapshot = await computeWeeklySnapshot(env.DB, TEST_ISO_WEEK);
+    expect(snapshot.deprecations_count).toBe(2);
+  });
+
+  it("counts unlists filed inside the window (D-01)", async () => {
+    const friday = new Date(TEST_WEEK_START);
+    friday.setUTCDate(friday.getUTCDate() + 5);
+    friday.setUTCHours(12, 0, 0, 0);
+
+    await env.DB
+      .prepare(`UPDATE plugins SET unlisted_at = ? WHERE id = ?`)
+      .bind(friday.toISOString(), PLUGIN_A)
+      .run();
+
+    const snapshot = await computeWeeklySnapshot(env.DB, TEST_ISO_WEEK);
+    expect(snapshot.unlists_count).toBe(1);
+  });
+
+  it("deprecate-then-undeprecate inside same week reads as zero events (D-02 caveat)", async () => {
+    // Plugin gets deprecated_at set inside window, then undeprecatePlugin
+    // (in production code) clears deprecated_at = NULL. Because we count
+    // event-in-window via deprecated_at, the cleared row reads as zero.
+    const monday = new Date(TEST_WEEK_START);
+    monday.setUTCDate(monday.getUTCDate() + 1);
+    monday.setUTCHours(12, 0, 0, 0);
+
+    await env.DB
+      .prepare(`UPDATE plugins SET deprecated_at = ? WHERE id = ?`)
+      .bind(monday.toISOString(), PLUGIN_A)
+      .run();
+    // Simulate undeprecatePlugin's NULL clear (D-02 caveat).
+    await env.DB
+      .prepare(`UPDATE plugins SET deprecated_at = NULL WHERE id = ?`)
+      .bind(PLUGIN_A)
+      .run();
+
+    const snapshot = await computeWeeklySnapshot(env.DB, TEST_ISO_WEEK);
+    expect(snapshot.deprecations_count).toBe(0);
+  });
+
+  it("boundary handling: deprecation BEFORE weekStart not counted; unlist AT weekEnd not counted (D-03, half-open window)", async () => {
+    // Window is `>= weekStart AND < weekEnd`.
+    // PLUGIN_A: deprecated 1 millisecond before weekStart — must NOT count.
+    const beforeStart = new Date(TEST_WEEK_START.getTime() - 1).toISOString();
+    // PLUGIN_B: unlisted exactly AT weekEnd — must NOT count.
+    const atEnd = TEST_WEEK_END.toISOString();
+
+    await env.DB.batch([
+      env.DB
+        .prepare(`UPDATE plugins SET deprecated_at = ? WHERE id = ?`)
+        .bind(beforeStart, PLUGIN_A),
+      env.DB
+        .prepare(`UPDATE plugins SET unlisted_at = ? WHERE id = ?`)
+        .bind(atEnd, PLUGIN_B),
+    ]);
+
+    const snapshot = await computeWeeklySnapshot(env.DB, TEST_ISO_WEEK);
+    expect(snapshot.deprecations_count).toBe(0);
+    expect(snapshot.unlists_count).toBe(0);
+  });
+});
+
+describe("upsertTransparencyWeek — lifecycle column round-trip (Phase 22-01, D-15)", () => {
+  beforeEach(async () => {
+    await clearTables();
+  });
+
+  it("round-trips non-zero deprecations_count and unlists_count (column/placeholder alignment)", async () => {
+    // D-15: upsert went 16 → 18 columns. Off-by-one between the column
+    // list and the .bind(...) arguments would silently shift values into
+    // the wrong column. Use distinct, distinguishable values for the
+    // two new counters so any drift surfaces immediately.
+    await upsertTransparencyWeek(env.DB, {
+      iso_week: "2026-W20",
+      week_start: "2026-05-17T00:00:00Z",
+      week_end: "2026-05-24T00:00:00Z",
+      versions_submitted: 11,
+      versions_published: 12,
+      versions_flagged: 13,
+      versions_rejected: 14,
+      versions_revoked: 15,
+      reports_filed_security: 16,
+      reports_filed_abuse: 17,
+      reports_filed_broken: 18,
+      reports_filed_license: 19,
+      reports_filed_other: 20,
+      reports_resolved: 21,
+      reports_dismissed: 22,
+      neurons_spent: 23,
+      deprecations_count: 7,
+      unlists_count: 3,
+    });
+
+    const row = await getWeekByIsoWeek(env.DB, "2026-W20");
+    expect(row).not.toBeNull();
+    expect(row?.deprecations_count).toBe(7);
+    expect(row?.unlists_count).toBe(3);
+    // Sanity-check a few neighbouring columns to confirm no shift.
+    expect(row?.neurons_spent).toBe(23);
+    expect(row?.reports_dismissed).toBe(22);
+    expect(row?.versions_submitted).toBe(11);
+  });
+});
+
+describe("getLifecycleMetricsStartWeek (Phase 22-01, D-09)", () => {
+  beforeEach(async () => {
+    await clearTables();
+  });
+
+  it("returns the earliest iso_week with a non-zero lifecycle counter", async () => {
+    // Three weeks: W10 has zero counters; W11 has unlists_count=2;
+    // W12 has deprecations_count=5. Earliest non-zero row is W11.
+    const baseSnapshot = {
+      week_start: "2026-03-01T00:00:00Z",
+      week_end: "2026-03-08T00:00:00Z",
+      versions_submitted: 0,
+      versions_published: 0,
+      versions_flagged: 0,
+      versions_rejected: 0,
+      versions_revoked: 0,
+      reports_filed_security: 0,
+      reports_filed_abuse: 0,
+      reports_filed_broken: 0,
+      reports_filed_license: 0,
+      reports_filed_other: 0,
+      reports_resolved: 0,
+      reports_dismissed: 0,
+      neurons_spent: 0,
+      deprecations_count: 0,
+      unlists_count: 0,
+    };
+
+    await upsertTransparencyWeek(env.DB, {
+      ...baseSnapshot,
+      iso_week: "2026-W10",
+    });
+    await upsertTransparencyWeek(env.DB, {
+      ...baseSnapshot,
+      iso_week: "2026-W11",
+      unlists_count: 2,
+    });
+    await upsertTransparencyWeek(env.DB, {
+      ...baseSnapshot,
+      iso_week: "2026-W12",
+      deprecations_count: 5,
+    });
+
+    const startWeek = await getLifecycleMetricsStartWeek(env.DB);
+    expect(startWeek).toBe("2026-W11");
+  });
+
+  it("returns null when every row has zero lifecycle counters (D-08 footnote omitted)", async () => {
+    await upsertTransparencyWeek(env.DB, {
+      iso_week: "2026-W10",
+      week_start: "2026-03-01T00:00:00Z",
+      week_end: "2026-03-08T00:00:00Z",
+      versions_submitted: 0,
+      versions_published: 0,
+      versions_flagged: 0,
+      versions_rejected: 0,
+      versions_revoked: 0,
+      reports_filed_security: 0,
+      reports_filed_abuse: 0,
+      reports_filed_broken: 0,
+      reports_filed_license: 0,
+      reports_filed_other: 0,
+      reports_resolved: 0,
+      reports_dismissed: 0,
+      neurons_spent: 0,
+      deprecations_count: 0,
+      unlists_count: 0,
+    });
+
+    const startWeek = await getLifecycleMetricsStartWeek(env.DB);
+    expect(startWeek).toBeNull();
   });
 });
