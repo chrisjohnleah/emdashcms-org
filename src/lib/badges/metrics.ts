@@ -34,7 +34,15 @@ type TrustTier =
   | "rejected";
 
 /**
- * The five metric names locked by D-01. Order matches the context.
+ * Badge metric names: the five locked by D-01 (installs / version /
+ * trust-tier / audit-verdict / compat) plus the Phase 22 `lifecycle`
+ * entry appended at the end so existing badge ordering in the embed
+ * panel and snippet blocks is preserved.
+ *
+ * The dynamic `/badges/v1/plugin/[id]/[metric].svg` route gates on this
+ * tuple as its allow-list (see `handleBadgeRequest`), so appending a
+ * new entry lights up the corresponding URL automatically — no new
+ * route file is required for `lifecycle.svg`.
  */
 export const BADGE_METRICS = [
   "installs",
@@ -42,15 +50,17 @@ export const BADGE_METRICS = [
   "trust-tier",
   "audit-verdict",
   "compat",
+  "lifecycle",
 ] as const;
 
 export type BadgeMetric = (typeof BADGE_METRICS)[number];
 
 /**
- * Narrow shape of everything the five metric builders need. Everything
- * is nullable when the plugin does not exist, has no published version,
+ * Narrow shape of everything the metric builders need. Everything is
+ * nullable when the plugin does not exist, has no published version,
  * or has no audit record — D-04 unknown/muted fallback applies at the
- * builder layer.
+ * builder layer. The Phase 22 `deprecatedAt` / `unlistedAt` fields are
+ * inputs to the lifecycle builder; both null on an active plugin.
  */
 export interface BadgeData {
   pluginExists: boolean;
@@ -61,6 +71,11 @@ export interface BadgeData {
   latestAuditVerdict: "pass" | "warn" | "fail" | null;
   latestAuditModel: string | null;
   minEmDashVersion: string | null;
+  // Phase 22 (D-04): lifecycle state inputs. Both null = active plugin.
+  // Read alongside the existing top-level columns in the same SELECT so
+  // the one-D1-read budget (D-06) is preserved — no new subqueries.
+  deprecatedAt: string | null;
+  unlistedAt: string | null;
 }
 
 /**
@@ -120,6 +135,8 @@ export async function getBadgeData(
       `SELECT
          p.installs_count,
          p.status AS plugin_status,
+         p.deprecated_at,
+         p.unlisted_at,
          (SELECT pv.version FROM plugin_versions pv
           WHERE pv.plugin_id = p.id AND pv.status IN ('published','flagged')
           ORDER BY pv.created_at DESC LIMIT 1) AS latest_version,
@@ -147,6 +164,8 @@ export async function getBadgeData(
   const row = await stmt.bind(pluginId).first<{
     installs_count: number | null;
     plugin_status: string | null;
+    deprecated_at: string | null;
+    unlisted_at: string | null;
     latest_version: string | null;
     latest_version_status: string | null;
     min_emdash_version: string | null;
@@ -164,6 +183,8 @@ export async function getBadgeData(
       latestAuditVerdict: null,
       latestAuditModel: null,
       minEmDashVersion: null,
+      deprecatedAt: null,
+      unlistedAt: null,
     };
   }
 
@@ -195,6 +216,8 @@ export async function getBadgeData(
     latestAuditVerdict: verdict,
     latestAuditModel: row.latest_audit_model,
     minEmDashVersion: row.min_emdash_version,
+    deprecatedAt: row.deprecated_at,
+    unlistedAt: row.unlisted_at,
   };
 }
 
@@ -269,6 +292,24 @@ export function buildBadgeContent(
         value: `≥ ${data.minEmDashVersion}`,
         color: BADGE_COLORS.success,
       };
+    }
+
+    case "lifecycle": {
+      // D-04 four-state lifecycle mapping with an unknown fallback.
+      // Precedence is load-bearing: revoked overrides every other state
+      // among existing plugins; deprecated overrides unlisted; unlisted
+      // only when not deprecated; otherwise active.
+      if (!data.pluginExists) return UNKNOWN_MUTED("lifecycle");
+      if (data.pluginStatus === "revoked") {
+        return { label: "lifecycle", value: "revoked", color: BADGE_COLORS.danger };
+      }
+      if (data.deprecatedAt !== null) {
+        return { label: "lifecycle", value: "deprecated", color: BADGE_COLORS.warn };
+      }
+      if (data.unlistedAt !== null) {
+        return { label: "lifecycle", value: "unlisted", color: BADGE_COLORS.muted };
+      }
+      return { label: "lifecycle", value: "active", color: BADGE_COLORS.success };
     }
   }
 }
