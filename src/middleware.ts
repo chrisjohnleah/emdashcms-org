@@ -214,6 +214,17 @@ const auth = defineMiddleware(
     if (token) {
       try {
         const payload = await verifySessionToken(token);
+        /**
+         * `locals.author.id` is the row id from the `authors` D1 table.
+         * The naming is wire-aligned with the upstream
+         * `MarketplaceClient` contract (`author`, `author_id`,
+         * `authors.id`) and is kept that way intentionally — see
+         * MEMB-05 / MEMB-07. Internally, this same value is also a
+         * `MemberId` (every authenticated identity has an `authors` row
+         * regardless of whether they own content). The Member vs
+         * Author distinction is captured at the type level in
+         * `src/lib/members/`; the runtime payload is one string.
+         */
         locals.author = {
           id: (payload.aid as string) ?? payload.sub,
           githubId: Number(payload.sub),
