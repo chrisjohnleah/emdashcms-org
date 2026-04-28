@@ -59,4 +59,31 @@ describe("handleWellKnown dispatch", () => {
     expect(body.serverInfo.name).toBe("emdashcms-marketplace");
     expect(body.transport.endpoint).toBe("https://emdashcms.org/mcp");
   });
+
+  it("serves the agent-skills index with a precomputed sha256", async () => {
+    const res = await handleWellKnown(
+      req("/.well-known/agent-skills/index.json"),
+      env,
+    );
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(200);
+    const body = (await res!.json()) as {
+      $schema: string;
+      skills: Array<{
+        name: string;
+        type: string;
+        url: string;
+        sha256: string;
+      }>;
+    };
+    expect(body.$schema).toContain("agent-skills-discovery-rfc");
+    expect(body.skills).toHaveLength(1);
+    const [skill] = body.skills;
+    expect(skill.name).toBe("marketplace-search");
+    expect(skill.type).toBe("application/vnd.agent-skill+markdown");
+    expect(skill.url).toBe(
+      "https://emdashcms.org/.well-known/agent-skills/marketplace-search/SKILL.md",
+    );
+    expect(skill.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
 });

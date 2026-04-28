@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "wrangler types && astro dev",
-    "dev:worker": "astro build && wrangler dev",
-    "build": "wrangler types && astro check && astro build",
+    "dev:worker": "node scripts/build-skill-digests.mjs && astro build && wrangler dev",
+    "build": "wrangler types && node scripts/build-skill-digests.mjs && astro check && astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
     "audit:local": "tsx scripts/audit-local.ts",

@@ -4,7 +4,7 @@ import {
   buildProtectedResourceMetadata,
 } from "./oauth-metadata";
 import { buildMcpServerCard } from "./mcp-server-card";
-import { buildSkillsIndex, resolveMarketplaceSkillSha256 } from "./skills-index";
+import { buildSkillsIndex } from "./skills-index";
 import {
   linksetJson,
   oauthJson,
@@ -40,21 +40,11 @@ export async function handleWellKnown(
     case "/.well-known/mcp/server-card.json":
       return mcpCardJson(buildMcpServerCard());
 
-    case "/.well-known/agent-skills/index.json": {
-      try {
-        const sha = await resolveMarketplaceSkillSha256(env.CACHE, request);
-        return skillsJson(buildSkillsIndex(sha));
-      } catch (err) {
-        console.error("[agents] skills index build failed:", err);
-        return new Response(
-          JSON.stringify({ error: "Skills index temporarily unavailable" }),
-          {
-            status: 503,
-            headers: { "Content-Type": "application/json; charset=utf-8" },
-          },
-        );
-      }
-    }
+    case "/.well-known/agent-skills/index.json":
+      // Digest is precomputed at build time (see scripts/build-skill-digests.mjs)
+      // so the index has no runtime I/O — earlier self-fetch + KV path was
+      // returning 503 in production when the sub-fetch failed.
+      return skillsJson(buildSkillsIndex());
 
     default:
       return null;

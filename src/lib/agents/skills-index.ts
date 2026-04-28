@@ -1,8 +1,8 @@
+import { MARKETPLACE_SEARCH_SHA256 } from "./skill-digests.generated";
+
 const SITE_URL = "https://emdashcms.org";
 const MARKETPLACE_SKILL_PATH =
   "/.well-known/agent-skills/marketplace-search/SKILL.md";
-const CACHE_KEY = "agents:skills:sha256:marketplace-search";
-const CACHE_TTL_SECONDS = 3600;
 
 export interface AgentSkillsIndex {
   $schema: string;
@@ -15,7 +15,9 @@ export interface AgentSkillsIndex {
   }>;
 }
 
-export function buildSkillsIndex(marketplaceSha256: string): AgentSkillsIndex {
+export function buildSkillsIndex(
+  marketplaceSha256: string = MARKETPLACE_SEARCH_SHA256,
+): AgentSkillsIndex {
   return {
     $schema:
       "https://agentskills.io/schemas/agent-skills-discovery-rfc-v0.2.0.json",
@@ -30,54 +32,4 @@ export function buildSkillsIndex(marketplaceSha256: string): AgentSkillsIndex {
       },
     ],
   };
-}
-
-async function sha256Hex(text: string): Promise<string> {
-  const bytes = new TextEncoder().encode(text);
-  const hash = await crypto.subtle.digest("SHA-256", bytes);
-  const view = new Uint8Array(hash);
-  let hex = "";
-  for (let i = 0; i < view.length; i++) {
-    hex += view[i].toString(16).padStart(2, "0");
-  }
-  return hex;
-}
-
-/**
- * Resolve the sha256 digest for the marketplace skill asset, using KV as a
- * TTL cache to keep the digest off the hot path. Falls back to recomputing
- * on cache miss or KV outage.
- */
-export async function resolveMarketplaceSkillSha256(
-  cache: KVNamespace,
-  request: Request,
-): Promise<string> {
-  try {
-    const cached = await cache.get(CACHE_KEY);
-    if (cached) return cached;
-  } catch (err) {
-    console.error("[agents] KV read failed for skill digest:", err);
-  }
-
-  const url = new URL(MARKETPLACE_SKILL_PATH, request.url);
-  const res = await fetch(url.toString(), {
-    headers: { Accept: "text/markdown" },
-  });
-  if (!res.ok) {
-    throw new Error(
-      `Skill asset fetch failed: ${res.status} ${res.statusText}`,
-    );
-  }
-  const text = await res.text();
-  const digest = await sha256Hex(text);
-
-  try {
-    await cache.put(CACHE_KEY, digest, {
-      expirationTtl: CACHE_TTL_SECONDS,
-    });
-  } catch (err) {
-    console.error("[agents] KV write failed for skill digest:", err);
-  }
-
-  return digest;
 }
