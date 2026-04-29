@@ -10,9 +10,19 @@ import { errorResponse } from "./lib/api/response";
  * Security headers middleware.
  * Sets CSP, HSTS, X-Frame-Options, and other security headers on every response.
  */
-const securityHeaders = defineMiddleware(async (_ctx, next) => {
+const securityHeaders = defineMiddleware(async ({ url }, next) => {
   const response = await next();
   response.headers.set("X-Content-Type-Options", "nosniff");
+
+  // Authenticated dashboard surfaces are not for public indexing. We
+  // ship X-Robots-Tag at the response layer (rather than per-page meta)
+  // so every current and future dashboard route inherits the directive
+  // without each template having to remember to set noindex on its
+  // BaseLayout call. GSC has been seeing /dashboard impressions because
+  // it appears in internal links — this stops that at the response.
+  if (url.pathname.startsWith("/dashboard")) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
