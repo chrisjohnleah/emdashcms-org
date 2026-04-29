@@ -9,6 +9,10 @@ import SearchBar from '../../components/SearchBar.astro';
 import FilterChips from '../../components/FilterChips.astro';
 import Pagination from '../../components/Pagination.astro';
 import EmptyState from '../../components/EmptyState.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+} from '../../lib/seo/json-ld';
 
 const url = Astro.url;
 const q = url.searchParams.get('q') ?? '';
@@ -36,8 +40,25 @@ const sortOptions = [
 ];
 
 const isFiltered = q || keyword;
+
+// CollectionPage + ItemList for the visible theme grid (mirrors the
+// /plugins index pattern). Pagination means this is a current-page
+// snapshot, which Schema.org's ItemList contract allows.
+const themesJsonLd = [
+  buildBreadcrumbListJsonLd([{ name: 'Themes', url: '/themes' }]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS Themes',
+    url: '/themes',
+    description:
+      'Free, MIT-licensed themes for EmDash CMS. Filter by style — blog, portfolio, ecommerce, documentation, landing, minimal, dark.',
+    items: themes.map((t) => ({
+      name: t.name,
+      url: `/themes/${t.id}`,
+    })),
+  }),
+];
 ---
-<BaseLayout title="EmDash CMS Themes — Free Community Marketplace" description="Browse free, MIT-licensed themes for EmDash CMS. Filter by style — blog, portfolio, ecommerce, documentation, landing, minimal, dark — and preview before installing.">
+<BaseLayout title="EmDash CMS Themes — Free Community Marketplace" description="Browse free, MIT-licensed themes for EmDash CMS. Filter by style — blog, portfolio, ecommerce, documentation, landing, minimal, dark — and preview before installing." jsonLd={themesJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
 
       <h1 class="text-3xl tracking-tight leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">Themes</h1>

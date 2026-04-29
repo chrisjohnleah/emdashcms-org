@@ -3,11 +3,32 @@ export const prerender = false;
 
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildTechArticleJsonLd,
+} from '../lib/seo/json-ld';
 
 const title = "How to Install EmDash CMS Plugins — Installation Guide";
 const description = "Two ways to install EmDash CMS plugins from the community marketplace: download the .tgz bundle, or point your EmDash instance at emdashcms.org and install from the admin dashboard.";
+
+// TechArticle is the canonical type for developer how-to content and
+// is what AI engines weight most heavily for technical extraction.
+// datePublished is the page's first ship; dateModified tracks copy
+// edits so freshness signals stay accurate.
+const guideJsonLd = [
+  buildBreadcrumbListJsonLd([{ name: 'Installation Guide', url: '/guide' }]),
+  buildTechArticleJsonLd({
+    headline: 'How to Install EmDash CMS Plugins',
+    description,
+    url: '/guide',
+    datePublished: '2026-04-01',
+    dateModified: '2026-04-29',
+    author: { type: 'Organization', name: 'EmDash CMS Marketplace', url: 'https://emdashcms.org' },
+    proficiencyLevel: 'Beginner',
+  }),
+];
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} jsonLd={guideJsonLd}>
 
   <section class="page pt-12 pb-16 md:pt-16">
     <div class="page-narrow">

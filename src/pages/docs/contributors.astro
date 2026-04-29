@@ -3,11 +3,63 @@ export const prerender = false;
 
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Button from '../../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
+  buildTechArticleJsonLd,
+} from '../../lib/seo/json-ld';
 
 const title = 'Publish a Plugin or Theme to EmDash CMS — Contributor Guide';
 const description = 'Sign in with GitHub, upload a .tgz bundle, and pass the fail-closed security audit. Step-by-step guide to publishing plugins and themes on the EmDash CMS community marketplace.';
+
+// TechArticle + BreadcrumbList for hierarchy, plus a FAQPage that
+// answers the questions prospective contributors actually ask. The
+// audit step is the most-asked: getting it surfaceable in AI answers
+// reduces the "is this safe to publish to?" friction at first glance.
+const contributorsJsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Docs', url: '/docs/contributors' },
+    { name: 'Contributor Guide', url: '/docs/contributors' },
+  ]),
+  buildTechArticleJsonLd({
+    headline: 'Publish a Plugin or Theme to EmDash CMS',
+    description,
+    url: '/docs/contributors',
+    datePublished: '2026-04-01',
+    dateModified: '2026-04-29',
+    author: { type: 'Organization', name: 'EmDash CMS Marketplace', url: 'https://emdashcms.org' },
+    proficiencyLevel: 'Beginner',
+  }),
+  buildFaqPageJsonLd([
+    {
+      question: 'How do I publish a plugin to the EmDash CMS marketplace?',
+      answer:
+        'Sign in at /dashboard with your GitHub account, register a plugin id, then upload a .tgz bundle that contains a manifest.json at its root. The bundle goes through automated validation, static scanning, and an AI review before it goes live. You can optionally link a GitHub repository so tagged releases auto-publish.',
+    },
+    {
+      question: 'What does the security audit check?',
+      answer:
+        'Three gates run on every uploaded version: bundle validation (size, paths, manifest schema), static scanning (pattern matching for dangerous primitives like eval, Function, dynamic imports, or undeclared network access), and an optional AI review for clean bundles. The pipeline is fail-closed: if any gate cannot produce a clean verdict, the version is rejected, never silently published.',
+    },
+    {
+      question: 'What are the bundle size limits?',
+      answer:
+        'Each tarball must be at most 10 MB compressed and 50 MB decompressed, with no single file over 5 MB and no more than 200 files in total. No symlinks, hardlinks, or device files are allowed.',
+    },
+    {
+      question: 'Is publishing to emdashcms.org free?',
+      answer:
+        'Yes. The marketplace is free to publish to and free to install from. There is no review fee, listing fee, or revenue share. The marketplace code, audit pipeline, and verdict logs are MIT-licensed on GitHub.',
+    },
+    {
+      question: 'What is a manifest.json file?',
+      answer:
+        'manifest.json is a required file at the root of every plugin bundle. It declares the plugin id, version, capabilities, allowed hosts, hooks, routes, and storage. The runtime only grants access to what the manifest lists, so a plugin cannot silently read or modify anything outside its declared surface.',
+    },
+  ]),
+];
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} jsonLd={contributorsJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
     <div class="page-narrow">
 
