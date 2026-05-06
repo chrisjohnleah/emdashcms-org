@@ -11,6 +11,7 @@
 interface NavLink {
   label: string;
   href: string;
+  activePrefixes?: string[];
 }
 
 interface Props {
@@ -27,7 +28,10 @@ const { links, currentPath } = Astro.props;
 >
   <nav class="page py-5 flex flex-col gap-1" aria-label="Mobile navigation">
     {links.map((link) => {
-      const active = currentPath === link.href || (link.href !== '/' && currentPath.startsWith(link.href));
+      const active =
+        currentPath === link.href ||
+        (link.href !== '/' && currentPath.startsWith(link.href)) ||
+        link.activePrefixes?.some((prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`));
       return (
         <a
           href={link.href}

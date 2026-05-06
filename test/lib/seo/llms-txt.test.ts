@@ -71,6 +71,11 @@ describe("buildLlmsTxt", () => {
     expect(result).toContain("## Featured Plugins");
     expect(result).toContain("## Recently Updated Plugins");
     expect(result).toContain("## Themes");
+    expect(result).toContain("## Start Here");
+    expect(result).toContain("[Start with EmDash](https://emdashcms.org/start)");
+    expect(result).toContain("[About emdashcms.org](https://emdashcms.org/about)");
+    expect(result).toContain("[Roadmap](https://emdashcms.org/roadmap)");
+    expect(result).toContain("[Support](https://emdashcms.org/support)");
     expect(result).toContain("## API");
   });
 
@@ -83,6 +88,11 @@ describe("buildLlmsTxt", () => {
 
     expect(result).toContain("# EmDash CMS Marketplace");
     expect(result).toContain("\n> ");
+    expect(result).toContain("## Start Here");
+    expect(result).toContain("[Start with EmDash](https://emdashcms.org/start)");
+    expect(result).toContain("[About emdashcms.org](https://emdashcms.org/about)");
+    expect(result).toContain("[Roadmap](https://emdashcms.org/roadmap)");
+    expect(result).toContain("[Support](https://emdashcms.org/support)");
     expect(result).toContain("## API");
     expect(result).not.toContain("## Featured Plugins");
     expect(result).not.toContain("## Recently Updated Plugins");

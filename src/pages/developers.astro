@@ -1,0 +1,232 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+} from '../lib/seo/json-ld';
+
+const title = 'Developer Resources — emdashcms.org';
+const description =
+  'Developer resources for building with the EmDash CMS marketplace: plugin manifests, capabilities, install flows, OpenAPI, Atom feeds, llms.txt, MCP, badges, and review policy.';
+
+const handbookLinks = [
+  {
+    label: 'Plugin system',
+    body: 'How EmDash loads plugins, grants capabilities, copies bundles into site storage, and tracks installs.',
+    href: '/learn/plugin-system',
+  },
+  {
+    label: 'Manifest schema',
+    body: 'The fields every plugin declares: capabilities, hooks, routes, storage, admin surfaces, and version support.',
+    href: '/learn/manifest-schema',
+  },
+  {
+    label: 'Capabilities',
+    body: 'The permission vocabulary site owners see before installing a marketplace plugin.',
+    href: '/learn/capabilities',
+  },
+  {
+    label: 'Publishing guide',
+    body: 'Register an extension, upload a tarball, wire GitHub releases, and understand version review states.',
+    href: '/docs/contributors',
+  },
+];
+
+const endpointLinks = [
+  {
+    label: 'OpenAPI',
+    href: '/api/v1/openapi.json',
+    body: 'The public read contract used by EmDash core and third-party catalog clients.',
+  },
+  {
+    label: 'MCP',
+    href: '/mcp',
+    body: 'Streamable HTTP JSON-RPC tools for agents that need marketplace search and metadata.',
+  },
+  {
+    label: 'llms.txt',
+    href: '/llms.txt',
+    body: 'A concise machine-readable index for AI crawlers and coding assistants.',
+  },
+  {
+    label: 'Atom feeds',
+    href: '/feeds/plugins/new.xml',
+    body: 'New plugins, updated plugins, new themes, and the weekly digest as feed endpoints.',
+  },
+];
+
+const buildLinks = [
+  {
+    label: 'Security review policy',
+    href: '/docs/security',
+    body: 'Static scanner rules, AI review behaviour, trust tiers, and public rejection history.',
+  },
+  {
+    label: 'Badge API',
+    href: '/plugins',
+    body: 'Each plugin detail page exposes embeddable SVG badges for audit status, trust tier, downloads, installs, and lifecycle state.',
+  },
+  {
+    label: 'Contributor dashboard',
+    href: '/dashboard',
+    body: 'The authenticated place to create listings, upload versions, and manage release history.',
+  },
+  {
+    label: 'Marketplace source',
+    href: 'https://github.com/chrisjohnleah/emdashcms-org',
+    body: 'The app, audit pipeline, API contracts, tests, migrations, and deployment scripts.',
+    external: true,
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS Marketplace developer resources',
+    url: '/developers',
+    description,
+    items: [...handbookLinks, ...endpointLinks, ...buildLinks].map((link) => ({
+      name: link.label,
+      url: link.href,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Developer Resources', url: '/developers' },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-14 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-end">
+      <div class="md:col-span-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-6">
+          Developers
+          <span class="emdash-sep" aria-hidden="true"></span>
+          API
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Plugin authors
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-[4rem] leading-[1.05] text-ink"
+            style="font-weight: 400; font-variation-settings: 'opsz' 144; letter-spacing: -0.025em;">
+          Build for the EmDash ecosystem.
+        </h1>
+      </div>
+
+      <div class="md:col-span-4">
+        <p class="text-lg text-ink-muted leading-relaxed">
+          Everything a developer needs to publish extensions, inspect the
+          marketplace contract, wire agents into catalog search, and understand
+          why a release passed or failed review.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider emdash-divider--tight" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="handbook-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="handbook-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Extension handbook.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          Start here when you are building a plugin or theme and need to know
+          what the runtime expects before a bundle reaches review.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 border-t border-rule">
+        {handbookLinks.map((link) => (
+          <a href={link.href} class="group grid grid-cols-1 sm:grid-cols-[11rem_1fr] gap-3 border-b border-rule py-5">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+              {link.label}
+            </h3>
+            <p class="text-sm text-ink-muted leading-relaxed">
+              {link.body}
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="contract-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="contract-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Public contract.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed max-w-md">
+          The marketplace is meant to be read by EmDash core, people, search
+          engines, and agents. The same catalog data is available through
+          predictable human and machine surfaces.
+        </p>
+      </div>
+
+      <div class="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {endpointLinks.map((link) => (
+          <a href={link.href} class="surface p-5 group">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+              <span class="emdash-mark mr-2" aria-hidden="true">—</span>
+              {link.label}
+            </h3>
+            <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+              {link.body}
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page pb-32" aria-labelledby="ship-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="ship-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Ship with a paper trail.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          Releases are easier to trust when every step is inspectable: source,
+          declared permissions, scanner findings, AI review, badges, and
+          moderation history.
+        </p>
+      </div>
+
+      <div class="md:col-span-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {buildLinks.map((link) => (
+            <a
+              href={link.href}
+              target={link.external ? '_blank' : undefined}
+              rel={link.external ? 'noopener noreferrer' : undefined}
+              class="surface p-5 group"
+            >
+              <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+                {link.label}
+              </h3>
+              <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+                {link.body}
+              </p>
+            </a>
+          ))}
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button href="/docs/contributors" variant="hero">Publish a plugin</Button>
+          <Button href="/api/v1/openapi.json" variant="secondary" size="lg">Open API schema</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

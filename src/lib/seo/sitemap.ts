@@ -16,7 +16,8 @@
  * https://www.sitemaps.org/protocol.html#index for the schema.
  *
  * Scope (what this builder emits — confirmed against src/pages/):
- *   - 10 static pages (homepage, listings, guide, 3x docs, legal).
+ *   - Public static pages (homepage, listings, learning, community,
+ *     docs, transparency, status, legal).
  *   - /plugins/{id}            for every published plugin row.
  *   - /themes/{id}             for every theme row.
  *   - /plugins/category/{slug} for every DISTINCT non-null plugins.category.
@@ -115,20 +116,28 @@ export function buildSitemapXml(input: SitemapInput): string {
   // content could have changed.
   const staticEntries: SitemapUrl[] = [
     { loc: `${SITE_URL}/`, lastmod: now, changefreq: "weekly", priority: "1.0" },
+    { loc: `${SITE_URL}/about`, lastmod: now, changefreq: "monthly", priority: "0.8" },
+    { loc: `${SITE_URL}/roadmap`, lastmod: now, changefreq: "monthly", priority: "0.7" },
+    { loc: `${SITE_URL}/start`, lastmod: now, changefreq: "weekly", priority: "0.9" },
     { loc: `${SITE_URL}/plugins`, lastmod: now, changefreq: "daily", priority: "0.9" },
     { loc: `${SITE_URL}/themes`, lastmod: now, changefreq: "daily", priority: "0.9" },
     { loc: `${SITE_URL}/digest`, lastmod: now, changefreq: "weekly", priority: "0.7" },
+    { loc: `${SITE_URL}/community`, lastmod: now, changefreq: "weekly", priority: "0.7" },
+    { loc: `${SITE_URL}/support`, lastmod: now, changefreq: "weekly", priority: "0.7" },
     { loc: `${SITE_URL}/learn`, lastmod: now, changefreq: "weekly", priority: "0.8" },
     { loc: `${SITE_URL}/learn/what-is-emdash`, lastmod: now, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/learn/plugin-system`, lastmod: now, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/learn/manifest-schema`, lastmod: now, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/learn/capabilities`, lastmod: now, changefreq: "monthly", priority: "0.7" },
+    { loc: `${SITE_URL}/developers`, lastmod: now, changefreq: "weekly", priority: "0.8" },
     { loc: `${SITE_URL}/compare`, lastmod: now, changefreq: "weekly", priority: "0.7" },
     { loc: `${SITE_URL}/compare/emdash-vs-wordpress`, lastmod: now, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/guide`, lastmod: now, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE_URL}/docs/contributors`, lastmod: now, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE_URL}/docs/moderators`, lastmod: now, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE_URL}/docs/security`, lastmod: now, changefreq: "monthly", priority: "0.5" },
+    { loc: `${SITE_URL}/transparency`, lastmod: now, changefreq: "weekly", priority: "0.6" },
+    { loc: `${SITE_URL}/status`, lastmod: now, changefreq: "daily", priority: "0.5" },
     { loc: `${SITE_URL}/privacy`, lastmod: now, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE_URL}/terms`, lastmod: now, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE_URL}/code-of-conduct`, lastmod: now, changefreq: "yearly", priority: "0.3" },

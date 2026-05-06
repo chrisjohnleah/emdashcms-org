@@ -1,0 +1,322 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+  buildFaqPageJsonLd,
+} from '../lib/seo/json-ld';
+
+const title = 'About emdashcms.org — EmDash CMS ecosystem';
+const description =
+  'About emdashcms.org: the public ecosystem home for EmDash CMS plugins, themes, learning, publishing, support, security policy, transparency, and machine-readable marketplace data.';
+
+const projectSurfaces = [
+  {
+    label: 'Directories',
+    body: 'Public plugin and theme listings with metadata, author signals, version history, install counts, downloads, and audit status.',
+    href: '/plugins',
+  },
+  {
+    label: 'Learning',
+    body: 'Plain developer-to-developer guides for the CMS model, plugin manifests, capabilities, installation, and comparisons.',
+    href: '/learn',
+  },
+  {
+    label: 'Publishing',
+    body: 'Contributor docs and a dashboard for authors to register extensions, upload bundles, and follow review outcomes.',
+    href: '/docs/contributors',
+  },
+  {
+    label: 'Trust',
+    body: 'Security policy, scanner rules, fail-closed review, listing reports, moderation notes, and public transparency counts.',
+    href: '/docs/security',
+  },
+  {
+    label: 'Community',
+    body: 'Contribution paths for authors, reviewers, testers, moderators, docs maintainers, and people improving the registry itself.',
+    href: '/community',
+  },
+  {
+    label: 'Roadmap',
+    body: 'A public plan for what exists now, what should improve next, and what the site will not claim before the ecosystem earns it.',
+    href: '/roadmap',
+  },
+  {
+    label: 'Machine access',
+    body: 'OpenAPI, Atom feeds, badges, llms.txt, and MCP tools for EmDash sites, search engines, and coding agents.',
+    href: '/developers',
+  },
+];
+
+const boundaries = [
+  {
+    label: 'The core CMS lives at emdashcms.com',
+    body: 'Use the core project home when you need the framework, runtime setup, product docs, or upstream CMS source.',
+    href: 'https://emdashcms.com',
+    external: true,
+  },
+  {
+    label: 'This site is the ecosystem home',
+    body: 'Use emdashcms.org when you need plugins, themes, install guidance, publishing docs, catalog data, support routes, or marketplace status.',
+    href: '/start',
+  },
+  {
+    label: 'Support is routed, not centralized',
+    body: 'There is no central support forum yet. Use docs for install help, author links for extension questions, reports for listing concerns, and GitHub for this marketplace app.',
+    href: '/support',
+  },
+];
+
+const principles = [
+  {
+    label: 'Honest about scale',
+    body: 'The marketplace is young. It should not pretend to have the size, support load, or institutional machinery of an older CMS ecosystem.',
+  },
+  {
+    label: 'Trust before volume',
+    body: 'A smaller catalog with declared capabilities, inspectable reviews, and report paths is better than a larger catalog people cannot audit.',
+  },
+  {
+    label: 'Public by default',
+    body: 'Source, docs, audit policy, issue work, status signals, and generated marketplace indexes should be linkable and inspectable.',
+  },
+  {
+    label: 'Security gets a real path',
+    body: 'Security, abuse, impersonation, licensing, and abandoned-listing concerns belong in the report flow and security policy, not buried in generic support copy.',
+  },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    name: 'About emdashcms.org',
+    description,
+    url: 'https://emdashcms.org/about',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'EmDash CMS Marketplace',
+      url: 'https://emdashcms.org',
+    },
+    about: {
+      '@type': 'SoftwareSourceCode',
+      name: 'EmDash CMS Marketplace',
+      codeRepository: 'https://github.com/chrisjohnleah/emdashcms-org',
+      license: 'https://github.com/chrisjohnleah/emdashcms-org/blob/main/LICENSE',
+      programmingLanguage: ['TypeScript', 'Astro'],
+    },
+  },
+  buildCollectionPageJsonLd({
+    name: 'emdashcms.org public project surfaces',
+    url: '/about',
+    description,
+    items: projectSurfaces.map((surface) => ({
+      name: surface.label,
+      url: surface.href,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'About', url: '/about' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'What is emdashcms.org?',
+      answer:
+        'emdashcms.org is the public ecosystem home for EmDash CMS: plugins, themes, install guidance, learning pages, publishing docs, support routes, security policy, transparency reports, feeds, API, badges, llms.txt, and MCP tools.',
+    },
+    {
+      question: 'Is emdashcms.org where I get the core CMS?',
+      answer:
+        'No. The core EmDash CMS project lives at emdashcms.com. emdashcms.org is the marketplace and ecosystem site around the CMS.',
+    },
+    {
+      question: 'Does emdashcms.org have a central support forum?',
+      answer:
+        'Not yet. Support currently routes through documentation, author-provided extension links, listing reports, the status page, and GitHub issues for the marketplace project itself.',
+    },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-14 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-end">
+      <div class="md:col-span-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-6">
+          About
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Marketplace
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Open source
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-[4rem] leading-[1.05] text-ink"
+            style="font-weight: 400; font-variation-settings: 'opsz' 144; letter-spacing: -0.025em;">
+          The ecosystem home for EmDash CMS.
+        </h1>
+      </div>
+
+      <div class="md:col-span-4">
+        <p class="text-lg text-ink-muted leading-relaxed">
+          emdashcms.org is the public marketplace and project hub around EmDash
+          CMS. It is where people discover extensions, publish work, inspect
+          trust signals, follow changes, and find the right support route.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider emdash-divider--tight" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="split-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="split-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Core there. Ecosystem here.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          The clearest way to understand the project is to separate the CMS
+          from the public registry that helps people extend it.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 border-t border-rule">
+        {boundaries.map((item) => (
+          <a
+            href={item.href}
+            target={item.external ? '_blank' : undefined}
+            rel={item.external ? 'noopener noreferrer' : undefined}
+            class="group grid grid-cols-1 sm:grid-cols-[13rem_1fr] gap-3 border-b border-rule py-5"
+          >
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+              {item.label}
+            </h3>
+            <p class="text-sm text-ink-muted leading-relaxed">
+              {item.body}
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="surface-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="surface-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          What this site covers.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed max-w-md">
+          The goal is not just a list of downloads. A useful CMS ecosystem also
+          needs docs, review trails, contribution paths, policy, and data that
+          tools can read without scraping pages.
+        </p>
+      </div>
+
+      <div class="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {projectSurfaces.map((surface) => (
+          <a href={surface.href} class="surface p-5 group">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+              <span class="emdash-mark mr-2" aria-hidden="true">—</span>
+              {surface.label}
+            </h3>
+            <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+              {surface.body}
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="principles-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="principles-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          How it should behave in public.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed max-w-md">
+          The repository is public, so the public site should be careful about
+          claims, explicit about ownership, and easy to verify.
+        </p>
+      </div>
+
+      <div class="md:col-span-7">
+        <ol class="border-t border-rule">
+          {principles.map((item, index) => (
+            <li class="grid grid-cols-[3rem_1fr] gap-5 border-b border-rule py-6">
+              <span class="font-display text-2xl text-accent-deep leading-none tabular-nums" style="font-weight: 400;">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <div>
+                <h3 class="font-display text-xl text-ink" style="font-weight: 500;">
+                  {item.label}
+                </h3>
+                <p class="mt-2 text-sm text-ink-muted leading-relaxed">
+                  {item.body}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page pb-32" aria-labelledby="source-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-start">
+      <div class="md:col-span-5">
+        <h2 id="source-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Source, policy, and reports.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          emdashcms.org is MIT-licensed and built in public. If something looks
+          wrong, start from the page closest to the problem so the report lands
+          with the right context.
+        </p>
+      </div>
+
+      <div class="md:col-span-7 surface p-6 md:p-7">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">GitHub source</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Marketplace app, tests, migrations, API code, audit pipeline, and deployment scripts.</p>
+          </a>
+          <a href="/docs/security" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Security policy</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Review rules, scanner behaviour, trust tiers, revocation, and escalation routes.</p>
+          </a>
+          <a href="/plugins" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Report a listing</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Open a plugin or theme detail page to report security, abuse, licensing, or quality concerns.</p>
+          </a>
+          <a href="/transparency" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Transparency</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Public counts for audit outcomes, reports, deprecations, and catalog health.</p>
+          </a>
+          <a href="/roadmap" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Roadmap</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">What exists now, what comes next, and what the project will not claim early.</p>
+          </a>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button href="/start" variant="hero">Start with EmDash</Button>
+          <Button href="/support" variant="secondary" size="lg">Find support</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

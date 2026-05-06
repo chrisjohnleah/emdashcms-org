@@ -53,10 +53,12 @@ const currentPath = Astro.url.pathname;
 const siteUrl = 'https://emdashcms.org';
 
 const navLinks = [
+  { label: 'Start', href: '/start' },
   { label: 'Plugins', href: '/plugins' },
   { label: 'Themes', href: '/themes' },
+  { label: 'Learn', href: '/learn', activePrefixes: ['/learn', '/developers', '/guide', '/docs', '/compare'] },
+  { label: 'Community', href: '/community', activePrefixes: ['/community', '/support', '/digest', '/transparency', '/status', '/code-of-conduct'] },
   { label: 'Publish', href: '/dashboard' },
-  { label: 'Guide', href: '/guide' },
 ];
 
 // Global dashboard banners — bounced address + missing email.
@@ -165,7 +167,10 @@ try {
 
           <nav class="hidden md:flex items-baseline gap-7 text-sm" aria-label="Primary">
             {navLinks.map((link) => {
-              const active = currentPath === link.href || (link.href !== '/' && currentPath.startsWith(link.href));
+              const active =
+                currentPath === link.href ||
+                (link.href !== '/' && currentPath.startsWith(link.href)) ||
+                link.activePrefixes?.some((prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`));
               return (
                 <a
                   href={link.href}
@@ -251,7 +256,7 @@ try {
       <div class="page py-16">
         <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
 
-          <div class="md:col-span-5">
+          <div class="md:col-span-4">
             <a
               href="/"
               class="font-display text-2xl text-ink leading-none"
@@ -277,6 +282,7 @@ try {
           <div class="md:col-span-2">
             <h4 class="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-4">Marketplace</h4>
             <ul class="space-y-2.5 text-sm">
+              <li><a href="/start" class="text-ink-muted hover:text-ink transition-colors">Start here</a></li>
               <li><a href="/plugins" class="text-ink-muted hover:text-ink transition-colors">Plugins</a></li>
               <li><a href="/themes" class="text-ink-muted hover:text-ink transition-colors">Themes</a></li>
               <li><a href="/guide" class="text-ink-muted hover:text-ink transition-colors">Install guide</a></li>
@@ -284,17 +290,33 @@ try {
           </div>
 
           <div class="md:col-span-2">
-            <h4 class="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-4">Publish</h4>
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-4">Resources</h4>
             <ul class="space-y-2.5 text-sm">
-              <li><a href="/dashboard" class="text-ink-muted hover:text-ink transition-colors">Dashboard</a></li>
+              <li><a href="/learn" class="text-ink-muted hover:text-ink transition-colors">Learn</a></li>
+              <li><a href="/developers" class="text-ink-muted hover:text-ink transition-colors">Developers</a></li>
+              <li><a href="/compare" class="text-ink-muted hover:text-ink transition-colors">Compare</a></li>
               <li><a href="/docs/contributors" class="text-ink-muted hover:text-ink transition-colors">Contributor guide</a></li>
               <li><a href="/docs/security" class="text-ink-muted hover:text-ink transition-colors">Security policy</a></li>
             </ul>
           </div>
 
-          <div class="md:col-span-3">
+          <div class="md:col-span-2">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-4">Community</h4>
+            <ul class="space-y-2.5 text-sm">
+              <li><a href="/community" class="text-ink-muted hover:text-ink transition-colors">Get involved</a></li>
+              <li><a href="/support" class="text-ink-muted hover:text-ink transition-colors">Support</a></li>
+              <li><a href="/dashboard" class="text-ink-muted hover:text-ink transition-colors">Publisher dashboard</a></li>
+              <li><a href="/digest" class="text-ink-muted hover:text-ink transition-colors">Weekly digest</a></li>
+              <li><a href="/transparency" class="text-ink-muted hover:text-ink transition-colors">Transparency report</a></li>
+              <li><a href="/status" class="text-ink-muted hover:text-ink transition-colors">Status</a></li>
+            </ul>
+          </div>
+
+          <div class="md:col-span-2">
             <h4 class="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-4">Project</h4>
             <ul class="space-y-2.5 text-sm">
+              <li><a href="/about" class="text-ink-muted hover:text-ink transition-colors">About</a></li>
+              <li><a href="/roadmap" class="text-ink-muted hover:text-ink transition-colors">Roadmap</a></li>
               <li>
                 <a href="https://emdashcms.com" target="_blank" rel="noopener noreferrer" class="text-ink-muted hover:text-ink transition-colors">EmDash CMS</a>
               </li>
@@ -302,8 +324,6 @@ try {
                 <a href="https://github.com/chrisjohnleah/emdashcms-org" target="_blank" rel="noopener noreferrer" class="text-ink-muted hover:text-ink transition-colors">GitHub</a>
               </li>
               <li><a href="/code-of-conduct" class="text-ink-muted hover:text-ink transition-colors">Code of conduct</a></li>
-              <li><a href="/transparency" class="text-ink-muted hover:text-ink transition-colors">Transparency report</a></li>
-              <li><a href="/status" class="text-ink-muted hover:text-ink transition-colors">Status</a></li>
               <li><a href="/privacy" class="text-ink-muted hover:text-ink transition-colors">Privacy</a></li>
               <li><a href="/terms" class="text-ink-muted hover:text-ink transition-colors">Terms</a></li>
             </ul>

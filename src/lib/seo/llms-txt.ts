@@ -82,6 +82,33 @@ export function buildLlmsTxt(input: LlmsTxtInput): string {
   }
 
   parts.push("");
+  parts.push("## Start Here");
+  parts.push("");
+  parts.push(
+    "- [Start with EmDash](https://emdashcms.org/start): get the CMS, connect the marketplace, install extensions, publish work, and join the community",
+  );
+  parts.push(
+    "- [About emdashcms.org](https://emdashcms.org/about): what this ecosystem site is, how it differs from the core CMS, and where support, policy, and security reports live",
+  );
+  parts.push(
+    "- [Roadmap](https://emdashcms.org/roadmap): what exists now, what improves next, and what the project will not claim before it is real",
+  );
+  parts.push(
+    "- [Learn](https://emdashcms.org/learn): plain-English guides to EmDash CMS, plugins, manifests, and capabilities",
+  );
+  parts.push(
+    "- [Developer resources](https://emdashcms.org/developers): OpenAPI, MCP, feeds, badges, and extension references",
+  );
+  parts.push(
+    "- [Install guide](https://emdashcms.org/guide): how site owners install marketplace plugins",
+  );
+  parts.push(
+    "- [Support](https://emdashcms.org/support): install help, plugin-specific support routes, publisher help, status, reports, and project issues",
+  );
+  parts.push(
+    "- [Community](https://emdashcms.org/community): ways to publish, test, document, review, moderate, and build",
+  );
+  parts.push("");
   parts.push("## API");
   parts.push("");
   parts.push(

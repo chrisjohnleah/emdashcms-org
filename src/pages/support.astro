@@ -1,0 +1,254 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+  buildFaqPageJsonLd,
+} from '../lib/seo/json-ld';
+
+const title = 'Support — emdashcms.org';
+const description =
+  'Support routes for EmDash CMS marketplace users: install help, plugin and theme support, publisher help, security reporting, status checks, and community issues.';
+
+const supportPaths = [
+  {
+    label: 'Installing plugins',
+    audience: 'Site owners',
+    body: 'Use the install guide when a plugin bundle, registry URL, capability prompt, or marketplace connection is unclear.',
+    href: '/guide',
+    link: 'Open the install guide',
+  },
+  {
+    label: 'Plugin-specific help',
+    audience: 'Site owners',
+    body: 'Start on the plugin detail page. Authors can list a support URL, repository, homepage, funding page, and version history.',
+    href: '/plugins',
+    link: 'Browse plugin listings',
+  },
+  {
+    label: 'Publisher help',
+    audience: 'Authors',
+    body: 'For registration, bundle upload, GitHub releases, review states, and version lifecycle, use the contributor docs first.',
+    href: '/docs/contributors',
+    link: 'Read contributor docs',
+  },
+  {
+    label: 'Security concerns',
+    audience: 'Everyone',
+    body: 'Report suspicious listings from their detail pages, and use the security policy for audit behaviour, scanner rules, and escalation.',
+    href: '/docs/security',
+    link: 'Read security policy',
+  },
+  {
+    label: 'Marketplace status',
+    audience: 'Everyone',
+    body: 'Check live health signals for catalog pages, API responses, badge rendering, feeds, audit queues, and bundle downloads.',
+    href: '/status',
+    link: 'Check status',
+  },
+  {
+    label: 'Project issues',
+    audience: 'Contributors',
+    body: 'Use GitHub when the marketplace app, public docs, API contract, or contributor workflow itself needs a fix.',
+    href: 'https://github.com/chrisjohnleah/emdashcms-org/issues',
+    link: 'Open GitHub issues',
+    external: true,
+  },
+];
+
+const expectations = [
+  {
+    label: 'No central forum yet',
+    body: 'Support is routed through docs, author-provided links, listing reports, status pages, and GitHub issues while the ecosystem is small.',
+  },
+  {
+    label: 'Authors own extension support',
+    body: 'The marketplace reviews bundles and keeps public metadata honest. Feature questions and plugin-specific bugs belong with the extension author.',
+  },
+  {
+    label: 'Security gets a different path',
+    body: 'Security, abuse, impersonation, licensing, and abandoned-listing reports should use the report flow from the affected listing whenever possible.',
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS Marketplace support',
+    url: '/support',
+    description,
+    items: supportPaths.map((path) => ({
+      name: path.label,
+      url: path.href,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Support', url: '/support' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'Where do I get support for an EmDash plugin?',
+      answer:
+        'Open the plugin listing first. If the author provided a support URL or repository, use that for feature questions and plugin-specific bugs. Use the marketplace report flow for security, abuse, licensing, impersonation, or abandoned-listing concerns.',
+    },
+    {
+      question: 'Does emdashcms.org have support forums?',
+      answer:
+        'Not yet. Support currently routes through documentation, plugin author links, listing reports, the status page, and GitHub issues for the marketplace project itself.',
+    },
+    {
+      question: 'How do I report a security issue in a plugin?',
+      answer:
+        'Use the report action from the affected plugin or theme detail page when possible, and read the security policy for how review, revocation, scanner rules, and public audit findings work.',
+    },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-14 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-end">
+      <div class="md:col-span-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-6">
+          Support
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Docs
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Reports
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-[4rem] leading-[1.05] text-ink"
+            style="font-weight: 400; font-variation-settings: 'opsz' 144; letter-spacing: -0.025em;">
+          Get unstuck.
+        </h1>
+      </div>
+
+      <div class="md:col-span-4">
+        <p class="text-lg text-ink-muted leading-relaxed">
+          The support model is deliberately simple while the marketplace is
+          early: docs for common paths, author links for extension questions,
+          reports for trust issues, and GitHub for the registry itself.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider emdash-divider--tight" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="paths-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="paths-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Choose the right route.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          There is no one inbox for every problem because the marketplace,
+          EmDash core, and each extension have different owners. Start with the
+          closest surface.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 border-t border-rule">
+        {supportPaths.map((path) => (
+          <a
+            href={path.href}
+            target={path.external ? '_blank' : undefined}
+            rel={path.external ? 'noopener noreferrer' : undefined}
+            class="group grid grid-cols-1 sm:grid-cols-[9rem_12rem_1fr] gap-3 border-b border-rule py-5"
+          >
+            <span class="text-xs uppercase tracking-[0.16em] text-ink-soft pt-1">
+              {path.audience}
+            </span>
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+              {path.label}
+            </h3>
+            <p class="text-sm text-ink-muted leading-relaxed">
+              {path.body}
+              <span class="block mt-2 text-ink underline underline-offset-4 decoration-rule-strong group-hover:decoration-accent-deep">
+                {path.link} →
+              </span>
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="expect-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="expect-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          What to expect.
+        </h2>
+      </div>
+
+      <div class="md:col-span-7">
+        <ol class="border-t border-rule">
+          {expectations.map((item, index) => (
+            <li class="grid grid-cols-[3rem_1fr] gap-5 border-b border-rule py-6">
+              <span class="font-display text-2xl text-accent-deep leading-none tabular-nums" style="font-weight: 400;">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <div>
+                <h3 class="font-display text-xl text-ink" style="font-weight: 500;">
+                  {item.label}
+                </h3>
+                <p class="mt-2 text-sm text-ink-muted leading-relaxed">
+                  {item.body}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page pb-32" aria-labelledby="need-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-start">
+      <div class="md:col-span-5">
+        <h2 id="need-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Need the project maintainers?
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          If the problem is with emdashcms.org itself rather than a specific
+          extension, open an issue with the exact page, request, or workflow
+          that failed.
+        </p>
+      </div>
+
+      <div class="md:col-span-7 surface p-6 md:p-7">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <a href="/status" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Check status first</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Confirm whether the catalog, API, feeds, badges, or queues are already degraded.</p>
+          </a>
+          <a href="/transparency" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Read recent activity</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">See current review outcomes, reports, deprecations, and catalog health.</p>
+          </a>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button
+            href="https://github.com/chrisjohnleah/emdashcms-org/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="hero"
+          >
+            Open an issue
+          </Button>
+          <Button href="/community" variant="secondary" size="lg">Get involved</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

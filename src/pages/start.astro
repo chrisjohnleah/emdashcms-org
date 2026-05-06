@@ -1,0 +1,253 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+  buildFaqPageJsonLd,
+} from '../lib/seo/json-ld';
+
+const title = 'Start with EmDash CMS — emdashcms.org';
+const description =
+  'A practical starting point for EmDash CMS: understand the project, get the core CMS, install trusted plugins and themes, publish extensions, and join the community.';
+
+const startPaths = [
+  {
+    label: 'Understand EmDash',
+    body: 'Learn what the CMS is, how its plugin model differs from WordPress, and why manifests and capabilities matter.',
+    href: '/learn/what-is-emdash',
+    link: 'Read the overview',
+  },
+  {
+    label: 'Get the CMS',
+    body: 'The core project lives separately from this community marketplace. Start there when you need the framework, docs, and runtime setup.',
+    href: 'https://emdashcms.com',
+    link: 'Open emdashcms.com',
+    external: true,
+  },
+  {
+    label: 'Install extensions',
+    body: 'Point an EmDash site at this registry, review capability prompts, and install audited plugins from the admin dashboard.',
+    href: '/guide',
+    link: 'Use the install guide',
+  },
+  {
+    label: 'Browse the catalog',
+    body: 'Find plugins and themes with public metadata, audit status, download counts, install counts, and author signals.',
+    href: '/plugins',
+    link: 'Browse plugins',
+  },
+  {
+    label: 'Build for EmDash',
+    body: 'Read the extension handbook, public API contract, manifest schema, feeds, MCP endpoint, and badge surfaces.',
+    href: '/developers',
+    link: 'Open developer resources',
+  },
+  {
+    label: 'Publish your work',
+    body: 'Register a plugin or theme, connect GitHub releases, and let every submitted version leave an inspectable audit trail.',
+    href: '/docs/contributors',
+    link: 'Read the publishing guide',
+  },
+];
+
+const nextSteps = [
+  {
+    label: 'Read about the project',
+    body: 'Clarify the split between the core CMS and this ecosystem site, including support, policy, and security routes.',
+    href: '/about',
+  },
+  {
+    label: 'Compare the model',
+    body: 'See where EmDash intentionally follows and diverges from WordPress: hosting, permissions, audits, themes, and extension flow.',
+    href: '/compare/emdash-vs-wordpress',
+  },
+  {
+    label: 'Follow what changes',
+    body: 'Read the weekly digest and transparency report to see what shipped, failed review, or needs attention.',
+    href: '/digest',
+  },
+  {
+    label: 'Get involved',
+    body: 'Help with docs, real installs, scanner rules, moderation, publisher support, or the marketplace app itself.',
+    href: '/community',
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'Start with EmDash CMS',
+    url: '/start',
+    description,
+    items: [...startPaths, ...nextSteps].map((path) => ({
+      name: path.label,
+      url: path.href,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Start', url: '/start' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'Where do I get EmDash CMS?',
+      answer:
+        'The core EmDash CMS project lives at emdashcms.com. emdashcms.org is the community marketplace and project hub for plugins, themes, docs, publishing, and ecosystem status.',
+    },
+    {
+      question: 'Is emdashcms.org the same thing as the CMS?',
+      answer:
+        'No. emdashcms.org is the public ecosystem site around EmDash CMS: plugin and theme directories, install guidance, contributor docs, developer resources, transparency reports, feeds, and community entry points.',
+    },
+    {
+      question: 'How do I install EmDash plugins?',
+      answer:
+        'Point an EmDash CMS site at https://emdashcms.org as its marketplace, then install plugins from the EmDash admin dashboard after reviewing their capability prompts. Manual bundle downloads are also available on plugin detail pages.',
+    },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-14 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-end">
+      <div class="md:col-span-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-6">
+          Start
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Core
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Community
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-[4rem] leading-[1.05] text-ink"
+            style="font-weight: 400; font-variation-settings: 'opsz' 144; letter-spacing: -0.025em;">
+          Start with EmDash.
+        </h1>
+      </div>
+
+      <div class="md:col-span-4">
+        <p class="text-lg text-ink-muted leading-relaxed">
+          This is the front door for the ecosystem: get the CMS, understand the
+          plugin model, install audited extensions, publish your own, and follow
+          the project as it grows.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider emdash-divider--tight" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="paths-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="paths-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Choose the next step.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          WordPress.org has a download page because WordPress ships as a
+          package. EmDash has a core project and a marketplace. Start with the
+          part that matches what you are trying to do.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {startPaths.map((path) => (
+          <article class="surface p-5">
+            <h3 class="font-display text-xl text-ink leading-tight" style="font-weight: 500;">
+              <span class="emdash-mark mr-2" aria-hidden="true">—</span>
+              {path.label}
+            </h3>
+            <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+              {path.body}
+            </p>
+            <a
+              href={path.href}
+              target={path.external ? '_blank' : undefined}
+              rel={path.external ? 'noopener noreferrer' : undefined}
+              class="mt-5 inline-flex text-sm text-ink hover:text-accent-deep underline underline-offset-4 decoration-rule-strong hover:decoration-accent-deep transition-colors"
+            >
+              {path.link} →
+            </a>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="why-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="why-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Core over there. Ecosystem here.
+        </h2>
+      </div>
+
+      <div class="md:col-span-7">
+        <div class="border-t border-rule">
+          <div class="grid grid-cols-1 sm:grid-cols-[11rem_1fr] gap-3 border-b border-rule py-5">
+            <h3 class="font-display text-xl text-ink" style="font-weight: 500;">emdashcms.com</h3>
+            <p class="text-sm text-ink-muted leading-relaxed">
+              The core CMS, framework docs, runtime setup, and canonical product
+              home live with the upstream project.
+            </p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-[11rem_1fr] gap-3 border-b border-rule py-5">
+            <h3 class="font-display text-xl text-ink" style="font-weight: 500;">emdashcms.org</h3>
+            <p class="text-sm text-ink-muted leading-relaxed">
+              The public marketplace and ecosystem home: extensions, learning,
+              publishing, reviews, transparency, feeds, API, and community.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button
+            href="https://emdashcms.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="hero"
+          >
+            Get EmDash CMS
+          </Button>
+          <Button href="/plugins" variant="secondary" size="lg">Browse extensions</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page pb-32" aria-labelledby="after-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="after-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          After the first install.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          A useful ecosystem is not just downloads. It needs examples, careful
+          comparisons, open status, and people willing to improve the rough
+          edges.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {nextSteps.map((step) => (
+          <a href={step.href} class="surface p-5 group">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+              {step.label}
+            </h3>
+            <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+              {step.body}
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

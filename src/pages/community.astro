@@ -1,0 +1,242 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+} from '../lib/seo/json-ld';
+
+const title = 'Community — emdashcms.org';
+const description =
+  'Ways to contribute to the EmDash CMS community marketplace: publish plugins and themes, improve docs, test installs, review trust signals, and help keep the catalog useful.';
+
+const contributionPaths = [
+  {
+    label: 'Publish extensions',
+    body: 'Share a plugin or theme, wire it to GitHub releases, and let the audit pipeline produce a public trail for each version.',
+    href: '/docs/contributors',
+    link: 'Read the publishing guide',
+  },
+  {
+    label: 'Improve the docs',
+    body: 'Tighten the Learn pages, contributor guide, manifest reference, and install notes so the next developer can move faster.',
+    href: 'https://github.com/chrisjohnleah/emdashcms-org/issues',
+    link: 'Open a docs issue',
+    external: true,
+  },
+  {
+    label: 'Test real installs',
+    body: 'Run marketplace plugins in an EmDash site, check capability prompts, and report unclear install or consent behaviour.',
+    href: '/guide',
+    link: 'Start with the install guide',
+  },
+  {
+    label: 'Review trust signals',
+    body: 'Read audit findings, inspect bundles, and suggest scanner rules when a pattern should block or caution a release.',
+    href: '/docs/security',
+    link: 'Review the security policy',
+  },
+  {
+    label: 'Moderate the catalog',
+    body: 'Help handle reports, deprecations, author bans, and public tombstones with a bias toward clarity and due process.',
+    href: '/docs/moderators',
+    link: 'Read the moderator guide',
+  },
+  {
+    label: 'Build the marketplace',
+    body: 'Work on the open-source registry itself: search, feeds, badges, API contracts, dashboards, and Cloudflare deployment.',
+    href: 'https://github.com/chrisjohnleah/emdashcms-org',
+    link: 'Browse the repository',
+    external: true,
+  },
+];
+
+const operatingNotes = [
+  {
+    label: 'No private roadmap theatre',
+    body: 'Work starts in public issues or pull requests. If a decision affects authors or site owners, it should leave a public explanation.',
+  },
+  {
+    label: 'Small patches count',
+    body: 'A useful rejection message, a clearer manifest example, or a verified install note is real contribution work.',
+  },
+  {
+    label: 'Trust over volume',
+    body: 'The marketplace should grow at the speed it can review. A smaller catalog with honest signals is better than a large one people cannot trust.',
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS Marketplace community',
+    url: '/community',
+    description,
+    items: contributionPaths.map((path) => ({
+      name: path.label,
+      url: path.href,
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Community', url: '/community' },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-14 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-end">
+      <div class="md:col-span-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-6">
+          Community
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Open source
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Early by design
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-[4rem] leading-[1.05] text-ink"
+            style="font-weight: 400; font-variation-settings: 'opsz' 144; letter-spacing: -0.025em;">
+          Help make em—dash useful.
+        </h1>
+      </div>
+
+      <div class="md:col-span-4">
+        <p class="text-lg text-ink-muted leading-relaxed">
+          The marketplace is young. The useful work is practical and public:
+          publish extensions, improve docs, test installs, review trust signals,
+          and leave clearer trails for the next person.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider emdash-divider--tight" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="paths-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="paths-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Contribution paths.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          Pick the work closest to what you already know. The project needs
+          authors, readers, reviewers, testers, and people who can make rough
+          edges legible.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {contributionPaths.map((path) => (
+          <article class="surface p-5">
+            <h3 class="font-display text-xl text-ink leading-tight" style="font-weight: 500;">
+              <span class="emdash-mark mr-2" aria-hidden="true">—</span>
+              {path.label}
+            </h3>
+            <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+              {path.body}
+            </p>
+            <a
+              href={path.href}
+              target={path.external ? '_blank' : undefined}
+              rel={path.external ? 'noopener noreferrer' : undefined}
+              class="mt-5 inline-flex text-sm text-ink hover:text-accent-deep underline underline-offset-4 decoration-rule-strong hover:decoration-accent-deep transition-colors"
+            >
+              {path.link} →
+            </a>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="how-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="how-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          How the project works today.
+        </h2>
+      </div>
+
+      <div class="md:col-span-7">
+        <ol class="border-t border-rule">
+          {operatingNotes.map((note, index) => (
+            <li class="grid grid-cols-[3rem_1fr] gap-5 border-b border-rule py-6">
+              <span class="font-display text-2xl text-accent-deep leading-none tabular-nums" style="font-weight: 400;">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <div>
+                <h3 class="font-display text-xl text-ink" style="font-weight: 500;">
+                  {note.label}
+                </h3>
+                <p class="mt-2 text-sm text-ink-muted leading-relaxed">
+                  {note.body}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page pb-32" aria-labelledby="standards-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-start">
+      <div class="md:col-span-5">
+        <h2 id="standards-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Keep it useful, keep it kind.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          A marketplace only works when people trust the catalog and trust each
+          other enough to contribute. The same standards apply in issues,
+          listings, reviews, dashboard metadata, and reports.
+        </p>
+      </div>
+
+      <div class="md:col-span-7 surface p-6 md:p-7">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <a href="/code-of-conduct" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Code of conduct</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">The baseline for behaviour across the project.</p>
+          </a>
+          <a href="/plugins" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Report a listing</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Open a listing page to flag security, abuse, impersonation, licensing, or quality concerns.</p>
+          </a>
+          <a href="/support" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Support</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Find the right route for install issues, plugin questions, publisher help, and project bugs.</p>
+          </a>
+          <a href="/transparency" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Transparency</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">Weekly public counts for reports, audit outcomes, and catalog health.</p>
+          </a>
+          <a href="/digest" class="group border-t border-rule pt-4">
+            <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">Weekly digest</h3>
+            <p class="mt-2 text-sm text-ink-muted leading-relaxed">A permanent archive of what changed in the ecosystem.</p>
+          </a>
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button href="/docs/contributors" variant="hero">Publish something</Button>
+          <Button
+            href="https://github.com/chrisjohnleah/emdashcms-org/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="secondary"
+            size="lg"
+          >
+            Open an issue
+          </Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

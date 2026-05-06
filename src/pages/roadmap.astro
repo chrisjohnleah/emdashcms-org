@@ -1,0 +1,270 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import {
+  buildBreadcrumbListJsonLd,
+  buildCollectionPageJsonLd,
+  buildFaqPageJsonLd,
+} from '../lib/seo/json-ld';
+
+const title = 'Roadmap — emdashcms.org';
+const description =
+  'The public roadmap for emdashcms.org: what exists now, what is next for the EmDash CMS marketplace, and what will not be claimed until the ecosystem earns it.';
+
+const lanes = [
+  {
+    label: 'Now',
+    summary: 'Make the registry useful and inspectable.',
+    items: [
+      'Plugin and theme directories with public metadata, install counts, downloads, audit state, and author signals.',
+      'Start, Learn, Support, Developer, Community, About, transparency, status, and digest surfaces for people and crawlers.',
+      'Fail-closed review, listing reports, security policy, moderator docs, and source links for public scrutiny.',
+    ],
+  },
+  {
+    label: 'Next',
+    summary: 'Tighten the author and reviewer loop.',
+    items: [
+      'Sharper publisher guidance around duplicate projects, release fixes, support links, licensing, and screenshots.',
+      'More review explanations that help authors fix rejected bundles without weakening the scanner rules.',
+      'Better public examples for manifests, capabilities, install prompts, badges, feeds, OpenAPI, MCP, and llms.txt.',
+    ],
+  },
+  {
+    label: 'Soon after',
+    summary: 'Prove the ecosystem with real work.',
+    items: [
+      'Seed the catalog with real extensions and themes that can be installed, reviewed, reported, and updated end to end.',
+      'Collect verified usage notes from real EmDash sites before opening a public showcase.',
+      'Turn repeated support questions into docs before introducing a central forum or heavier community process.',
+    ],
+  },
+  {
+    label: 'Later',
+    summary: 'Scale only what the community can maintain.',
+    items: [
+      'Contributor roles for docs, moderation, scanner rules, release review, support routing, and marketplace infrastructure.',
+      'A central discussion/support space only when author links, docs, reports, and GitHub issues stop being enough.',
+      'A richer showcase, pattern library, or events surface only after there is real public activity to point at.',
+    ],
+  },
+];
+
+const guardrails = [
+  {
+    label: 'This is not a promise of dates',
+    body: 'Items move when code, docs, review coverage, and maintainers are ready. A public roadmap is a map of intent, not a release contract.',
+  },
+  {
+    label: 'Security can interrupt the plan',
+    body: 'Scanner fixes, report handling, revocations, abuse response, and policy corrections outrank catalog growth.',
+  },
+  {
+    label: 'No fake showcase',
+    body: 'emdashcms.org should not invent adoption, sites, testimonials, support forums, events, or community scale before those things exist.',
+  },
+  {
+    label: 'Public issue trails first',
+    body: 'Work that affects publishers or site owners should land through visible issues, pull requests, docs, changelog entries, or transparency notes.',
+  },
+];
+
+const contributionLinks = [
+  {
+    label: 'Publish or test an extension',
+    body: 'The fastest way to improve the roadmap is to run the marketplace flow on real plugins and themes.',
+    href: '/docs/contributors',
+  },
+  {
+    label: 'Improve a public surface',
+    body: 'Docs, install copy, error states, status explanations, and reviewer notes are all useful first contributions.',
+    href: '/community',
+  },
+  {
+    label: 'Open a focused issue',
+    body: 'Use GitHub when the roadmap misses a practical problem in the registry, dashboard, API, docs, or audit flow.',
+    href: 'https://github.com/chrisjohnleah/emdashcms-org/issues',
+    external: true,
+  },
+  {
+    label: 'Check current health',
+    body: 'Use live status and transparency data to see what the marketplace is actually doing now.',
+    href: '/status',
+  },
+];
+
+const jsonLd = [
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS Marketplace roadmap',
+    url: '/roadmap',
+    description,
+    items: lanes.map((lane) => ({
+      name: lane.label,
+      url: '/roadmap',
+    })),
+  }),
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Roadmap', url: '/roadmap' },
+  ]),
+  buildFaqPageJsonLd([
+    {
+      question: 'Does the emdashcms.org roadmap promise release dates?',
+      answer:
+        'No. The roadmap is a public map of intent, not a release contract. Items move when code, docs, review coverage, and maintainers are ready.',
+    },
+    {
+      question: 'Why does the roadmap not include a showcase yet?',
+      answer:
+        'emdashcms.org should not invent adoption. A showcase should wait until there are verified real EmDash sites and extensions to point at.',
+    },
+    {
+      question: 'What can change the roadmap first?',
+      answer:
+        'Security fixes, report handling, revocations, abuse response, and policy corrections outrank catalog growth or new community surfaces.',
+    },
+  ]),
+];
+---
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-14 pb-20 md:pt-20 md:pb-28">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-end">
+      <div class="md:col-span-8">
+        <p class="text-xs uppercase tracking-[0.18em] text-ink-soft mb-6">
+          Roadmap
+          <span class="emdash-sep" aria-hidden="true"></span>
+          Public plan
+          <span class="emdash-sep" aria-hidden="true"></span>
+          No theatre
+        </p>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-[4rem] leading-[1.05] text-ink"
+            style="font-weight: 400; font-variation-settings: 'opsz' 144; letter-spacing: -0.025em;">
+          Build the ecosystem in public.
+        </h1>
+      </div>
+
+      <div class="md:col-span-4">
+        <p class="text-lg text-ink-muted leading-relaxed">
+          This roadmap explains what exists now, what should improve next, and
+          what emdashcms.org should not claim until the community earns it with
+          real installs, real authors, and real maintenance.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider emdash-divider--tight" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="lanes-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-4">
+        <h2 id="lanes-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          The current path.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          WordPress.org is a large public project surface. EmDash is earlier,
+          so the roadmap stays smaller and more explicit about what is real.
+        </p>
+      </div>
+
+      <div class="md:col-span-8 border-t border-rule">
+        {lanes.map((lane) => (
+          <article class="grid grid-cols-1 sm:grid-cols-[8rem_1fr] gap-4 border-b border-rule py-6">
+            <div>
+              <p class="font-display text-2xl text-accent-deep leading-none" style="font-weight: 400;">
+                {lane.label}
+              </p>
+              <p class="mt-3 text-xs uppercase tracking-[0.16em] text-ink-soft">
+                {lane.summary}
+              </p>
+            </div>
+            <ul class="space-y-3 text-sm text-ink-muted leading-relaxed">
+              {lane.items.map((item) => (
+                <li class="flex gap-3">
+                  <span class="emdash-mark text-ink-soft" aria-hidden="true">—</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page" aria-labelledby="guardrails-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12">
+      <div class="md:col-span-5">
+        <h2 id="guardrails-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Guardrails.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed max-w-md">
+          A roadmap is only useful if it resists vanity surfaces. These rules
+          keep the project honest while it is small.
+        </p>
+      </div>
+
+      <div class="md:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {guardrails.map((item) => (
+          <article class="surface p-5">
+            <h3 class="font-display text-xl text-ink leading-tight" style="font-weight: 500;">
+              <span class="emdash-mark mr-2" aria-hidden="true">—</span>
+              {item.label}
+            </h3>
+            <p class="mt-3 text-sm text-ink-muted leading-relaxed">
+              {item.body}
+            </p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <span class="emdash-divider" aria-hidden="true"></span>
+
+  <section class="page pb-32" aria-labelledby="help-heading">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-12 items-start">
+      <div class="md:col-span-5">
+        <h2 id="help-heading" class="font-display text-3xl md:text-4xl text-ink"
+            style="font-weight: 500; letter-spacing: -0.02em;">
+          Move it forward.
+        </h2>
+        <p class="mt-5 text-base text-ink-muted leading-relaxed">
+          The roadmap should change when contributors prove a better path with
+          code, docs, testing, reports, or real extension work.
+        </p>
+      </div>
+
+      <div class="md:col-span-7">
+        <div class="border-t border-rule">
+          {contributionLinks.map((link) => (
+            <a
+              href={link.href}
+              target={link.external ? '_blank' : undefined}
+              rel={link.external ? 'noopener noreferrer' : undefined}
+              class="group grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-3 border-b border-rule py-5"
+            >
+              <h3 class="font-display text-xl text-ink group-hover:text-accent-deep transition-colors" style="font-weight: 500;">
+                {link.label}
+              </h3>
+              <p class="text-sm text-ink-muted leading-relaxed">
+                {link.body}
+              </p>
+            </a>
+          ))}
+        </div>
+
+        <div class="mt-8 flex flex-wrap gap-3">
+          <Button href="/community" variant="hero">Get involved</Button>
+          <Button href="/transparency" variant="secondary" size="lg">Read transparency</Button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
