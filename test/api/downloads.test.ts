@@ -617,6 +617,16 @@ describe("DOWN-04: Download counters with anti-fraud dedup", () => {
     const exists = await themeExists(env.DB, "no-such-theme-xyz");
     expect(exists).toBe(false);
   });
+
+  it("themeExists returns false for a revoked theme", async () => {
+    await env.DB.prepare(
+      `INSERT INTO themes (id, author_id, name, description, repository_url, keywords, status, created_at, updated_at)
+       VALUES ('dl-revoked-theme', 'dl-author-1', 'Revoked Theme', 'A revoked theme', 'https://example.com/revoked', '[]', 'revoked', '2026-04-04T08:00:00Z', '2026-04-04T08:00:00Z')`,
+    ).run();
+
+    const exists = await themeExists(env.DB, "dl-revoked-theme");
+    expect(exists).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

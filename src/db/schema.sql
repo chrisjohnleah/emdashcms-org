@@ -89,8 +89,10 @@ CREATE TABLE themes (
     demo_url TEXT,
     thumbnail_key TEXT,
     npm_package TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX idx_themes_author ON themes(author_id);
+CREATE INDEX idx_themes_status ON themes(status);

@@ -100,6 +100,22 @@ describe("report-queries", () => {
     expect(all[0].reporterUsername).toBeNull();
   });
 
+  it("creates a community report for non-listing moderation concerns", async () => {
+    await createReport(env.DB, {
+      entityType: "community",
+      entityId: "general",
+      reporterAuthorId: null,
+      reasonCategory: "abuse",
+      description: "Code of Conduct concern raised from the community page",
+    });
+
+    const all = await listReports(env.DB);
+    expect(all).toHaveLength(1);
+    expect(all[0].entityType).toBe("community");
+    expect(all[0].entityId).toBe("general");
+    expect(all[0].status).toBe("open");
+  });
+
   it("filters listReports by status", async () => {
     await createReport(env.DB, {
       entityType: "plugin",

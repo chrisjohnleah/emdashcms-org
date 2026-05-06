@@ -12,7 +12,7 @@ import { emitReportNotification } from "../../../../lib/notifications/emitter";
 
 export const prerender = false;
 
-const VALID_ENTITY_TYPES: ReportEntityType[] = ["plugin", "theme"];
+const VALID_ENTITY_TYPES: ReportEntityType[] = ["plugin", "theme", "community"];
 const VALID_CATEGORIES: ReportCategory[] = [
   "security",
   "abuse",
@@ -39,7 +39,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const turnstileToken = body.turnstileToken as string | undefined;
 
   if (!VALID_ENTITY_TYPES.includes(entityType as ReportEntityType)) {
-    return errorResponse(400, "entityType must be 'plugin' or 'theme'");
+    return errorResponse(
+      400,
+      "entityType must be 'plugin', 'theme', or 'community'",
+    );
   }
   if (!entityId || typeof entityId !== "string") {
     return errorResponse(400, "entityId is required");
@@ -77,15 +80,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
   }
 
-  // Verify the reported entity actually exists before storing the report.
-  const existsTable = entityType === "plugin" ? "plugins" : "themes";
-  const existsRow = await env.DB.prepare(
-    `SELECT 1 AS found FROM ${existsTable} WHERE id = ?`,
-  )
-    .bind(entityId)
-    .first();
-  if (!existsRow) {
-    return errorResponse(404, `${entityType} '${entityId}' not found`);
+  // Verify plugin/theme targets actually exist before storing the report.
+  if (entityType !== "community") {
+    const existsTable = entityType === "plugin" ? "plugins" : "themes";
+    const existsRow = await env.DB.prepare(
+      `SELECT 1 AS found FROM ${existsTable} WHERE id = ?`,
+    )
+      .bind(entityId)
+      .first();
+    if (!existsRow) {
+      return errorResponse(404, `${entityType} '${entityId}' not found`);
+    }
   }
 
   // Resolve reporter author id if authenticated.
@@ -108,25 +113,27 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // already wraps every external call in try/catch, but we belt-and-
     // brace here as well so a truly unexpected throw can't break the
     // 202 response contract.
-    try {
-      const entityTable = entityType === "plugin" ? "plugins" : "themes";
-      const nameRow = await env.DB.prepare(
-        `SELECT name FROM ${entityTable} WHERE id = ?`,
-      )
-        .bind(entityId)
-        .first<{ name: string }>();
-      const entityName = nameRow?.name ?? entityId;
-      const excerpt = description.trim().slice(0, 200);
-      await emitReportNotification(env.DB, env.NOTIF_QUEUE, {
-        reportId: id,
-        entityType: entityType as "plugin" | "theme",
-        entityId,
-        entityName,
-        category,
-        descriptionExcerpt: excerpt,
-      });
-    } catch (notifyErr) {
-      console.error("[notifications] report emit failed:", notifyErr);
+    if (entityType !== "community") {
+      try {
+        const entityTable = entityType === "plugin" ? "plugins" : "themes";
+        const nameRow = await env.DB.prepare(
+          `SELECT name FROM ${entityTable} WHERE id = ?`,
+        )
+          .bind(entityId)
+          .first<{ name: string }>();
+        const entityName = nameRow?.name ?? entityId;
+        const excerpt = description.trim().slice(0, 200);
+        await emitReportNotification(env.DB, env.NOTIF_QUEUE, {
+          reportId: id,
+          entityType: entityType as "plugin" | "theme",
+          entityId,
+          entityName,
+          category,
+          descriptionExcerpt: excerpt,
+        });
+      } catch (notifyErr) {
+        console.error("[notifications] report emit failed:", notifyErr);
+      }
     }
 
     return jsonResponse({ id, status: "open" }, 202);

@@ -360,6 +360,8 @@ export async function getPublicThemesByAuthor(
        FROM themes t
        JOIN authors a ON t.author_id = a.id
        WHERE t.author_id = ?
+         AND COALESCE(t.status, 'active') = 'active'
+         AND (t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)
        ORDER BY t.created_at DESC`,
     )
     .bind(authorId)
@@ -586,6 +588,7 @@ export async function searchThemes(
 
   // Only show themes that have something to install
   conditions.push("(t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)");
+  conditions.push("COALESCE(t.status, 'active') = 'active'");
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
 
@@ -627,6 +630,7 @@ export async function searchThemes(
 export async function getThemeDetail(
   db: D1Database,
   themeId: string,
+  opts: { includeRevoked?: boolean } = {},
 ): Promise<MarketplaceThemeDetail | null> {
   const result = await db
     .prepare(
@@ -634,9 +638,10 @@ export async function getThemeDetail(
        FROM themes t
        JOIN authors a ON t.author_id = a.id
        WHERE t.id = ?
+         AND (? = 1 OR COALESCE(t.status, 'active') = 'active')
          AND (t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)`,
     )
-    .bind(themeId)
+    .bind(themeId, opts.includeRevoked ? 1 : 0)
     .all();
 
   const rows = result.results as Record<string, unknown>[];

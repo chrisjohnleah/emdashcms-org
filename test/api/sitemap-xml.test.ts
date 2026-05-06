@@ -109,10 +109,17 @@ async function seedTheme(opts: {
   category?: string | null;
   updatedAt: string;
   installable?: boolean;
+  status?: "active" | "revoked";
 }): Promise<void> {
-  const { id, category = null, updatedAt, installable = true } = opts;
+  const {
+    id,
+    category = null,
+    updatedAt,
+    installable = true,
+    status = "active",
+  } = opts;
   await env.DB.prepare(
-    "INSERT INTO themes (id, author_id, name, description, category, keywords, repository_url, npm_package, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO themes (id, author_id, name, description, category, keywords, repository_url, npm_package, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   )
     .bind(
       id,
@@ -123,6 +130,7 @@ async function seedTheme(opts: {
       "[]",
       installable ? `https://example.com/${id}` : null,
       null,
+      status,
       "2026-01-01T00:00:00Z",
       updatedAt,
     )
@@ -339,6 +347,23 @@ describe("/sitemap.xml endpoint", () => {
     const body = await (await invoke()).text();
     expect(body).not.toContain(
       "<loc>https://emdashcms.org/themes/not-installable</loc>",
+    );
+  });
+
+  it("excludes revoked themes and their unique category", async () => {
+    await seedTheme({
+      id: "revoked-theme",
+      category: "revoked-category",
+      updatedAt: "2026-03-07T10:00:00Z",
+      status: "revoked",
+    });
+
+    const body = await (await invoke()).text();
+    expect(body).not.toContain(
+      "<loc>https://emdashcms.org/themes/revoked-theme</loc>",
+    );
+    expect(body).not.toContain(
+      "<loc>https://emdashcms.org/themes/category/revoked-category</loc>",
     );
   });
 

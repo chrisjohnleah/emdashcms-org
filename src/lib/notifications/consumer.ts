@@ -189,6 +189,7 @@ function renderForJob(job: NotificationJob): RenderedEmail {
     case "revoke_plugin":
       return renderRevokePlugin({
         pluginName: String(payload.entityName ?? ""),
+        listingType: job.entityType === "theme" ? "theme" : "plugin",
         reason: String(payload.reason ?? ""),
         publicNote:
           typeof payload.publicNote === "string"

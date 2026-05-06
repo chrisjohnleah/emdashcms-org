@@ -10,6 +10,19 @@ export interface AdminPlugin {
   updatedAt: string;
 }
 
+export interface AdminTheme {
+  id: string;
+  name: string;
+  status: string;
+  authorUsername: string;
+  authorId: string;
+  category: string | null;
+  downloadCount: number;
+  openReportCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminAuthor {
   id: string;
   githubUsername: string;
@@ -42,6 +55,40 @@ export async function getAllPlugins(db: D1Database): Promise<AdminPlugin[]> {
     authorId: r.author_id as string,
     installCount: r.installs_count as number,
     versionCount: r.version_count as number,
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  }));
+}
+
+export async function getAllThemes(db: D1Database): Promise<AdminTheme[]> {
+  const result = await db
+    .prepare(
+      `SELECT
+        t.id, t.name, COALESCE(t.status, 'active') AS status,
+        t.author_id, t.category, t.downloads_count, t.created_at, t.updated_at,
+        a.github_username,
+        (
+          SELECT COUNT(*)
+          FROM reports r
+          WHERE r.entity_type = 'theme'
+            AND r.entity_id = t.id
+            AND r.status IN ('open', 'investigating')
+        ) AS open_report_count
+      FROM themes t
+      JOIN authors a ON t.author_id = a.id
+      ORDER BY t.created_at DESC`,
+    )
+    .all();
+
+  return (result.results as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    status: r.status as string,
+    authorUsername: r.github_username as string,
+    authorId: r.author_id as string,
+    category: r.category as string | null,
+    downloadCount: (r.downloads_count as number) ?? 0,
+    openReportCount: (r.open_report_count as number) ?? 0,
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   }));
@@ -83,6 +130,24 @@ export async function setPluginStatus(
     .run();
 
   return result.meta.changes > 0;
+}
+
+export async function setThemeStatus(
+  db: D1Database,
+  themeId: string,
+  status: "active" | "revoked",
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE themes
+       SET status = ?,
+           updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE id = ?`,
+    )
+    .bind(status, themeId)
+    .run();
+
+  return (result.meta?.changes ?? 0) > 0;
 }
 
 export type MergePluginsResult =
@@ -231,6 +296,33 @@ export interface AdminPluginDetail {
   githubTagPattern: string | null;
 }
 
+export interface AdminThemeDetail {
+  id: string;
+  name: string;
+  shortDescription: string | null;
+  description: string | null;
+  category: string | null;
+  keywords: string[];
+  previewUrl: string | null;
+  demoUrl: string | null;
+  repositoryUrl: string | null;
+  homepageUrl: string | null;
+  license: string | null;
+  status: string;
+  downloadCount: number;
+  thumbnailKey: string | null;
+  screenshotKeys: string[];
+  createdAt: string;
+  updatedAt: string;
+  authorId: string;
+  authorUsername: string;
+  authorAvatarUrl: string | null;
+  authorGithubId: number;
+  githubRepoFullName: string | null;
+  githubAutoSubmit: boolean | null;
+  githubTagPattern: string | null;
+}
+
 export interface AdminVersionDetail {
   id: string;
   version: string;
@@ -264,7 +356,9 @@ export interface AuthorPlugin {
 export interface AuthorTheme {
   id: string;
   name: string;
+  status: string;
   description: string | null;
+  downloadCount: number;
   createdAt: string;
 }
 
@@ -377,6 +471,54 @@ export async function getAdminPluginVersions(
   }));
 }
 
+export async function getAdminThemeDetail(
+  db: D1Database,
+  themeId: string,
+): Promise<AdminThemeDetail | null> {
+  const result = await db
+    .prepare(
+      `SELECT t.*, a.github_username, a.avatar_url, a.github_id,
+              gl.repo_full_name, gl.auto_submit, gl.tag_pattern
+       FROM themes t
+       JOIN authors a ON t.author_id = a.id
+       LEFT JOIN plugin_github_links gl ON gl.plugin_id = t.id
+       WHERE t.id = ?`,
+    )
+    .bind(themeId)
+    .all();
+
+  const rows = result.results as Record<string, unknown>[];
+  if (rows.length === 0) return null;
+  const r = rows[0];
+
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    shortDescription: r.short_description as string | null,
+    description: r.description as string | null,
+    category: r.category as string | null,
+    keywords: JSON.parse((r.keywords as string) || "[]"),
+    previewUrl: r.preview_url as string | null,
+    demoUrl: r.demo_url as string | null,
+    repositoryUrl: r.repository_url as string | null,
+    homepageUrl: r.homepage_url as string | null,
+    license: r.license as string | null,
+    status: (r.status as string) ?? "active",
+    downloadCount: (r.downloads_count as number) ?? 0,
+    thumbnailKey: r.thumbnail_key as string | null,
+    screenshotKeys: JSON.parse((r.screenshot_keys as string) || "[]"),
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+    authorId: r.author_id as string,
+    authorUsername: r.github_username as string,
+    authorAvatarUrl: r.avatar_url as string | null,
+    authorGithubId: r.github_id as number,
+    githubRepoFullName: r.repo_full_name as string | null,
+    githubAutoSubmit: r.auto_submit != null ? Boolean(r.auto_submit) : null,
+    githubTagPattern: r.tag_pattern as string | null,
+  };
+}
+
 export async function getAdminAuthorDetail(
   db: D1Database,
   authorId: string,
@@ -441,7 +583,8 @@ export async function getAuthorThemes(
 ): Promise<AuthorTheme[]> {
   const result = await db
     .prepare(
-      `SELECT id, name, description, created_at
+      `SELECT id, name, COALESCE(status, 'active') AS status,
+              description, downloads_count, created_at
        FROM themes WHERE author_id = ?
        ORDER BY created_at DESC`,
     )
@@ -451,7 +594,9 @@ export async function getAuthorThemes(
   return (result.results as Record<string, unknown>[]).map((r) => ({
     id: r.id as string,
     name: r.name as string,
+    status: r.status as string,
     description: r.description as string | null,
+    downloadCount: (r.downloads_count as number) ?? 0,
     createdAt: r.created_at as string,
   }));
 }

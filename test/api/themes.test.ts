@@ -142,6 +142,44 @@ describe("Theme Search (DISC-04)", () => {
     expect(Array.isArray(theme.keywords)).toBe(true);
     expect(typeof theme.hasThumbnail).toBe("boolean");
   });
+
+  it("hides revoked themes from public search and detail", async () => {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO themes (
+        id, author_id, name, description, keywords, repository_url,
+        status, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        "revoked-public-theme",
+        "author-1",
+        "Revoked Public Theme",
+        "A revoked theme that should not appear publicly.",
+        '["revoked"]',
+        "https://github.com/test/revoked-theme",
+        "revoked",
+        "2026-04-02T08:00:00Z",
+        "2026-04-02T08:00:00Z",
+      )
+      .run();
+
+    const result = await searchThemes(env.DB, {
+      query: "Revoked Public Theme",
+      category: null,
+      keyword: null,
+      sort: "created",
+      cursor: null,
+      limit: 20,
+    });
+    expect(result.items).toEqual([]);
+    expect(await getThemeDetail(env.DB, "revoked-public-theme")).toBeNull();
+
+    const adminVisible = await getThemeDetail(env.DB, "revoked-public-theme", {
+      includeRevoked: true,
+    });
+    expect(adminVisible).not.toBeNull();
+    expect(adminVisible!.id).toBe("revoked-public-theme");
+  });
 });
 
 // ---------------------------------------------------------------------------

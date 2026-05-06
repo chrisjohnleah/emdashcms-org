@@ -236,15 +236,21 @@ export async function incrementThemeDownloads(
 }
 
 /**
- * Check if a theme exists in D1. Mirrors `pluginExists` so the theme
- * tracking endpoint can return a clean 404 for unknown IDs.
+ * Check if a publicly active theme exists in D1. Mirrors `pluginExists`
+ * so the theme tracking endpoint can return a clean 404 for unknown or
+ * revoked IDs instead of recording interest for hidden listings.
  */
 export async function themeExists(
   db: D1Database,
   themeId: string,
 ): Promise<boolean> {
   const row = await db
-    .prepare("SELECT 1 AS found FROM themes WHERE id = ?")
+    .prepare(
+      `SELECT 1 AS found
+       FROM themes
+       WHERE id = ?
+         AND COALESCE(status, 'active') = 'active'`,
+    )
     .bind(themeId)
     .first();
   return row !== null;

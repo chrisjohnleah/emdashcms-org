@@ -6,7 +6,7 @@
  * Anonymous reports are allowed — `reporter_author_id` is nullable.
  */
 
-export type ReportEntityType = "plugin" | "theme";
+export type ReportEntityType = "plugin" | "theme" | "community";
 export type ReportCategory =
   | "security"
   | "abuse"

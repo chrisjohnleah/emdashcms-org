@@ -118,6 +118,7 @@ describe("D1 Schema", () => {
     expect(columns).toContain("demo_url");
     expect(columns).toContain("thumbnail_key");
     expect(columns).toContain("npm_package");
+    expect(columns).toContain("status");
     expect(columns).toContain("created_at");
     expect(columns).toContain("updated_at");
   });

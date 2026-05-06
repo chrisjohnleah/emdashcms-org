@@ -15,7 +15,7 @@ import { buildSitemapXml, type SitemapInput } from "../lib/seo/sitemap";
  *     `COALESCE(status, 'active') = 'active'` AND an EXISTS on a
  *     published/flagged version. Parity with the browse UI means the
  *     sitemap never lists a plugin that users cannot actually see.
- *   - Theme filter matches `searchThemes`: installable iff
+ *   - Theme filter matches `searchThemes`: active and installable iff
  *     `repository_url IS NOT NULL OR npm_package IS NOT NULL`.
  *   - Category enumeration uses a single DISTINCT-grouped query per
  *     entity type; MAX(updated_at) becomes the <lastmod> so search
@@ -85,12 +85,12 @@ async function fetchThemesKeyset(db: D1Database): Promise<CatalogRow[]> {
   const rows: CatalogRow[] = [];
   let cursor: string | null = null;
 
-  // Matches searchThemes filter: themes are installable iff they have
-  // a repository or an npm package to install from.
+  // Matches searchThemes filter: themes must be active and installable.
   const baseSql = `
     SELECT id, updated_at
     FROM themes
-    WHERE (repository_url IS NOT NULL OR npm_package IS NOT NULL)`;
+    WHERE COALESCE(status, 'active') = 'active'
+      AND (repository_url IS NOT NULL OR npm_package IS NOT NULL)`;
 
   while (true) {
     const result: D1Result = cursor
@@ -142,6 +142,7 @@ async function fetchThemeCategories(db: D1Database): Promise<CategoryRow[]> {
       `SELECT category AS slug, MAX(updated_at) AS lastmod
        FROM themes
        WHERE category IS NOT NULL
+         AND COALESCE(status, 'active') = 'active'
          AND (repository_url IS NOT NULL OR npm_package IS NOT NULL)
        GROUP BY category
        ORDER BY category ASC`,

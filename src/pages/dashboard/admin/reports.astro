@@ -112,7 +112,9 @@ const formatDate = (iso: string) =>
                       {report.status}
                     </span>
                     <a
-                      href={`/${report.entityType}s/${report.entityId}`}
+                      href={report.entityType === 'community'
+                        ? '/community'
+                        : `/dashboard/admin/${report.entityType}s/${encodeURIComponent(report.entityId)}`}
                       class="text-sm font-mono text-ink-muted hover:text-ink transition-colors"
                     >
                       {report.entityType}/{report.entityId}

@@ -16,13 +16,17 @@ import { resolveAuthorId } from '../../lib/publishing/plugin-queries';
 const rawTarget = Astro.params.target ?? '';
 const parts = rawTarget.split('/').filter(Boolean);
 const entityType = (parts[0] ?? '') as ReportEntityType;
-const entityId = parts.slice(1).join('/');
+const entityId = entityType === 'community'
+  ? parts.slice(1).join('/') || 'general'
+  : parts.slice(1).join('/');
 
-const VALID_TYPES: ReportEntityType[] = ['plugin', 'theme'];
-const invalidPath = !VALID_TYPES.includes(entityType) || !entityId;
+const VALID_TYPES: ReportEntityType[] = ['plugin', 'theme', 'community'];
+const invalidPath = !VALID_TYPES.includes(entityType) || (entityType !== 'community' && !entityId);
 
 let entityName: string | null = null;
-if (!invalidPath) {
+if (!invalidPath && entityType === 'community') {
+  entityName = 'Community issue';
+} else if (!invalidPath) {
   const table = entityType === 'plugin' ? 'plugins' : 'themes';
   const row = await env.DB
     .prepare(`SELECT name FROM ${table} WHERE id = ?`)
@@ -104,8 +108,12 @@ if (Astro.request.method === 'POST' && !invalidPath && !notFound) {
 const title = notFound || invalidPath
   ? 'Not found — emdashcms.org'
   : `Report ${entityName} — emdashcms.org`;
+
+const entityHref = entityType === 'community'
+  ? '/community'
+  : `/${entityType}s/${encodeURIComponent(entityId)}`;
 ---
-<BaseLayout title={title} description="Report a plugin or theme to the emdashcms.org moderators.">
+<BaseLayout title={title} description="Report a plugin, theme, or community issue to the emdashcms.org moderators.">
   <section class="page pt-12 pb-16 md:pt-16">
     <div class="page-narrow">
 
@@ -115,7 +123,8 @@ const title = notFound || invalidPath
           <p class="mt-4 text-sm text-ink-muted max-w-prose">
             The entity you're trying to report doesn't exist. Go back to
             <a href="/plugins" class="underline hover:text-ink">Plugins</a> or
-            <a href="/themes" class="underline hover:text-ink">Themes</a> and try again from the detail page.
+            <a href="/themes" class="underline hover:text-ink">Themes</a> and try again from the detail page, or open a
+            <a href="/report/community" class="underline hover:text-ink">community report</a>.
           </p>
         </>
       ) : success ? (
@@ -126,14 +135,14 @@ const title = notFound || invalidPath
             restrict downloads of the affected version while we investigate.
           </p>
           <div class="mt-6">
-            <a href={`/${entityType}s/${entityId}`} class="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink">
+            <a href={entityHref} class="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink">
               ← Back to {entityName}
             </a>
           </div>
         </>
       ) : (
         <>
-          <a href={`/${entityType}s/${entityId}`} class="text-sm text-ink-muted hover:text-ink transition-colors">
+          <a href={entityHref} class="text-sm text-ink-muted hover:text-ink transition-colors">
             ← Back to {entityName}
           </a>
 
@@ -142,7 +151,7 @@ const title = notFound || invalidPath
           </h1>
           <p class="mt-2 text-sm text-ink-muted max-w-prose">
             Reporting <strong class="text-ink">{entityName}</strong> (<code class="font-mono text-ink">{entityId}</code>).
-            See our <a href="/docs/security" class="underline hover:text-ink">review policy</a> for what we check.
+            See our <a href="/docs/security" class="underline hover:text-ink">review policy</a> and <a href="/code-of-conduct" class="underline hover:text-ink">Code of Conduct</a> for what we check.
           </p>
 
           {errorMessage && (

@@ -17,6 +17,7 @@ describe("public report and support surfaces", () => {
     expect(supportSource).toContain("No central forum yet");
     expect(supportSource).toContain("author-provided links");
     expect(supportSource).toContain("listing reports");
+    expect(supportSource).toContain("community reports");
     expect(supportSource).toContain("GitHub issues");
   });
 

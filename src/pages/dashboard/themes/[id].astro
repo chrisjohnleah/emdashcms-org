@@ -295,7 +295,7 @@ if (Astro.request.method === 'POST') {
 }
 
 // Load theme data (re-fetch after potential update)
-const theme = await getThemeDetail(env.DB, themeId!);
+const theme = await getThemeDetail(env.DB, themeId!, { includeRevoked: true });
 if (!theme) return Astro.redirect('/dashboard/themes');
 
 // Team data

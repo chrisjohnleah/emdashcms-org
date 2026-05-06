@@ -285,6 +285,7 @@ Open in dashboard: ${p.dashboardUrl}${textFooter()}`,
 
 export interface RevokePluginParams {
   pluginName: string;
+  listingType?: "plugin" | "theme";
   reason: string;
   publicNote: string | null;
   dashboardUrl: string;
@@ -292,6 +293,7 @@ export interface RevokePluginParams {
 
 export function renderRevokePlugin(p: RevokePluginParams): RenderedEmail {
   const name = escapeHtml(p.pluginName);
+  const listingType = p.listingType === "theme" ? "theme" : "plugin";
   const reason = escapeHtml(p.reason);
   const url = escapeHtml(p.dashboardUrl);
   const hasNote = typeof p.publicNote === "string" && p.publicNote.length > 0;
@@ -301,16 +303,16 @@ export function renderRevokePlugin(p: RevokePluginParams): RenderedEmail {
   const noteText = hasNote ? `\n\nAdmin note: ${p.publicNote}` : "";
 
   const body = `<h1 style="font-size: 20px; margin: 0 0 16px;">${name} has been revoked</h1>
-<p>This plugin has been revoked at the plugin level. Every version is no longer being served, and the listing has been tombstoned.</p>
+<p>This ${listingType} has been revoked at the listing level and is no longer visible in public discovery.</p>
 <p><strong>Reason:</strong> ${reason}</p>
 ${noteHtml}
 <p><a href="${url}">Open in dashboard</a></p>`;
   return {
-    subject: `[EmDash] revoke plugin: ${p.pluginName}`,
+    subject: `[EmDash] revoke ${listingType}: ${p.pluginName}`,
     html: htmlShell(body),
     text: `${p.pluginName} has been revoked
 
-This plugin has been revoked at the plugin level. Every version is no longer being served, and the listing has been tombstoned.
+This ${listingType} has been revoked at the listing level and is no longer visible in public discovery.
 
 Reason: ${p.reason}${noteText}
 

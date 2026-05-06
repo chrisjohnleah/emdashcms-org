@@ -25,8 +25,8 @@ const description = 'Guide for volunteer moderators of the emdashcms.org communi
           <h2 class="text-2xl text-ink mt-12 mb-3">Your role</h2>
           <p>
             Moderators review flagged versions, respond to reports, and apply admin actions (approve, reject,
-            revoke, ban). You are not expected to be a security expert — our static scanner does the deterministic
-            work. Your job is judgement on ambiguous cases and fair, consistent handling of reports.
+            revoke, restore, ban). You are not expected to be a security expert — our static scanner does the deterministic
+            work. Your job is judgement on ambiguous cases and fair, consistent handling of plugin, theme, and community reports.
           </p>
         </section>
 
@@ -77,9 +77,12 @@ const description = 'Guide for volunteer moderators of the emdashcms.org communi
         </section>
 
         <section>
-          <h2 class="text-2xl text-ink mt-12 mb-3">When to revoke a whole plugin</h2>
+          <h2 class="text-2xl text-ink mt-12 mb-3">When to revoke a whole plugin or theme</h2>
           <p>
             Use the plugin-level revoke action when the plugin is fundamentally unfit — the author is banned, the plugin is a malicious fork, or every version has been found unsafe. Plugin-level revocation hides the plugin from search, stops downloads for all versions, and renders the detail page with a prominent "This plugin has been revoked" tombstone banner and a <code class="text-ink bg-paper-sunk px-1 rounded">noindex</code> meta.
+          </p>
+          <p class="mt-4">
+            Use the theme-level revoke action for deceptive, abusive, infringing, abandoned, or unsafe theme listings. Revoked themes are hidden from public search, author pages, feeds, sitemap output, detail APIs, and click tracking. They remain visible in the admin dashboard so moderators can review evidence and restore them if the report was mistaken or the author fixes the issue.
           </p>
         </section>
 
@@ -102,7 +105,7 @@ const description = 'Guide for volunteer moderators of the emdashcms.org communi
         <section>
           <h2 class="text-2xl text-ink mt-12 mb-3">Reports queue</h2>
           <p>
-            The reports queue at <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">/dashboard/admin/reports</code> shows user-filed reports. Status lifecycle: <strong class="text-ink">open → investigating → resolved | dismissed</strong>.
+            The reports queue at <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">/dashboard/admin/reports</code> shows user-filed reports for plugins, themes, and community issues. Status lifecycle: <strong class="text-ink">open → investigating → resolved | dismissed</strong>.
           </p>
           <ul class="list-disc pl-6 mt-3 space-y-2 text-sm text-ink-muted">
             <li>Move a report to <strong class="text-info">investigating</strong> to signal you've seen it and are working on it.</li>
@@ -115,8 +118,8 @@ const description = 'Guide for volunteer moderators of the emdashcms.org communi
           <h2 class="text-2xl text-ink mt-12 mb-3">Report triage</h2>
           <ol class="list-decimal pl-6 mt-3 space-y-2 text-sm text-ink-muted">
             <li><strong class="text-ink">Security reports first.</strong> If the category is "Security" and the description sounds credible, act immediately — revoke the affected version while you investigate, rather than wait.</li>
-            <li><strong class="text-ink">Broken/abandoned reports.</strong> Check if the plugin's repository has been updated recently. If it's truly abandoned, consider flagging the latest version with a public admin note rather than revoking.</li>
-            <li><strong class="text-ink">License reports.</strong> Compare the plugin against the claimed source. If confirmed, revoke and notify the rightful author if you can identify them.</li>
+            <li><strong class="text-ink">Broken/abandoned reports.</strong> Check if the plugin or theme repository has been updated recently. If a plugin is truly abandoned, consider flagging the latest version with a public admin note rather than revoking. For themes, revoke only when the listing is misleading, unsafe, or unusable enough that public discovery would harm users.</li>
+            <li><strong class="text-ink">License reports.</strong> Compare the plugin or theme against the claimed source. If confirmed, revoke and notify the rightful author if you can identify them.</li>
             <li><strong class="text-ink">Abuse reports.</strong> Apply the Code of Conduct. Escalate to the superadmin if the situation is sensitive or involves legal threats.</li>
           </ol>
         </section>

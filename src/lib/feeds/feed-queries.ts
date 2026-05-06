@@ -96,7 +96,8 @@ const RECENT_THEMES_SQL = `
     a.github_username AS author_login
   FROM themes t
   JOIN authors a ON a.id = t.author_id
-  WHERE t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL
+  WHERE COALESCE(t.status, 'active') = 'active'
+    AND (t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)
   ORDER BY t.created_at DESC
   LIMIT ?
 `;

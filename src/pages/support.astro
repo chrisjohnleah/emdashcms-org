@@ -43,6 +43,13 @@ const supportPaths = [
     link: 'Read security policy',
   },
   {
+    label: 'Community concerns',
+    audience: 'Everyone',
+    body: 'Use the community report form for Code of Conduct issues, moderation concerns, impersonation, or project behaviour that does not belong to a single listing.',
+    href: '/report/community',
+    link: 'Open community report',
+  },
+  {
     label: 'Marketplace status',
     audience: 'Everyone',
     body: 'Check live health signals for catalog pages, API responses, badge rendering, feeds, audit queues, and bundle downloads.',
@@ -62,7 +69,7 @@ const supportPaths = [
 const expectations = [
   {
     label: 'No central forum yet',
-    body: 'Support is routed through docs, author-provided links, listing reports, status pages, and GitHub issues while the ecosystem is small.',
+    body: 'Support is routed through docs, author-provided links, listing reports, community reports, status pages, and GitHub issues while the ecosystem is small.',
   },
   {
     label: 'Authors own extension support',
@@ -97,12 +104,12 @@ const jsonLd = [
     {
       question: 'Does emdashcms.org have support forums?',
       answer:
-        'Not yet. Support currently routes through documentation, plugin author links, listing reports, the status page, and GitHub issues for the marketplace project itself.',
+        'Not yet. Support currently routes through documentation, plugin author links, listing reports, community reports, the status page, and GitHub issues for the marketplace project itself.',
     },
     {
       question: 'How do I report a security issue in a plugin?',
       answer:
-        'Use the report action from the affected plugin or theme detail page when possible, and read the security policy for how review, revocation, scanner rules, and public audit findings work.',
+        'Use the report action from the affected plugin or theme detail page when possible. Use the community report form when the concern is not tied to one listing, and read the security policy for how review, revocation, scanner rules, and public audit findings work.',
     },
   ]),
 ];
