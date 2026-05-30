@@ -288,7 +288,7 @@ export interface PluginBundle {
 
 /**
  * Friendly key identifying which AI model to run for an audit. The full
- * Workers AI model id (e.g. "@cf/meta/llama-3.2-3b-instruct") is resolved
+ * Workers AI model id (e.g. "@cf/mistralai/mistral-small-3.1-24b-instruct") is resolved
  * from the AUDIT_MODELS registry in src/lib/audit/prompt.ts. Keys live in
  * the type layer so AuditJob can carry them without importing audit code.
  */
