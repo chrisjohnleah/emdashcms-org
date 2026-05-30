@@ -1,0 +1,24 @@
+name: "EmDash CMS CodeQL Configuration"
+
+# This config is used by .github/workflows/codeql.yml
+# Purpose: Prevent CodeQL from analyzing files that are known to cause
+# parser crashes or massive noise in an open-source plugin marketplace.
+#
+# - bench-fixtures/: Intentionally adversarial/malicious/obfuscated code
+#   used to benchmark the plugin audit pipeline. These files are *supposed*
+#   to look dangerous.
+# - src/lib/seo/og-fonts.ts: 1.6MB auto-generated base64 blob for font
+#   inlining. Crashes the TypeScript parser wrapper (known CodeQL limitation
+#   with huge string literals).
+
+paths-ignore:
+  - 'bench-fixtures/**'
+  - 'src/lib/seo/og-fonts.ts'
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/*.min.js'
+  - 'test/**'          # Test fixtures can be noisy; real source is what matters for security scanning
+  - 'scripts/**'       # One-off build scripts, not production attack surface
+
+queries:
+  - uses: security-and-quality

@@ -1,0 +1,64 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.js'
+      - '**/*.ts'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.js'
+      - '**/*.ts'
+      - '**/*.mjs'
+      - '**/*.cjs'
+      - '.github/workflows/codeql.yml'
+      - '.github/codeql/**'
+  schedule:
+    # Run weekly on Sunday at 06:17 UTC (staggered from other scheduled jobs)
+    - cron: '17 6 * * 0'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript']
+        # CodeQL supports [ 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift' ]
+        # Use only 'javascript-typescript' for this repo.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Use our custom config that excludes adversarial fixtures and the giant generated font blob.
+          config-file: ./.github/codeql/codeql-config.yml
+          # Optional: specify queries or packs here if you want to override the default security-and-quality suite.
+
+      # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, etc).
+      # For JS/TS we usually don't need it, but keeping it is harmless.
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
