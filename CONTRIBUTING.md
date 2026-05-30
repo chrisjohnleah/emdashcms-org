@@ -33,6 +33,32 @@ npm run build     # wrangler types && astro check && astro build
 
 Both must pass. The [CI workflow](.github/workflows/ci.yml) runs the same checks on every PR and on every push to a non-main branch — no secrets needed, so forks can validate without extra setup.
 
+## Branch protection on `main`
+
+`main` is protected by a repository ruleset following common open-source practices:
+
+- All changes must go through a pull request.
+- All status checks must pass, including:
+  - Application CI (`Validate types, build, and tests`)
+  - CodeQL security analysis
+- At least one approving review is normally required.
+
+### Maintainer & automation bypass
+
+The primary maintainer (`chrisjohnleah`) has full bypass rights. This allows direct pushes, force pushes, and merging without the normal gates when necessary (hotfixes, large refactors, etc.).
+
+**Dependabot / automated dependency updates**: Because this is a user-owned repository, Dependabot cannot be granted automatic bypass at the ruleset level (GitHub limitation). In practice:
+
+- Dependabot opens PRs as usual.
+- The maintainer reviews and merges them promptly (often the same day).
+- The maintainer’s bypass rights ensure there is never unnecessary friction on dependency updates.
+
+This is a common pattern for solo or small-team public repositories.
+
+Ruleset management link: https://github.com/chrisjohnleah/emdashcms-org/rules/17064717
+
+If you are opening a normal feature or bugfix PR, please follow the normal process (passing CI + review).
+
 ## Pull request conventions
 
 - **One concern per PR.** Mixing a bug fix and a refactor in one PR makes it hard to review and impossible to revert cleanly.
