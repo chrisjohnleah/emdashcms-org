@@ -26,16 +26,16 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.1.10",
-    "astro": "^6.1.6",
+    "astro": "^6.4.2",
     "jose": "^6.2.2",
     "markdown-it": "14.1.1",
     "modern-tar": "^0.7.6",
     "workers-og": "^0.0.27",
-    "wrangler": "^4.80.0"
+    "wrangler": "^4.95.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
-    "@cloudflare/vitest-pool-workers": "^0.14.1",
+    "@cloudflare/vitest-pool-workers": "^0.16.10",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/markdown-it": "14.1.2",
     "postcss": "^8.5.12",
