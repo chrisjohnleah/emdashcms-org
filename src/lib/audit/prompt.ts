@@ -265,7 +265,7 @@ export const MAX_CODE_CHARS = 50_000;
  * System prompt instructing the model to act as a CMS plugin security auditor.
  *
  * We do NOT use response_format here — many Workers AI models (including
- * llama-3.2-3b-instruct) reject json_schema with "5025: This model doesn't
+ * older Llama 3.2 3B) reject json_schema with "5025: This model doesn't
  * support JSON Schema". Instead we mandate JSON output via the prompt and
  * extract+parse it ourselves. This works with every text-generation model
  * on Workers AI, so model swaps don't break the audit pipeline.

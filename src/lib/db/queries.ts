@@ -470,7 +470,7 @@ export interface VersionDetail {
   /**
    * The `model` column from the most recent audit record for this version.
    * Values in use: `'static-only'`, `'none'` (error path), AI model IDs
-   * like `'@cf/meta/llama-3.2-3b-instruct'`, and `'admin-action'` for
+   * like `'@cf/mistralai/mistral-small-3.1-24b-instruct'`, and `'admin-action'` for
    * manual approve/reject entries.
    */
   latestAuditModel: string | null;

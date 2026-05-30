@@ -453,7 +453,7 @@ describe("processAuditJob - fail-closed (AUDT-04)", () => {
   });
 
   it("recovers JSON wrapped in markdown fences", async () => {
-    // Realistic shape returned by llama-3.2-3b-instruct and similar models
+    // Realistic shape returned by smaller / older models (e.g. Llama 3.2 3B)
     // that don't honour 'JSON only' prompts strictly.
     const wrapped = "```json\n" + JSON.stringify({
       verdict: "pass",

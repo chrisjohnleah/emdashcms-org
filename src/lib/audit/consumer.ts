@@ -664,7 +664,7 @@ export async function processAuditJob(
   // single { response, usage } envelope regardless of the model.
   // Envelope supports three shapes we've observed on Workers AI:
   //   a) Standard text-gen: { response: string, usage: {...} }
-  //      e.g. @cf/meta/llama-3.2-3b-instruct
+  //      e.g. @cf/mistralai/mistral-small-3.1-24b-instruct
   //   b) OpenAI-compat with visible content: { choices: [{ message: { content } }], usage }
   //   c) OpenAI-compat with reasoning: { choices: [{ message: { content, reasoning_content } }], usage }
   //      e.g. @cf/zai-org/glm-4.7-flash, @cf/openai/gpt-oss-*, any model
