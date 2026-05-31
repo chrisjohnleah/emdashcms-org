@@ -649,3 +649,65 @@ export async function getThemeDetail(
 
   return mapThemeDetail(rows[0]);
 }
+
+// --- pSEO Wave 1: Category aggregates (cheap, visibility-consistent with search*) ---
+
+export async function getPluginCategoryCounts(db: D1Database): Promise<Array<{ category: string; count: number }>> {
+  const result = await db
+    .prepare(
+      `SELECT category, COUNT(*) as count
+       FROM plugins
+       WHERE COALESCE(status, 'active') = 'active'
+         AND unlisted_at IS NULL
+         AND merged_into IS NULL
+         AND EXISTS (
+           SELECT 1 FROM plugin_versions pv
+           WHERE pv.plugin_id = plugins.id
+             AND pv.status IN ('published', 'flagged')
+         )
+       GROUP BY category
+       ORDER BY count DESC`
+    )
+    .all();
+
+  return (result.results as any[]).map((r) => ({
+    category: r.category as string,
+    count: Number(r.count),
+  }));
+}
+
+export async function getPopularPluginsInCategory(
+  db: D1Database,
+  category: string,
+  limit = 6
+): Promise<MarketplacePluginSummary[]> {
+  const result = await db
+    .prepare(
+      `SELECT
+        p.*,
+        a.github_username,
+        a.avatar_url,
+        a.verified,
+        (
+          SELECT pv.version FROM plugin_versions pv
+          WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
+          ORDER BY pv.created_at DESC LIMIT 1
+        ) as latest_version
+       FROM plugins p
+       JOIN authors a ON p.author_id = a.id
+       WHERE COALESCE(p.status, 'active') = 'active'
+         AND p.category = ?
+         AND p.unlisted_at IS NULL
+         AND p.merged_into IS NULL
+         AND EXISTS (
+           SELECT 1 FROM plugin_versions pv
+           WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
+         )
+       ORDER BY p.installs_count DESC, p.id ASC
+       LIMIT ?`
+    )
+    .bind(category, limit)
+    .all();
+
+  return (result.results as any[]).map(mapPluginSummary);
+}
