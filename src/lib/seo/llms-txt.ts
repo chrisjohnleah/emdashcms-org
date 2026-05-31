@@ -108,6 +108,12 @@ export function buildLlmsTxt(input: LlmsTxtInput): string {
   parts.push(
     "- [Community](https://emdashcms.org/community): ways to publish, test, document, review, moderate, and build",
   );
+  parts.push(
+    "- [Authors & Publishers](https://emdashcms.org/authors): discover plugins and themes by the people shipping them",
+  );
+  parts.push(
+    "- [For Agencies](https://emdashcms.org/for/agencies): EmDash positioning for client work and safe plugin ecosystems",
+  );
   parts.push("");
   parts.push("## API");
   parts.push("");
