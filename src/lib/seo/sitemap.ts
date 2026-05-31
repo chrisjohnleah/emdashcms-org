@@ -132,6 +132,8 @@ export function buildSitemapXml(input: SitemapInput): string {
     { loc: `${SITE_URL}/developers`, lastmod: now, changefreq: "weekly", priority: "0.8" },
     { loc: `${SITE_URL}/compare`, lastmod: now, changefreq: "weekly", priority: "0.7" },
     { loc: `${SITE_URL}/compare/emdash-vs-wordpress`, lastmod: now, changefreq: "monthly", priority: "0.7" },
+    { loc: `${SITE_URL}/authors`, lastmod: now, changefreq: "weekly", priority: "0.6" },
+    { loc: `${SITE_URL}/for/agencies`, lastmod: now, changefreq: "monthly", priority: "0.7" },
     // Wave 0 pSEO: guide and contributors pages strengthened for CTR (GSC high-impression/low-CTR targets).
     // Bumped from monthly/0.5 → weekly/0.7 to reflect higher value as on-ramp + publishing entry points.
     { loc: `${SITE_URL}/guide`, lastmod: now, changefreq: "weekly", priority: "0.7" },
