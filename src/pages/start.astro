@@ -9,45 +9,51 @@ import {
   buildFaqPageJsonLd,
 } from '../lib/seo/json-ld';
 
-const title = 'Start with EmDash CMS — emdashcms.org';
+const title = 'Start with EmDash CMS — Audited Plugins, Themes & Marketplace | emdashcms.org';
 const description =
-  'A practical starting point for EmDash CMS: understand the project, get the core CMS, install trusted plugins and themes, publish extensions, and join the community.';
+  'Start here for EmDash CMS: get the core framework, install sandboxed and AI-audited plugins or themes from the community marketplace, follow the publishing guide, and explore developer resources. Free and open.';
 
 const startPaths = [
   {
     label: 'Understand EmDash',
-    body: 'Learn what the CMS is, how its plugin model differs from WordPress, and why manifests and capabilities matter.',
+    body: 'Learn the manifest contract, capability prompts, and sandbox model that makes every plugin auditable before install.',
     href: '/learn/what-is-emdash',
     link: 'Read the overview',
   },
   {
     label: 'Get the CMS',
-    body: 'The core project lives separately from this community marketplace. Start there when you need the framework, docs, and runtime setup.',
+    body: 'The core project, framework docs, and runtime setup live at the upstream site. Use this when you need the engine itself.',
     href: 'https://emdashcms.com',
     link: 'Open emdashcms.com',
     external: true,
   },
   {
-    label: 'Install extensions',
-    body: 'Point an EmDash site at this registry, review capability prompts, and install audited plugins from the admin dashboard.',
+    label: 'Install audited extensions',
+    body: 'Point your EmDash site at this registry, review capability prompts in the admin, and install verified plugins or themes. Manual bundles available too.',
     href: '/guide',
     link: 'Use the install guide',
   },
   {
-    label: 'Browse the catalog',
-    body: 'Find plugins and themes with public metadata, audit status, download counts, install counts, and author signals.',
+    label: 'Browse plugins',
+    body: 'Search and filter the live catalog of sandboxed plugins. See audit verdicts, download/install counts, author signals, and declared capabilities.',
     href: '/plugins',
-    link: 'Browse plugins',
+    link: 'Open plugins hub',
+  },
+  {
+    label: 'Browse themes',
+    body: 'Discover high-quality themes with screenshots, keywords, and direct install paths.',
+    href: '/themes',
+    link: 'Open themes hub',
   },
   {
     label: 'Build for EmDash',
-    body: 'Read the extension handbook, public API contract, manifest schema, feeds, MCP endpoint, and badge surfaces.',
+    body: 'Extension handbook, manifest schema, feeds, MCP endpoint, OpenAPI, and badge surfaces for developers and publishers.',
     href: '/developers',
     link: 'Open developer resources',
   },
   {
     label: 'Publish your work',
-    body: 'Register a plugin or theme, connect GitHub releases, and let every submitted version leave an inspectable audit trail.',
+    body: 'Register a plugin or theme, connect GitHub releases, and ship with a public, reproducible audit trail for every version.',
     href: '/docs/contributors',
     link: 'Read the publishing guide',
   },
@@ -56,22 +62,22 @@ const startPaths = [
 const nextSteps = [
   {
     label: 'Read about the project',
-    body: 'Clarify the split between the core CMS and this ecosystem site, including support, policy, and security routes.',
+    body: 'Boundaries between core and ecosystem, support routing, security policy, and how the marketplace stays honest at small scale.',
     href: '/about',
   },
   {
     label: 'Compare the model',
-    body: 'See where EmDash intentionally follows and diverges from WordPress: hosting, permissions, audits, themes, and extension flow.',
+    body: 'Where EmDash follows and diverges from WordPress: capability prompts, mandatory audits, manifest contracts, and runtime ownership.',
     href: '/compare/emdash-vs-wordpress',
   },
   {
     label: 'Follow what changes',
-    body: 'Read the weekly digest and transparency report to see what shipped, failed review, or needs attention.',
+    body: 'Weekly digests and transparency reports covering every new listing, review outcome, revocation, and scanner improvement.',
     href: '/digest',
   },
   {
     label: 'Get involved',
-    body: 'Help with docs, real installs, scanner rules, moderation, publisher support, or the marketplace app itself.',
+    body: 'Docs, real-world testing, scanner rules, moderation, publisher support, or work on the marketplace itself.',
     href: '/community',
   },
 ];
@@ -102,9 +108,29 @@ const jsonLd = [
         'No. emdashcms.org is the public ecosystem site around EmDash CMS: plugin and theme directories, install guidance, contributor docs, developer resources, transparency reports, feeds, and community entry points.',
     },
     {
-      question: 'How do I install EmDash plugins?',
+      question: 'How do I install EmDash plugins and themes?',
       answer:
-        'Point an EmDash CMS site at https://emdashcms.org as its marketplace, then install plugins from the EmDash admin dashboard after reviewing their capability prompts. Manual bundle downloads are also available on plugin detail pages.',
+        'Point an EmDash CMS site at https://emdashcms.org as its marketplace, then install from the admin dashboard after reviewing capability prompts. Manual .tgz bundle downloads are available on every plugin and theme detail page.',
+    },
+    {
+      question: 'Are the plugins and themes on emdashcms.org safe?',
+      answer:
+        'Yes. Every version runs through a fail-closed pipeline: bundle validation, static scanning for dangerous patterns, and AI review against the declared manifest. Only passing or warned versions appear in the catalog; failures are rejected with logs for the author.',
+    },
+    {
+      question: 'Do I need to write code to use marketplace plugins?',
+      answer:
+        'No. Site owners review the declared capabilities and hooks in the EmDash admin, then click Install. Authors write the code and must pass the audit before anything reaches your site.',
+    },
+    {
+      question: 'How do I publish my own plugin or theme?',
+      answer:
+        'Sign in with GitHub on the dashboard, register a unique ID, then upload a .tgz (or connect a repo for automated tagged releases). Every submission receives the same automated + AI audit before it becomes available.',
+    },
+    {
+      question: 'What makes EmDash plugins different from WordPress plugins?',
+      answer:
+        'EmDash plugins declare a strict manifest of capabilities, hooks, storage, and admin surfaces. They execute in isolated sandboxes with no ambient authority. Every version ships with a public, reproducible audit trail. You own the runtime — there is no central hosting dependency.',
     },
   ]),
 ];
@@ -214,7 +240,8 @@ const jsonLd = [
           >
             Get EmDash CMS
           </Button>
-          <Button href="/plugins" variant="secondary" size="lg">Browse extensions</Button>
+          <Button href="/plugins" variant="secondary" size="lg">Browse plugins</Button>
+          <Button href="/themes" variant="secondary" size="lg">Browse themes</Button>
         </div>
       </div>
     </div>
