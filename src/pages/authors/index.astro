@@ -1,0 +1,61 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd } from '../../lib/seo/json-ld';
+
+const title = 'EmDash Authors & Publishers — emdashcms.org';
+const description = 'Discover plugins and themes by the authors publishing on the EmDash CMS community marketplace. Every listing includes audit status and provenance.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'Authors', url: '/authors' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash Authors & Publishers',
+    description,
+    url: '/authors',
+  }),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-3xl tracking-tight text-ink mb-3" style="font-weight: 500; letter-spacing: -0.02em;">
+        Authors & Publishers
+      </h1>
+      <p class="text-lg text-ink-muted max-w-prose">
+        Every plugin and theme on emdashcms.org is published by a real GitHub-authenticated author. 
+        Browse by author to see their full body of audited work, install counts, and transparency history.
+      </p>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-2">
+        <div class="rounded-xl border border-rule bg-paper-soft p-6">
+          <h2 class="text-xl text-ink mb-2">How to find authors</h2>
+          <ul class="text-sm text-ink-muted space-y-2">
+            <li>• Visit any plugin or theme detail page — the author is always linked.</li>
+            <li>• Use the main <a href="/plugins" class="text-ink underline">plugins</a> or <a href="/themes" class="text-ink underline">themes</a> hubs and filter by publisher.</li>
+            <li>• Direct author profiles are at <code class="text-xs">/authors/[github-username]</code>.</li>
+          </ul>
+        </div>
+
+        <div class="rounded-xl border border-rule bg-paper-soft p-6">
+          <h2 class="text-xl text-ink mb-2">Why author pages matter</h2>
+          <p class="text-sm text-ink-muted">
+            Each author profile aggregates their plugins and themes with real install numbers and audit signals. 
+            This is the best way to find trusted, high-volume publishers in the EmDash ecosystem.
+          </p>
+          <p class="mt-3 text-sm">
+            <a href="/plugins" class="text-ink underline font-medium">Start browsing plugins →</a>
+          </p>
+        </div>
+      </div>
+
+      <p class="mt-10 text-xs text-ink-soft">
+        All authors are GitHub-verified. Banned or abusive accounts are hidden from public discovery.
+      </p>
+    </div>
+  </section>
+</BaseLayout>
