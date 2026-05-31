@@ -1,0 +1,85 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd, buildFaqPageJsonLd } from '../../lib/seo/json-ld';
+
+const title = 'EmDash for Agencies — emdashcms.org';
+const description = 'EmDash CMS for digital agencies: sandboxed plugins, mandatory security audits, fast Cloudflare deployment, and full transparency. The modern alternative to WordPress for client work.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'For Agencies', url: '/for/agencies' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS for Digital Agencies',
+    description,
+    url: '/for/agencies',
+  }),
+  buildFaqPageJsonLd([
+    {
+      question: 'Why should agencies use EmDash instead of WordPress?',
+      answer: 'EmDash gives you capability-declared, AI-audited plugins that run in isolated sandboxes. No more plugin conflicts, backdoors, or surprise PHP vulnerabilities. Every version has a public audit trail.',
+    },
+    {
+      question: 'How fast can we launch client sites on EmDash?',
+      answer: 'One-click deploy to Cloudflare (D1 + R2 + Workers). No PHP hosting, no separate database management. Most agency sites are live in under an hour.',
+    },
+    {
+      question: 'Can we white-label or customize the admin for clients?',
+      answer: 'Yes. The admin is fully themeable and you control the schema. Many agencies ship branded experiences on top of the core EmDash platform.',
+    },
+  ]),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-4xl tracking-tight text-ink mb-4" style="font-weight: 500; letter-spacing: -0.02em;">
+        EmDash for Agencies
+      </h1>
+      <p class="text-xl text-ink-muted max-w-prose">
+        The secure, auditable, modern CMS built for client work. 
+        Sandboxed plugins. Mandatory security reviews. One-click Cloudflare deploys.
+      </p>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-2">
+        <div class="rounded-2xl border border-rule bg-paper-soft p-8">
+          <h2 class="text-2xl text-ink mb-4">Built for client safety</h2>
+          <ul class="space-y-3 text-ink-muted">
+            <li class="flex gap-3">• Every plugin version is statically scanned + AI reviewed before it can be installed</li>
+            <li class="flex gap-3">• Plugins declare exact capabilities — no ambient authority or surprise network calls</li>
+            <li class="flex gap-3">• Full provenance and audit history visible to you and your clients</li>
+            <li class="flex gap-3">• Revoked or dangerous versions are instantly removed from the registry</li>
+          </ul>
+        </div>
+
+        <div class="rounded-2xl border border-rule bg-paper-soft p-8">
+          <h2 class="text-2xl text-ink mb-4">Agency-friendly workflow</h2>
+          <ul class="space-y-3 text-ink-muted">
+            <li class="flex gap-3">• One-click deploys to Cloudflare (or self-host on Node/Postgres)</li>
+            <li class="flex gap-3">• Type-safe content schemas that generate migrations automatically</li>
+            <li class="flex gap-3">• Beautiful, customizable admin your clients actually enjoy using</li>
+            <li class="flex gap-3">• Strong GitHub integration for publishing and version control</li>
+          </ul>
+          <p class="mt-4 text-sm">
+            <a href="/plugins" class="text-ink underline font-medium">Browse agency-ready plugins →</a>
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-12">
+        <h2 class="text-2xl text-ink mb-4">Recommended starting points for agencies</h2>
+        <div class="flex flex-wrap gap-3">
+          <a href="/plugins/category/security" class="rounded-full border border-rule px-4 py-1.5 text-sm hover:bg-paper-soft transition">Security plugins</a>
+          <a href="/plugins/category/seo" class="rounded-full border border-rule px-4 py-1.5 text-sm hover:bg-paper-soft transition">SEO & Analytics</a>
+          <a href="/plugins/category/integration" class="rounded-full border border-rule px-4 py-1.5 text-sm hover:bg-paper-soft transition">Integrations</a>
+          <a href="/developers" class="rounded-full border border-rule px-4 py-1.5 text-sm hover:bg-paper-soft transition">Developer resources</a>
+          <a href="/compare/emdash-vs-wordpress" class="rounded-full border border-rule px-4 py-1.5 text-sm hover:bg-paper-soft transition">EmDash vs WordPress</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
