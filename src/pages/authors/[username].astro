@@ -39,11 +39,13 @@ const formatDate = (iso: string) =>
     month: 'long',
   });
 
+const totalInstalls = plugins.reduce((sum, p) => sum + (p.installsCount || 0), 0);
+
 const title = author
   ? `${author.githubUsername} - emdashcms.org`
   : 'Author not found - emdashcms.org';
 const description = author
-  ? `Plugins and themes published by ${author.githubUsername} on the emdashcms.org community marketplace.`
+  ? `${author.githubUsername} has published ${plugins.length} plugins and ${themes.length} themes on the EmDash marketplace (${totalInstalls.toLocaleString()} total installs). Audited extensions with public security reviews.`
   : undefined;
 
 // Person + ProfilePage + BreadcrumbList schema. Only emitted when the
@@ -122,6 +124,9 @@ const authorJsonLd = author
               </div>
               <p class="mt-1 text-sm text-ink-soft">
                 Member since {formatDate(author.createdAt)}
+              </p>
+              <p class="mt-2 text-xs text-ink-muted">
+                {plugins.length} plugins · {themes.length} themes · {totalInstalls.toLocaleString()} installs
               </p>
               <a
                 href={`https://github.com/${author.githubUsername}`}
