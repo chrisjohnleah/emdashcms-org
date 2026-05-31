@@ -1,0 +1,73 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd, buildFaqPageJsonLd } from '../../lib/seo/json-ld';
+
+const title = 'EmDash for Developers — emdashcms.org';
+const description = 'EmDash CMS for developers: type-safe schemas, sandboxed plugins with explicit capabilities, full audit trail, GitHub-native publishing, and Cloudflare-first deployment. The modern developer CMS.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'For Developers', url: '/for/developers' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS for Developers',
+    description,
+    url: '/for/developers',
+    items: [],
+  }),
+  buildFaqPageJsonLd([
+    {
+      question: 'Is EmDash actually developer-friendly?',
+      answer: 'Yes. Content schemas are defined in TypeScript and automatically generate migrations and types. Plugins run in isolated Workers with declared capabilities. Everything is versioned and auditable.',
+    },
+    {
+      question: 'How do I publish plugins as a developer?',
+      answer: 'Connect your GitHub repo to the marketplace via the GitHub App. Tagged releases are automatically audited and published with full provenance back to the commit.',
+    },
+    {
+      question: 'Can I self-host EmDash?',
+      answer: 'Yes. It runs on Node.js with SQLite, Postgres (Turso, Supabase, etc.), or fully on Cloudflare (D1 + R2 + Workers). One binary or one-click deploy.',
+    },
+  ]),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-4xl tracking-tight text-ink mb-4" style="font-weight: 500; letter-spacing: -0.02em;">
+        EmDash for Developers
+      </h1>
+      <p class="text-xl text-ink-muted max-w-prose">
+        A CMS built by developers, for developers. Type-safe everything. Sandboxed plugins. 
+        Complete auditability. GitHub-native workflow.
+      </p>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-2">
+        <div class="rounded-2xl border border-rule bg-paper-soft p-8">
+          <h2 class="text-2xl text-ink mb-4">Developer experience highlights</h2>
+          <ul class="space-y-3 text-ink-muted text-sm">
+            <li>• Content models defined in TypeScript → auto migrations + types</li>
+            <li>• Plugins declare exact capabilities, hooks, and storage needs</li>
+            <li>• Every version has a reproducible security + capability audit</li>
+            <li>• GitHub App for automatic audited releases on tags</li>
+            <li>• Full OpenAPI + MCP server for agents and tooling</li>
+          </ul>
+        </div>
+
+        <div class="rounded-2xl border border-rule bg-paper-soft p-8">
+          <h2 class="text-2xl text-ink mb-4">Start building</h2>
+          <div class="space-y-2 text-sm">
+            <a href="/developers" class="block text-ink underline">→ Developer documentation &amp; handbook</a>
+            <a href="/learn/manifest-schema" class="block text-ink underline">→ Manifest schema reference</a>
+            <a href="/plugins/category/developer-tools" class="block text-ink underline">→ Browse developer tools plugins</a>
+            <a href="/docs/contributors" class="block text-ink underline">→ Publishing guide</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

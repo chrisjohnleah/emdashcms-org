@@ -1,0 +1,69 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd, buildFaqPageJsonLd } from '../../lib/seo/json-ld';
+
+const title = 'EmDash for Content Teams — emdashcms.org';
+const description = 'EmDash CMS for content and marketing teams: clean structured editing, powerful plugins for SEO/analytics, full revision history, and safe plugin ecosystem with mandatory audits.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Home', url: '/' },
+    { name: 'For Content Teams', url: '/for/content-teams' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash CMS for Content & Marketing Teams',
+    description,
+    url: '/for/content-teams',
+    items: [],
+  }),
+  buildFaqPageJsonLd([
+    {
+      question: 'Is the EmDash admin easy for non-technical users?',
+      answer: 'Yes. The admin is polished, fast, and designed for real content work — rich text, media library, scheduling, revisions, and live preview. Plugins add power without breaking the experience.',
+    },
+    {
+      question: 'Can we safely install SEO and analytics plugins?',
+      answer: 'Yes. Every plugin version is audited for declared capabilities and security issues before it appears in the catalog. You always see exactly what a plugin can access.',
+    },
+  ]),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-4xl tracking-tight text-ink mb-4" style="font-weight: 500; letter-spacing: -0.02em;">
+        EmDash for Content &amp; Marketing Teams
+      </h1>
+      <p class="text-xl text-ink-muted max-w-prose">
+        A modern CMS your content team will actually enjoy using — with safe, powerful plugins for SEO, analytics, and workflow.
+      </p>
+
+      <div class="mt-10">
+        <h2 class="text-2xl text-ink mb-4">Built for real content work</h2>
+        <div class="grid gap-6 md:grid-cols-3">
+          <div class="rounded-xl border border-rule bg-paper-soft p-6">
+            <div class="font-medium text-ink mb-2">Structured &amp; flexible</div>
+            <div class="text-sm text-ink-muted">Portable Text editing, media library, taxonomies, menus, and scheduled publishing out of the box.</div>
+          </div>
+          <div class="rounded-xl border border-rule bg-paper-soft p-6">
+            <div class="font-medium text-ink mb-2">Safe powerful plugins</div>
+            <div class="text-sm text-ink-muted">Install SEO, analytics, forms, and workflow tools knowing every version was security audited first.</div>
+          </div>
+          <div class="rounded-xl border border-rule bg-paper-soft p-6">
+            <div class="font-medium text-ink mb-2">Full history &amp; collaboration</div>
+            <div class="text-sm text-ink-muted">Revisions, drafts, and clear audit trails for everything that gets published.</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="mt-8 text-sm">
+        <a href="/plugins/category/seo" class="text-ink underline font-medium">Browse SEO &amp; marketing plugins →</a>
+        <span class="mx-3 text-ink-soft">·</span>
+        <a href="/plugins/category/analytics" class="text-ink underline font-medium">Analytics plugins →</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>

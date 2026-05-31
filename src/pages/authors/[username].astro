@@ -39,7 +39,7 @@ const formatDate = (iso: string) =>
     month: 'long',
   });
 
-const totalInstalls = plugins.reduce((sum, p) => sum + (p.installsCount || 0), 0);
+const totalInstalls = plugins.reduce((sum, p) => sum + (p.installCount || 0), 0);
 
 const title = author
   ? `${author.githubUsername} - emdashcms.org`
