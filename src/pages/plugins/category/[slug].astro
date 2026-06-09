@@ -7,8 +7,8 @@ import PluginCard from '../../../components/PluginCard.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import SearchBar from '../../../components/SearchBar.astro';
 import Pagination from '../../../components/Pagination.astro';
-import { searchPlugins } from '../../../lib/db/queries';
-import { buildBreadcrumbListJsonLd } from '../../../lib/seo/json-ld';
+import { searchPlugins, getPluginCategoryCounts, getPopularPluginsInCategory } from '../../../lib/db/queries';
+import { buildBreadcrumbListJsonLd, buildCollectionPageJsonLd } from '../../../lib/seo/json-ld';
 
 const { slug } = Astro.params;
 const category = (slug ?? '').toLowerCase();
@@ -30,21 +30,37 @@ const result = category
     })
   : { items: [], nextCursor: null };
 
+const [categoryCounts, popularInCategory] = await Promise.all([
+  getPluginCategoryCounts(env.DB),
+  category ? getPopularPluginsInCategory(env.DB, category, 4) : Promise.resolve([]),
+]);
+
+const thisCategoryCount = categoryCounts.find((c) => c.category === category)?.count ?? result.items.length;
+
 const titleCategory = category
   .split('-')
   .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
   .join(' ');
 
 const title = `${titleCategory} plugins - emdashcms.org`;
-const description = `Browse ${titleCategory} plugins on the emdashcms.org community marketplace for EmDash CMS.`;
+const description = `${thisCategoryCount} ${titleCategory} plugins for EmDash CMS. Audited, capability-declared extensions with public security reviews.`;
 
-// BreadcrumbList helps Google SGE, Perplexity, and ChatGPT render a
-// clear hierarchy in citations — the visible crumb trail above just
-// serves humans. Category pages are two levels deep: Plugins → {slug}.
-const categoryJsonLd = buildBreadcrumbListJsonLd([
-  { name: 'Plugins', url: '/plugins' },
-  { name: titleCategory, url: `/plugins/category/${category}` },
-]);
+// Rich CollectionPage + Breadcrumb for pSEO (better than Breadcrumb-only).
+const categoryJsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Plugins', url: '/plugins' },
+    { name: titleCategory, url: `/plugins/category/${category}` },
+  ]),
+  buildCollectionPageJsonLd({
+    name: `${titleCategory} Plugins for EmDash CMS`,
+    description: `${thisCategoryCount} audited ${titleCategory.toLowerCase()} plugins. Capability-declared, security-reviewed extensions for the EmDash ecosystem.`,
+    url: `/plugins/category/${category}`,
+    items: result.items.map((p) => ({
+      name: p.name,
+      url: `/plugins/${p.id}`,
+    })),
+  }),
+];
 ---
 <BaseLayout title={title} description={description} jsonLd={categoryJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
@@ -59,7 +75,11 @@ const categoryJsonLd = buildBreadcrumbListJsonLd([
         {titleCategory}
       </h1>
       <p class="mt-1 text-sm text-ink-muted">
-        Plugins in the {titleCategory.toLowerCase()} category.
+        {thisCategoryCount} plugins in the {titleCategory.toLowerCase()} category. All published versions pass automated + AI security review.
+      </p>
+      <p class="mt-3 text-sm text-ink-muted max-w-prose">
+        These plugins declare explicit capabilities and are scanned before they can be installed. 
+        Browse the full list below or filter by capability in the main <a href="/plugins" class="text-ink underline">plugins hub</a>.
       </p>
 
       <div class="mt-6">
@@ -69,6 +89,17 @@ const categoryJsonLd = buildBreadcrumbListJsonLd([
           value={query}
         />
       </div>
+
+      {popularInCategory.length > 0 && (
+        <div class="mt-8">
+          <h2 class="text-sm uppercase tracking-[0.18em] text-ink-soft mb-3">Popular in {titleCategory}</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {popularInCategory.map((plugin) => (
+              <PluginCard plugin={plugin} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {result.items.length === 0 ? (
         <EmptyState

@@ -1,0 +1,56 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PluginCard from '../../components/PluginCard.astro';
+import { searchPlugins } from '../../lib/db/queries';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd } from '../../lib/seo/json-ld';
+
+const plugins = await searchPlugins(env.DB, {
+  query: '',
+  category: null,
+  capability: null,
+  sort: 'updated',
+  cursor: null,
+  limit: 20,
+});
+
+const title = 'Recently Audited EmDash Plugins — emdashcms.org';
+const description = 'Latest plugins and updates that have passed the EmDash security audit pipeline.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Plugins', url: '/plugins' },
+    { name: 'Recently Audited', url: '/plugins/recently-audited' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'Recently Audited EmDash Plugins',
+    description,
+    url: '/plugins/recently-audited',
+    items: plugins.items.map((p) => ({ url: `/plugins/${p.id}`, name: p.name })),
+  }),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-3xl tracking-tight text-ink mb-3">Recently Audited Plugins</h1>
+      <p class="text-ink-muted max-w-prose">
+        The most recently updated plugins that have gone through EmDash's automated security and capability audit pipeline. 
+        Every listing shows its latest audit status.
+      </p>
+
+      <div class="mt-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {plugins.items.map((plugin) => <PluginCard plugin={plugin} />)}
+        </div>
+      </div>
+
+      <p class="mt-8 text-sm text-ink-muted">
+        Want to see full transparency data? Visit the <a href="/transparency" class="text-ink underline">weekly transparency reports</a>.
+      </p>
+    </div>
+  </section>
+</BaseLayout>

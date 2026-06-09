@@ -1,0 +1,55 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PluginCard from '../../../components/PluginCard.astro';
+import { searchPlugins } from '../../../lib/db/queries';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd } from '../../../lib/seo/json-ld';
+
+const plugins = await searchPlugins(env.DB, {
+  query: '',
+  category: 'analytics',
+  capability: null,
+  sort: 'installs',
+  cursor: null,
+  limit: 24,
+});
+
+const title = 'Analytics Plugins for EmDash — emdashcms.org';
+const description = 'Analytics and tracking plugins for EmDash CMS. All versions security audited before publishing.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Plugins', url: '/plugins' },
+    { name: 'Analytics', url: '/plugins/with/analytics' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash Analytics Plugins',
+    description,
+    url: '/plugins/with/analytics',
+    items: plugins.items.map((p) => ({ url: `/plugins/${p.id}`, name: p.name })),
+  }),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-3xl tracking-tight text-ink mb-3">Analytics Plugins for EmDash</h1>
+      <p class="text-ink-muted max-w-prose">
+        Plugins focused on analytics, tracking, and reporting. Every version goes through automated security review.
+      </p>
+
+      <div class="mt-8">
+        {plugins.items.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plugins.items.map((plugin) => <PluginCard plugin={plugin} />)}
+          </div>
+        ) : (
+          <p class="text-ink-muted">No analytics plugins yet in this view. Browse the full <a href="/plugins/category/analytics" class="text-ink underline">analytics category</a>.</p>
+        )}
+      </div>
+    </div>
+  </section>
+</BaseLayout>

@@ -5,16 +5,48 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
 import {
   buildBreadcrumbListJsonLd,
+  buildFaqPageJsonLd,
   buildTechArticleJsonLd,
 } from '../lib/seo/json-ld';
 
-const title = "How to Install EmDash CMS Plugins — Installation Guide";
-const description = "Two ways to install EmDash CMS plugins from the community marketplace: download the .tgz bundle, or point your EmDash instance at emdashcms.org and install from the admin dashboard.";
+const title = "How to Install Audited EmDash CMS Plugins — Official Guide";
+const description = "Install AI-audited, verified EmDash CMS plugins from the official community marketplace. Two safe methods: download .tgz bundles or point your EmDash instance at emdashcms.org for one-click admin installs. Every version passes automated security review.";
 
 // TechArticle is the canonical type for developer how-to content and
 // is what AI engines weight most heavily for technical extraction.
 // datePublished is the page's first ship; dateModified tracks copy
 // edits so freshness signals stay accurate.
+const faqs = [
+  {
+    question: "How do I install EmDash CMS plugins from the marketplace?",
+    answer: "You have two options. (1) Download the .tgz bundle from a plugin detail page and extract it to your EmDash plugins directory, then restart your instance. (2) Add this marketplace to your Astro config and install directly from the EmDash admin dashboard (Plugins › Marketplace).",
+  },
+  {
+    question: "Is the EmDash CMS plugin marketplace safe?",
+    answer: "Yes. Only versions that pass the automated AI security audit are published. Passed versions are available cleanly. Flagged versions publish with visible warnings. Failed versions are rejected and never appear in the catalog or registry.",
+  },
+  {
+    question: "What is the AI security audit for EmDash plugins?",
+    answer: "Every uploaded version runs through the audit before it can be downloaded or installed. The audit detects security risks and capability issues. Results determine publish status: clean pass, publish-with-warnings, or hard reject.",
+  },
+  {
+    question: "Manual .tgz download vs. registry install — which should I use?",
+    answer: "Manual download gives you the .tgz file for offline/air-gapped setups and full control. Registry mode lets you browse the full catalog and install with one click from the admin UI after adding the marketplace URL to astro.config.mjs. Both deliver the same audited bundles.",
+  },
+  {
+    question: "Do I need to restart EmDash after installing a plugin?",
+    answer: "Yes for the manual .tgz method — extract then restart. The registry + sandboxRunner integration handles loading dynamically for most cases without a full restart.",
+  },
+  {
+    question: "How do I publish my own plugin to the EmDash marketplace?",
+    answer: "Sign in with GitHub on the publisher dashboard, register a unique ID, then upload .tgz files manually or connect a GitHub repository for automatic releases. Every version is audited before it becomes available to other users.",
+  },
+  {
+    question: "Will installing plugins from emdashcms.org make my site depend on it at runtime?",
+    answer: "No. The marketplace is purely a distribution channel. After install the bundle is copied into your own R2 bucket and runs inside your site's isolated sandbox runner. Your EmDash instance never calls back to emdashcms.org.",
+  },
+];
+
 const guideJsonLd = [
   buildBreadcrumbListJsonLd([{ name: 'Installation Guide', url: '/guide' }]),
   buildTechArticleJsonLd({
@@ -22,10 +54,11 @@ const guideJsonLd = [
     description,
     url: '/guide',
     datePublished: '2026-04-01',
-    dateModified: '2026-04-29',
+    dateModified: '2026-05-30',
     author: { type: 'Organization', name: 'EmDash CMS Marketplace', url: 'https://emdashcms.org' },
     proficiencyLevel: 'Beginner',
   }),
+  buildFaqPageJsonLd(faqs),
 ];
 ---
 <BaseLayout title={title} description={description} jsonLd={guideJsonLd}>
@@ -39,7 +72,13 @@ const guideJsonLd = [
           Installation Guide
         </h1>
         <p class="text-lg text-ink-muted leading-relaxed max-w-prose">
-          Two ways to install plugins from the community marketplace.
+          Install plugins from the EmDash CMS community marketplace with confidence.
+          <strong class="text-ink font-medium">Every published version passes an AI security audit</strong> before it is available for download or one-click registry install.
+        </p>
+        <p class="mt-3 text-sm">
+          <a href="/" class="text-ink underline underline-offset-2 hover:text-ink transition-colors font-medium">Browse the catalog of audited plugins</a>
+          <span class="text-ink-muted mx-1.5">·</span>
+          <a href="/dashboard" class="text-ink underline underline-offset-2 hover:text-ink transition-colors font-medium">Publish your own</a>
         </p>
       </div>
 
@@ -80,6 +119,24 @@ const guideJsonLd = [
       </section>
 
       <div class="border-t border-rule"></div>
+
+      <!-- FAQ (supports buildFaqPageJsonLd + rich results) -->
+      <section class="my-16">
+        <h2 class="text-2xl text-ink mb-6">Frequently Asked Questions</h2>
+        <div class="space-y-2 max-w-prose">
+          {faqs.map((faq) => (
+            <details class="group border border-rule rounded-lg bg-paper-soft open:bg-white transition-colors">
+              <summary class="px-4 py-3 text-ink font-medium cursor-pointer select-none flex items-center justify-between gap-2">
+                {faq.question}
+                <span aria-hidden="true" class="text-xs text-ink-muted transition-transform group-open:rotate-180">▼</span>
+              </summary>
+              <p class="px-4 pb-4 text-sm text-ink-muted leading-relaxed border-t border-rule pt-3">
+                {faq.answer}
+              </p>
+            </details>
+          ))}
+        </div>
+      </section>
 
       <!-- Section 2: Use as Your Plugin Registry -->
       <section class="my-16">

@@ -9,8 +9,8 @@ import {
   buildTechArticleJsonLd,
 } from '../../lib/seo/json-ld';
 
-const title = 'Publish a Plugin or Theme to EmDash CMS — Contributor Guide';
-const description = 'Sign in with GitHub, upload a .tgz bundle, and pass the fail-closed security audit. Step-by-step guide to publishing plugins and themes on the EmDash CMS community marketplace.';
+const title = 'How to Publish a Plugin or Theme to EmDash CMS — Contributor Guide';
+const description = 'Sign in with GitHub, upload a .tgz bundle, and pass the fail-closed security audit. Free contributor guide to publishing plugins and themes on the transparent, audited EmDash CMS community marketplace — no fees, full pipeline visibility.';
 
 // TechArticle + BreadcrumbList for hierarchy, plus a FAQPage that
 // answers the questions prospective contributors actually ask. The
@@ -22,11 +22,11 @@ const contributorsJsonLd = [
     { name: 'Contributor Guide', url: '/docs/contributors' },
   ]),
   buildTechArticleJsonLd({
-    headline: 'Publish a Plugin or Theme to EmDash CMS',
+    headline: 'How to Publish a Plugin or Theme to EmDash CMS',
     description,
     url: '/docs/contributors',
     datePublished: '2026-04-01',
-    dateModified: '2026-04-29',
+    dateModified: '2026-05-30',
     author: { type: 'Organization', name: 'EmDash CMS Marketplace', url: 'https://emdashcms.org' },
     proficiencyLevel: 'Beginner',
   }),
@@ -56,6 +56,36 @@ const contributorsJsonLd = [
       answer:
         'manifest.json is a required file at the root of every plugin bundle. It declares the plugin id, version, capabilities, allowed hosts, hooks, routes, and storage. The runtime only grants access to what the manifest lists, so a plugin cannot silently read or modify anything outside its declared surface.',
     },
+    {
+      question: 'How long does the security audit take?',
+      answer:
+        'Bundle validation and the static scanner complete in seconds. AI review (when triggered on clean bundles) adds seconds to minutes. You see the full verdict and logs immediately in the dashboard.',
+    },
+    {
+      question: 'What happens if my plugin is rejected by the audit?',
+      answer:
+        'You receive a detailed report with every blocking and soft finding. Fix the issues locally, then upload a corrected bundle. Static scanner results are deterministic: the same tarball always produces the same outcome.',
+    },
+    {
+      question: 'Do I need to open source my plugin to publish it?',
+      answer:
+        'No. Only the manifest.json and marketplace metadata are public. Your source stays private unless you explicitly link a GitHub repository for the auto-publish flow.',
+    },
+    {
+      question: 'How do I connect GitHub releases for automatic publishing?',
+      answer:
+        'From the dashboard, install the emdashcms.org GitHub App on the repo and link it to your registered plugin id. Every matching tagged release is downloaded, audited through the same pipeline, and published with provenance linking back to the GitHub release.',
+    },
+    {
+      question: 'Is the audit pipeline and transparency data public?',
+      answer:
+        'Yes. The scanner rules, full marketplace code, and weekly aggregated audit metrics are open. View real pipeline throughput and outcomes at /transparency. Everything is MIT-licensed on GitHub.',
+    },
+    {
+      question: 'How do published plugins appear in the catalog?',
+      answer:
+        'Once a version passes, it surfaces immediately in the /plugins and /themes browsing, search, and category pages. Site owners see the trust tier, declared capabilities, and full audit history on the detail page.',
+    },
   ]),
 ];
 ---
@@ -68,7 +98,14 @@ const contributorsJsonLd = [
           Contributor Guide
         </h1>
         <p class="text-lg text-ink-muted leading-relaxed max-w-prose">
-          Publish a plugin or theme for EmDash CMS. From signup to first live version, here's everything you need.
+          Publish a plugin or theme for EmDash CMS. Every version passes our public fail-closed audit pipeline before it appears in the catalog. The full review process, scanner ruleset, and weekly metrics are transparent.
+        </p>
+        <p class="mt-3 text-sm">
+          <a href="/plugins" class="text-ink underline hover:opacity-80">Browse the live catalog of audited plugins</a>
+          <span class="text-ink-muted mx-1.5">·</span>
+          <a href="/guide" class="text-ink underline hover:opacity-80">See the install-side guide</a>
+          <span class="text-ink-muted mx-1.5">·</span>
+          <a href="/dashboard" class="text-ink underline hover:opacity-80">Go to the publisher dashboard</a>
         </p>
       </div>
 
@@ -93,13 +130,14 @@ const contributorsJsonLd = [
             <span>Iterate, upload new versions, and link a GitHub repo to auto-publish on tagged releases.</span>
           </li>
         </ol>
+        <p class="mt-3 text-sm text-ink-muted max-w-prose">Approved versions surface in the <a href="/plugins" class="text-ink underline hover:opacity-80">public plugin catalog</a> and <a href="/compare" class="text-ink underline hover:opacity-80">marketplace comparisons</a>.</p>
       </section>
 
       <!-- manifest.json -->
       <section class="mb-16">
         <h2 class="text-2xl text-ink mt-12 mb-4">manifest.json schema</h2>
         <p class="text-ink-muted mb-4 max-w-prose">
-          Every plugin bundle must contain a <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">manifest.json</code> at its root. The schema mirrors the EmDash CMS core contract so plugins work upstream too.
+          Every plugin bundle must contain a <code class="text-ink bg-paper-sunk px-1.5 py-0.5 rounded text-xs font-mono">manifest.json</code> at its root. The schema mirrors the EmDash CMS core contract so plugins work upstream too. For the complete field reference and audit-time validation rules, see the <a href="/learn/manifest-schema" class="text-ink underline hover:opacity-80">manifest schema documentation</a>.
         </p>
         <div class="rounded-lg border border-rule bg-paper-sunk p-4 font-mono text-xs text-ink overflow-x-auto whitespace-pre">{`{
   "id": "my-plugin",
@@ -149,7 +187,7 @@ const contributorsJsonLd = [
       <section class="mb-16">
         <h2 class="text-2xl text-ink mt-12 mb-4">How review works</h2>
         <p class="text-ink-muted mb-4 max-w-prose">
-          Every version goes through three gates. All three are automated — you do not wait on a human unless the scanner flags something ambiguous.
+          Every version goes through three gates. All three are automated — you do not wait on a human unless the scanner flags something ambiguous. The pipeline, ruleset, and outcomes are fully transparent.
         </p>
         <ol class="space-y-4 text-ink-muted max-w-prose">
           <li>
@@ -169,12 +207,13 @@ const contributorsJsonLd = [
             </p>
           </li>
         </ol>
+        <p class="mt-3 text-sm text-ink-muted max-w-prose">Weekly aggregated audit metrics and pipeline performance are published at <a href="/transparency" class="text-ink underline hover:opacity-80">/transparency</a>. Full developer resources at <a href="/developers" class="text-ink underline hover:opacity-80">/developers</a>.</p>
       </section>
 
       <!-- Trust tiers -->
       <section class="mb-16">
         <h2 class="text-2xl text-ink mt-12 mb-4">Trust tiers</h2>
-        <p class="text-ink-muted mb-4 max-w-prose">Every published version carries a tier. Users see it on cards and detail pages.</p>
+        <p class="text-ink-muted mb-4 max-w-prose">Every published version carries a tier. Users see it on cards and detail pages in the <a href="/plugins" class="text-ink underline hover:opacity-80">public catalog</a>.</p>
         <div class="space-y-2 text-sm">
           <div class="rounded-lg border border-success/30 bg-success-soft p-3 text-success"><strong class="font-medium">Scanned</strong> — passed all static checks, no findings. Safe to install.</div>
           <div class="rounded-lg border border-success/30 bg-success-soft p-3 text-success"><strong class="font-medium">✦ AI-reviewed</strong> — scanned + AI audit both clean. Highest tier currently.</div>
@@ -267,7 +306,16 @@ npx emdash plugin publish --registry https://emdashcms.org</code></pre>
           <Button href="/docs/security" variant="secondary">
             Read the security policy
           </Button>
+          <Button href="/plugins" variant="secondary">
+            Browse the catalog
+          </Button>
+          <Button href="/transparency" variant="secondary">
+            View audit transparency
+          </Button>
         </div>
+        <p class="mt-4 text-sm text-ink-muted max-w-prose">
+          See <a href="/compare" class="text-ink underline hover:opacity-80">marketplace comparisons</a>, the <a href="/learn/manifest-schema" class="text-ink underline hover:opacity-80">full manifest reference</a>, or the <a href="/guide" class="text-ink underline hover:opacity-80">install guide</a>. Developer handbook at <a href="/developers" class="text-ink underline hover:opacity-80">/developers</a>.
+        </p>
       </section>
 
     </div>

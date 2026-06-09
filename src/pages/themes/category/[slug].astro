@@ -8,7 +8,7 @@ import EmptyState from '../../../components/EmptyState.astro';
 import SearchBar from '../../../components/SearchBar.astro';
 import Pagination from '../../../components/Pagination.astro';
 import { searchThemes } from '../../../lib/db/queries';
-import { buildBreadcrumbListJsonLd } from '../../../lib/seo/json-ld';
+import { buildBreadcrumbListJsonLd, buildCollectionPageJsonLd } from '../../../lib/seo/json-ld';
 
 const { slug } = Astro.params;
 const category = (slug ?? '').toLowerCase();
@@ -36,14 +36,24 @@ const titleCategory = category
   .join(' ');
 
 const title = `${titleCategory} themes - emdashcms.org`;
-const description = `Browse ${titleCategory} themes on the emdashcms.org community marketplace for EmDash CMS.`;
+const description = `${result.items.length} ${titleCategory} themes for EmDash CMS. High-quality, installable themes with public metadata.`;
 
-// BreadcrumbList mirrors the visible nav so AI citations show a full
-// hierarchy (Themes → {titleCategory}) instead of a bare URL.
-const categoryJsonLd = buildBreadcrumbListJsonLd([
-  { name: 'Themes', url: '/themes' },
-  { name: titleCategory, url: `/themes/category/${category}` },
-]);
+// Richer schema for pSEO.
+const categoryJsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Themes', url: '/themes' },
+    { name: titleCategory, url: `/themes/category/${category}` },
+  ]),
+  buildCollectionPageJsonLd({
+    name: `${titleCategory} Themes for EmDash CMS`,
+    description,
+    url: `/themes/category/${category}`,
+    items: result.items.map((t) => ({
+      name: t.name,
+      url: `/themes/${t.id}`,
+    })),
+  }),
+];
 ---
 <BaseLayout title={title} description={description} jsonLd={categoryJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
@@ -59,6 +69,10 @@ const categoryJsonLd = buildBreadcrumbListJsonLd([
       </h1>
       <p class="mt-1 text-sm text-ink-muted">
         Themes in the {titleCategory.toLowerCase()} category.
+      </p>
+      <p class="mt-3 text-sm text-ink-muted max-w-prose">
+        These themes are ready to install via npm or repository. 
+        See the full catalog in the <a href="/themes" class="text-ink underline">themes hub</a>.
       </p>
 
       <div class="mt-6">

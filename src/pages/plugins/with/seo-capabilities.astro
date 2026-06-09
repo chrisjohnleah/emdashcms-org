@@ -1,0 +1,61 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PluginCard from '../../../components/PluginCard.astro';
+import { searchPlugins } from '../../../lib/db/queries';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd } from '../../../lib/seo/json-ld';
+
+const plugins = await searchPlugins(env.DB, {
+  query: '',
+  category: null,
+  capability: 'seo',
+  sort: 'installs',
+  cursor: null,
+  limit: 24,
+});
+
+const title = 'EmDash Plugins with SEO Capabilities — emdashcms.org';
+const description = 'Plugins that declare SEO-related capabilities for EmDash CMS. All versions are audited before publishing.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Plugins', url: '/plugins' },
+    { name: 'SEO Capabilities', url: '/plugins/with/seo-capabilities' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash Plugins with SEO Capabilities',
+    description,
+    url: '/plugins/with/seo-capabilities',
+    items: plugins.items.map((p) => ({ name: p.name, url: `/plugins/${p.id}` })),
+  }),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-3xl tracking-tight text-ink mb-3">Plugins with SEO Capabilities</h1>
+      <p class="text-ink-muted max-w-prose">
+        These plugins have explicitly declared SEO-related capabilities (e.g. reading/writing content, modifying metadata). 
+        Every version is security audited before it can be installed.
+      </p>
+
+      <div class="mt-8">
+        {plugins.items.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plugins.items.map((plugin) => <PluginCard plugin={plugin} />)}
+          </div>
+        ) : (
+          <p class="text-ink-muted">No plugins currently declaring the SEO capability. Check back soon or browse the full catalog.</p>
+        )}
+      </div>
+
+      <p class="mt-10 text-sm text-ink-muted">
+        Want more capability-based discovery? We're building richer filters. 
+        In the meantime, use the main <a href="/plugins" class="text-ink underline">plugins hub</a>.
+      </p>
+    </div>
+  </section>
+</BaseLayout>
