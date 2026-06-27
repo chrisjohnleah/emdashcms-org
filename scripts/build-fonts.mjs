@@ -40,12 +40,6 @@ const FONTS = {
   jetBrainsMono: "JetBrainsMono-Regular.ttf",
 };
 
-function chunk(s, width) {
-  const out = [];
-  for (let i = 0; i < s.length; i += width) out.push(s.slice(i, i + width));
-  return out;
-}
-
 const lines = [];
 lines.push("/**");
 lines.push(" * Auto-generated: base64 inlined font data for OG image rendering.");
@@ -70,10 +64,11 @@ for (const [exportName, fileName] of Object.entries(FONTS)) {
   const b64 = bytes.toString("base64");
   const literalName = exportName.toUpperCase() + "_B64";
 
+  // One JSON string literal — not chained `+` segments. Vite 8's
+  // transform walks the AST recursively; ~20k concatenations in the
+  // old format blew the stack during vitest-pool-workers bundling.
   lines.push(`// Source: ${fileName} (${bytes.length} bytes)`);
-  lines.push(`const ${literalName} =`);
-  const parts = chunk(b64, 76).map((c) => `  ${JSON.stringify(c)}`);
-  lines.push(parts.join(" +\n") + ";");
+  lines.push(`const ${literalName} = ${JSON.stringify(b64)};`);
   lines.push(`export const ${exportName} = decode(${literalName});`);
   lines.push("");
 }

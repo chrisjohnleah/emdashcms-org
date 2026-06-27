@@ -207,9 +207,12 @@ describe("/sitemap.xml endpoint", () => {
     for (const loc of STATIC_LOCS) {
       expect(body).toContain(`<loc>${loc}</loc>`);
     }
-    // No plugin or theme detail URLs beyond the /plugins and /themes
-    // index pages (which ARE in STATIC_LOCS).
-    expect(body).not.toMatch(/<loc>https:\/\/emdashcms\.org\/plugins\/[^<]+<\/loc>/);
+    // No catalog plugin/theme detail URLs when D1 is empty. Static
+    // plugin browse pages under /plugins/* are still emitted.
+    expect(body.match(/<loc>https:\/\/emdashcms\.org\/plugins\/[^<]+<\/loc>/g)).toEqual([
+      "<loc>https://emdashcms.org/plugins/with/analytics</loc>",
+      "<loc>https://emdashcms.org/plugins/recently-audited</loc>",
+    ]);
     expect(body).not.toMatch(/<loc>https:\/\/emdashcms\.org\/themes\/[^<]+<\/loc>/);
     expect(body).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     expect(body).toContain("<urlset ");
