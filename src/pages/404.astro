@@ -1,0 +1,28 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+import SearchBar from '../components/SearchBar.astro';
+
+Astro.response.status = 404;
+---
+<BaseLayout title="Page not found — emdashcms.org" noindex>
+  <section class="page pt-16 pb-24 md:pt-24">
+    <div class="max-w-xl">
+      <span class="emdash-mark text-3xl block mb-4" aria-hidden="true">—</span>
+      <h1 class="font-display text-4xl text-ink leading-[1.1]" style="font-weight: 500; letter-spacing: -0.02em;">Page not found</h1>
+      <p class="mt-4 text-base text-ink-muted leading-relaxed">
+        This page doesn't exist or has moved. If you followed a link to a plugin or theme, it may have been renamed or removed. Try searching instead.
+      </p>
+      <div class="mt-8">
+        <SearchBar action="/plugins" placeholder="Search plugins..." value="" />
+      </div>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <Button href="/plugins" variant="primary">Browse plugins</Button>
+        <Button href="/themes" variant="secondary">Browse themes</Button>
+        <Button href="/guide" variant="ghost">Install guide</Button>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
