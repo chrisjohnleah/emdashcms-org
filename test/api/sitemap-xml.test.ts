@@ -173,8 +173,6 @@ const STATIC_LOCS = [
   "https://emdashcms.org/docs/contributors",
   "https://emdashcms.org/docs/moderators",
   "https://emdashcms.org/docs/security",
-  "https://emdashcms.org/transparency",
-  "https://emdashcms.org/status",
   "https://emdashcms.org/privacy",
   "https://emdashcms.org/terms",
   "https://emdashcms.org/code-of-conduct",
@@ -512,25 +510,42 @@ describe("/sitemap.xml endpoint", () => {
     );
   });
 
-  it("does NOT emit hook browse URLs or per-digest URLs (no such routes exist today)", async () => {
-    // Seed enough data that the sitemap is not trivially empty.
+  it("does NOT emit hook browse URLs or noindexed pages", async () => {
     await seedPlugin({
       id: "coverage",
       category: "editor",
       updatedAt: "2026-03-01T10:00:00Z",
     });
-    await seedTheme({
-      id: "coverage-theme",
-      category: "documentation",
-      updatedAt: "2026-03-01T10:00:00Z",
-    });
 
     const body = await (await invoke()).text();
-    // /digest (the archive index) IS emitted as a static entry; per-digest slug
-    // URLs (/digest/2026-W17) are not — enumerating them would require a D1
-    // scan of weekly_digests that the sitemap builder does not perform today.
-    expect(body).not.toMatch(/\/digest\/\d{4}-W\d{2}/);
     // No /hook/* routes exist in src/pages/.
     expect(body).not.toContain("/hook");
+    expect(body).not.toContain("<loc>https://emdashcms.org/transparency</loc>");
+    expect(body).not.toContain("<loc>https://emdashcms.org/status</loc>");
+  });
+
+  it("emits author profiles only for authors with public work", async () => {
+    const empty = await (await invoke()).text();
+    expect(empty).not.toContain("/authors/sitemap-tester");
+
+    await seedPlugin({
+      id: "author-coverage",
+      category: "editor",
+      updatedAt: "2026-03-04T10:00:00Z",
+    });
+    const body = await (await invoke()).text();
+    expect(body).toContain("<loc>https://emdashcms.org/authors/sitemap-tester</loc>");
+  });
+
+  it("emits one URL per weekly digest", async () => {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO weekly_digests (iso_week, generated_at, manifest_json) VALUES ('2026-W38', '2026-09-20T00:05:00Z', '{}')",
+    ).run();
+    try {
+      const body = await (await invoke()).text();
+      expect(body).toContain("<loc>https://emdashcms.org/digest/2026-W38</loc>");
+    } finally {
+      await env.DB.prepare("DELETE FROM weekly_digests WHERE iso_week = '2026-W38'").run();
+    }
   });
 });

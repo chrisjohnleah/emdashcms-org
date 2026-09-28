@@ -56,6 +56,10 @@ export interface SitemapInput {
   pluginCategories: Array<{ slug: string; lastmod: string }>;
   /** DISTINCT theme category slugs with MAX(updated_at) of their themes. */
   themeCategories: Array<{ slug: string; lastmod: string }>;
+  /** Public author profiles — `updated_at` is their newest listing. */
+  authors?: Array<{ username: string; updated_at: string }>;
+  /** Weekly digest archive pages keyed by ISO week slug (e.g. 2026-W39). */
+  digests?: Array<{ iso_week: string; generated_at: string }>;
 }
 
 /**
@@ -144,8 +148,8 @@ export function buildSitemapXml(input: SitemapInput): string {
     { loc: `${SITE_URL}/docs/contributors`, lastmod: now, changefreq: "weekly", priority: "0.7" },
     { loc: `${SITE_URL}/docs/moderators`, lastmod: now, changefreq: "monthly", priority: "0.5" },
     { loc: `${SITE_URL}/docs/security`, lastmod: now, changefreq: "monthly", priority: "0.5" },
-    { loc: `${SITE_URL}/transparency`, lastmod: now, changefreq: "weekly", priority: "0.6" },
-    { loc: `${SITE_URL}/status`, lastmod: now, changefreq: "daily", priority: "0.5" },
+    // /transparency and /status are noindex — listing them sends Search
+    // Console a "submitted URL marked noindex" error for each.
     { loc: `${SITE_URL}/privacy`, lastmod: now, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE_URL}/terms`, lastmod: now, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE_URL}/code-of-conduct`, lastmod: now, changefreq: "yearly", priority: "0.3" },
@@ -179,12 +183,28 @@ export function buildSitemapXml(input: SitemapInput): string {
     priority: "0.6",
   }));
 
+  const authorEntries: SitemapUrl[] = (input.authors ?? []).map((a) => ({
+    loc: `${SITE_URL}/authors/${a.username}`,
+    lastmod: a.updated_at,
+    changefreq: "weekly",
+    priority: "0.5",
+  }));
+
+  const digestEntries: SitemapUrl[] = (input.digests ?? []).map((d) => ({
+    loc: `${SITE_URL}/digest/${d.iso_week}`,
+    lastmod: d.generated_at,
+    changefreq: "yearly",
+    priority: "0.5",
+  }));
+
   const all: SitemapUrl[] = [
     ...staticEntries,
     ...pluginEntries,
     ...themeEntries,
     ...pluginCategoryEntries,
     ...themeCategoryEntries,
+    ...authorEntries,
+    ...digestEntries,
   ];
 
   return (

@@ -238,6 +238,80 @@ export interface PublicAuthorProfile {
   createdAt: string;
 }
 
+export interface PublicAuthorListing {
+  githubUsername: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  pluginCount: number;
+  themeCount: number;
+  installCount: number;
+  updatedAt: string;
+}
+
+/**
+ * Every non-banned author with at least one publicly visible plugin or
+ * theme — the same visibility rules as getPublicPluginsByAuthor /
+ * getPublicThemesByAuthor. Feeds /authors and the sitemap.
+ */
+export async function getPublicAuthors(
+  db: D1Database,
+): Promise<PublicAuthorListing[]> {
+  const result = await db
+    .prepare(
+      `WITH pub_plugins AS (
+         SELECT p.author_id, COUNT(*) AS n, SUM(p.installs_count) AS installs,
+                MAX(p.updated_at) AS updated_at
+         FROM plugins p
+         WHERE COALESCE(p.status, 'active') = 'active'
+           AND p.unlisted_at IS NULL
+           AND p.merged_into IS NULL
+           AND EXISTS (
+             SELECT 1 FROM plugin_versions pv
+             WHERE pv.plugin_id = p.id AND pv.status IN ('published', 'flagged')
+           )
+         GROUP BY p.author_id
+       ),
+       pub_themes AS (
+         SELECT t.author_id, COUNT(*) AS n, MAX(t.updated_at) AS updated_at
+         FROM themes t
+         WHERE COALESCE(t.status, 'active') = 'active'
+           AND (t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)
+         GROUP BY t.author_id
+       )
+       SELECT a.github_username, a.avatar_url, a.verified,
+              COALESCE(pp.n, 0) AS plugin_count,
+              COALESCE(pt.n, 0) AS theme_count,
+              COALESCE(pp.installs, 0) AS install_count,
+              MAX(COALESCE(pp.updated_at, ''), COALESCE(pt.updated_at, '')) AS updated_at
+       FROM authors a
+       LEFT JOIN pub_plugins pp ON pp.author_id = a.id
+       LEFT JOIN pub_themes pt ON pt.author_id = a.id
+       WHERE COALESCE(a.banned, 0) = 0
+         AND (pp.n > 0 OR pt.n > 0)
+       ORDER BY (COALESCE(pp.n, 0) + COALESCE(pt.n, 0)) DESC, install_count DESC,
+                a.github_username COLLATE NOCASE ASC`,
+    )
+    .all<{
+      github_username: string;
+      avatar_url: string | null;
+      verified: number;
+      plugin_count: number;
+      theme_count: number;
+      install_count: number;
+      updated_at: string;
+    }>();
+
+  return (result.results ?? []).map((r) => ({
+    githubUsername: r.github_username,
+    avatarUrl: r.avatar_url,
+    verified: Boolean(r.verified),
+    pluginCount: r.plugin_count,
+    themeCount: r.theme_count,
+    installCount: r.install_count,
+    updatedAt: r.updated_at,
+  }));
+}
+
 /**
  * Look up a public author by GitHub username. Returns null when no author
  * matches OR when the author is banned — banned authors are invisible on

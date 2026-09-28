@@ -119,8 +119,6 @@ const STATIC_LOCS = [
   "https://emdashcms.org/docs/contributors",
   "https://emdashcms.org/docs/moderators",
   "https://emdashcms.org/docs/security",
-  "https://emdashcms.org/transparency",
-  "https://emdashcms.org/status",
   "https://emdashcms.org/privacy",
   "https://emdashcms.org/terms",
   "https://emdashcms.org/code-of-conduct",
