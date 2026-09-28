@@ -30,7 +30,15 @@ interface Props {
   feeds?: FeedLink[];
 }
 
-const { title, description, noindex = false, jsonLd, ogImage, feeds } = Astro.props;
+const {
+  title,
+  description,
+  noindex = false,
+  jsonLd,
+  // Pages without a generated card (home, hubs, docs) share the static brand card.
+  ogImage = { url: 'https://emdashcms.org/og-default.png', width: 1200, height: 630 },
+  feeds,
+} = Astro.props;
 
 // Default feed autodiscovery — the three top-level Atom feeds shipped
 // in Phase 14.01 (src/pages/feeds/**). Pages can override by passing
@@ -288,6 +296,7 @@ try {
               <li><a href="/start" class="text-ink-muted hover:text-ink transition-colors">Start here</a></li>
               <li><a href="/plugins" class="text-ink-muted hover:text-ink transition-colors">Plugins</a></li>
               <li><a href="/themes" class="text-ink-muted hover:text-ink transition-colors">Themes</a></li>
+              <li><a href="/registry" class="text-ink-muted hover:text-ink transition-colors">Official registry</a></li>
               <li><a href="/guide" class="text-ink-muted hover:text-ink transition-colors">Install guide</a></li>
             </ul>
           </div>
