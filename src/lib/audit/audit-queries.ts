@@ -115,7 +115,7 @@ export async function createAuditRecord(
       .prepare(
         `UPDATE plugin_versions
          SET status = ?,
-             published_at = CASE WHEN ? = 'published' THEN strftime('%Y-%m-%dT%H:%M:%SZ', 'now') ELSE published_at END,
+             published_at = CASE WHEN ? = 'published' THEN COALESCE(published_at, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) ELSE published_at END,
              updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
          WHERE id = ?`,
       )
@@ -327,7 +327,7 @@ export async function completeBatchAudit(
       .prepare(
         `UPDATE plugin_versions
          SET status = ?,
-             published_at = CASE WHEN ? = 'published' THEN strftime('%Y-%m-%dT%H:%M:%SZ', 'now') ELSE published_at END,
+             published_at = CASE WHEN ? = 'published' THEN COALESCE(published_at, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) ELSE published_at END,
              updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
          WHERE id = ?`,
       )
