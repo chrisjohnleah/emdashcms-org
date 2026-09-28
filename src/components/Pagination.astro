@@ -19,7 +19,7 @@ function buildLoadMoreHref(): string {
 }
 ---
 <div class="flex flex-col items-center gap-4 pt-10">
-  <p class="text-sm text-ink-soft">Showing {count} {label}</p>
+  <p class="text-sm text-ink-soft">Showing {count} {count === 1 ? label.replace(/s$/, '') : label}</p>
   {nextCursor && (
     <a
       href={buildLoadMoreHref()}
