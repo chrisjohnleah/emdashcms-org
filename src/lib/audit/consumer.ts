@@ -236,7 +236,7 @@ function isTransientAiError(err: unknown): boolean {
 /**
  * Validate the parsed AI response matches the expected schema.
  */
-function validateAuditResponse(
+export function validateAuditResponse(
   parsed: unknown,
 ): parsed is { verdict: "pass" | "warn" | "fail"; riskScore: number; findings: unknown[] } {
   if (typeof parsed !== "object" || parsed === null) return false;
@@ -253,7 +253,7 @@ function validateAuditResponse(
  * Convert a static-scanner finding to the marketplace finding shape so
  * static and AI findings can live in the same audit record.
  */
-function staticFindingToMarketplace(f: StaticFinding): MarketplaceAuditFinding {
+export function staticFindingToMarketplace(f: StaticFinding): MarketplaceAuditFinding {
   return {
     severity: f.severity === "info" ? "info" : f.severity,
     title: f.title,
@@ -304,6 +304,60 @@ function staticRiskScore(findings: StaticFinding[]): number {
     else if (f.severity === "low") score += 3;
   }
   return Math.min(100, score);
+}
+
+/**
+ * Response envelopes observed across Workers AI text-gen models:
+ *   a) Standard text-gen: { response: string, usage: {...} }
+ *      e.g. @cf/mistralai/mistral-small-3.1-24b-instruct
+ *   b) OpenAI-compat with visible content: { choices: [{ message: { content } }], usage }
+ *   c) OpenAI-compat with reasoning: { choices: [{ message: { content, reasoning_content } }], usage }
+ *      e.g. @cf/zai-org/glm-4.7-flash, @cf/openai/gpt-oss-*, any model
+ *      with internal chain-of-thought. These may fill reasoning_content
+ *      and leave `content` empty if the completion budget is tight.
+ */
+export type AiResponseEnvelope = {
+  response?: string;
+  choices?: Array<{
+    message?: {
+      content?: string | null;
+      reasoning_content?: string | null;
+    };
+  }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+/**
+ * Normalise a Workers AI envelope to the model's text output. Four paths,
+ * tried in order:
+ *   a) `response` as STRING (standard text-gen, e.g. llama-*)
+ *   b) `response` as OBJECT (pre-parsed JSON, e.g. qwen2.5-coder-32b —
+ *      Workers AI detects valid JSON output and parses it for us).
+ *      We stringify it so extractJsonFromResponse() still works.
+ *   c) `choices[0].message.content` (OpenAI-compat visible output)
+ *   d) `choices[0].message.reasoning_content` (fallback for reasoning
+ *      models that spent their whole output budget on chain-of-thought
+ *      — the target JSON is still in the reasoning trace, and
+ *      extractJsonFromResponse() can pull it out of surrounding prose)
+ */
+export function extractAiResponseText(raw: AiResponseEnvelope): string {
+  const firstChoice = raw.choices?.[0]?.message;
+  const rawResponse = raw.response as unknown;
+  return (
+    (typeof rawResponse === "string"
+      ? rawResponse
+      : rawResponse && typeof rawResponse === "object"
+        ? JSON.stringify(rawResponse)
+        : undefined) ??
+    (firstChoice?.content && firstChoice.content.length > 0
+      ? firstChoice.content
+      : firstChoice?.reasoning_content) ??
+    ""
+  );
 }
 
 // --- Main Pipeline ---
@@ -661,29 +715,8 @@ export async function processAuditJob(
   // model receives the parameter it expects (Workers AI ignores the
   // unrecognised one). The shape is normalised after the call by
   // extractAiResponseText() so the rest of the pipeline only sees a
-  // single { response, usage } envelope regardless of the model.
-  // Envelope supports three shapes we've observed on Workers AI:
-  //   a) Standard text-gen: { response: string, usage: {...} }
-  //      e.g. @cf/mistralai/mistral-small-3.1-24b-instruct
-  //   b) OpenAI-compat with visible content: { choices: [{ message: { content } }], usage }
-  //   c) OpenAI-compat with reasoning: { choices: [{ message: { content, reasoning_content } }], usage }
-  //      e.g. @cf/zai-org/glm-4.7-flash, @cf/openai/gpt-oss-*, any model
-  //      with internal chain-of-thought. These may fill reasoning_content
-  //      and leave `content` empty if the completion budget is tight.
-  type AiResponseEnvelope = {
-    response?: string;
-    choices?: Array<{
-      message?: {
-        content?: string | null;
-        reasoning_content?: string | null;
-      };
-    }>;
-    usage?: {
-      prompt_tokens: number;
-      completion_tokens: number;
-      total_tokens: number;
-    };
-  };
+  // single { response, usage } envelope regardless of the model (see
+  // AiResponseEnvelope / extractAiResponseText above).
   let raw: AiResponseEnvelope;
   try {
     // No response_format — many Workers AI models reject json_schema with
@@ -725,28 +758,9 @@ export async function processAuditJob(
     `[audit] AI call returned: plugin=${job.pluginId} version=${job.version} model=${modelId} hasResponse=${!!raw.response} hasChoices=${!!raw.choices} usage=${JSON.stringify(raw.usage ?? null)} elapsed=${Date.now() - startTime}ms`,
   );
 
-  // 7. Normalise the response shape. Four paths we try in order:
-  //    a) `response` as STRING (standard text-gen, e.g. llama-*)
-  //    b) `response` as OBJECT (pre-parsed JSON, e.g. qwen2.5-coder-32b —
-  //       Workers AI detects valid JSON output and parses it for us).
-  //       We stringify it so extractJsonFromResponse() still works.
-  //    c) `choices[0].message.content` (OpenAI-compat visible output)
-  //    d) `choices[0].message.reasoning_content` (fallback for reasoning
-  //       models that spent their whole output budget on chain-of-thought
-  //       — the target JSON is still in the reasoning trace, and our
-  //       extractJsonFromResponse() can pull it out of surrounding prose)
+  // 7. Normalise the response shape.
   const firstChoice = raw.choices?.[0]?.message;
-  const rawResponse = raw.response as unknown;
-  const responseText =
-    (typeof rawResponse === "string"
-      ? rawResponse
-      : rawResponse && typeof rawResponse === "object"
-        ? JSON.stringify(rawResponse)
-        : undefined) ??
-    (firstChoice?.content && firstChoice.content.length > 0
-      ? firstChoice.content
-      : firstChoice?.reasoning_content) ??
-    "";
+  const responseText = extractAiResponseText(raw);
 
   // Diagnostic log on empty responses so future mysteries triage faster
   // without a new round of tail-watching.

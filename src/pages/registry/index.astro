@@ -1,15 +1,19 @@
 ---
 export const prerender = false;
 
+import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { listRegistryPackages } from '../../lib/registry/client';
+import { getRegistryAuditMap } from '../../lib/registry/audit';
 import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd, buildFaqPageJsonLd } from '../../lib/seo/json-ld';
 
-const packages = await listRegistryPackages();
+const [packages, audits] = await Promise.all([listRegistryPackages(), getRegistryAuditMap(env.DB)]);
+const auditFor = (p: (typeof packages)[number]) => audits.get(`${p.did}/${p.slug}/${p.latestVersion}`);
+const BADGE = { pass: 'Audit passed', warn: 'Audit: warnings', fail: 'Audit failed' } as const;
 
-const title = 'EmDash Plugin Registry — Every Plugin, Permissions Explained';
+const title = 'EmDash Plugin Registry — Every Plugin, Audited & Explained';
 const description =
-  'Browse every plugin in the official EmDash CMS plugin registry, with plain-English permission breakdowns and install steps. How the registry relates to the community marketplace.';
+  'Every plugin in the official EmDash CMS plugin registry, independently security-audited by emdashcms.org, with plain-English permissions and install steps.';
 
 const faqs = [
   {
@@ -20,7 +24,7 @@ const faqs = [
   {
     question: 'How is the registry different from emdashcms.org?',
     answer:
-      'emdashcms.org is an independent community marketplace. Plugins published here pass a fail-closed security audit before release. This page mirrors the official registry so you can compare both catalogues in one place; registry plugins listed below have not been audited by emdashcms.org.',
+      'emdashcms.org is an independent community marketplace. Plugins published here must pass a fail-closed security audit before release. Registry plugins are published to plugins.emdashcms.com, not here, but emdashcms.org runs the same audit (static scan plus AI code review) on each registry release and shows the result on its page as advice.',
   },
   {
     question: 'How do I install a plugin from the registry?',
@@ -52,16 +56,16 @@ const jsonLd = [
         The EmDash plugin registry
       </h1>
       <p class="text-lg text-ink-muted max-w-prose">
-        Every plugin in the official EmDash registry, mirrored here with what each one is allowed to touch
-        and how to install it. {packages.length > 0 && `${packages.length} plugins listed.`}
+        Every plugin in the official EmDash registry, with our independent security audit, what each one
+        is allowed to touch, and how to install it. {packages.length > 0 && `${packages.length} plugins listed.`}
       </p>
 
       <div class="mt-6 rounded-xl border border-rule bg-paper-soft p-5 text-sm text-ink-muted max-w-prose">
-        <strong class="text-ink">Not audited by emdashcms.org.</strong>
-        Registry plugins are published to <a href="https://plugins.emdashcms.com" class="underline" rel="noopener">plugins.emdashcms.com</a>
-        and listed here for comparison. Plugins published on
-        <a href="/plugins" class="underline">emdashcms.org</a> pass our
-        <a href="/docs/security" class="underline">fail-closed security audit</a> before every release.
+        <strong class="text-ink">Audited here, published there.</strong>
+        Registry plugins are published to <a href="https://plugins.emdashcms.com" class="underline" rel="noopener">plugins.emdashcms.com</a>.
+        We run our <a href="/docs/security" class="underline">security audit</a> on each release and show the
+        result as advice; new releases are audited within a day. Plugins published on
+        <a href="/plugins" class="underline">emdashcms.org</a> can't ship at all without passing it.
       </div>
 
       {packages.length === 0 ? (
@@ -78,7 +82,14 @@ const jsonLd = [
                 class="block h-full rounded-xl border border-rule bg-paper-soft p-5 hover:border-ink-soft transition-colors"
               >
                 <span class="block text-ink font-medium">{p.name}</span>
-                <span class="block text-xs text-ink-soft mt-0.5">{p.publicName}{p.latestVersion && ` · v${p.latestVersion}`}</span>
+                <span class="block text-xs text-ink-soft mt-0.5">
+                  {p.publicName}{p.latestVersion && ` · v${p.latestVersion}`}
+                  {' · '}
+                  {(() => {
+                    const a = auditFor(p);
+                    return a?.status === 'complete' && a.verdict ? BADGE[a.verdict] : a?.status === 'error' ? 'Audit incomplete' : 'Audit pending';
+                  })()}
+                </span>
                 {p.description && <span class="block mt-2 text-sm text-ink-muted line-clamp-3">{p.description}</span>}
               </a>
             </li>

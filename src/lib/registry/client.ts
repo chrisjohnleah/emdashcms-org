@@ -49,6 +49,9 @@ export interface RegistryRelease {
   version: string;
   requires: string | null;
   access: RegistryAccess[];
+  /** CDN URL of the release's .tgz bundle, or null if it can't be built safely. */
+  bundleUrl: string | null;
+  bundleSize: number | null;
 }
 
 type Fetcher = typeof fetch;
@@ -137,7 +140,38 @@ export function normaliseRelease(raw: unknown): RegistryRelease | null {
       });
     }
   }
-  return { version, requires: str(requires["env:emdash"]), access };
+  return { version, requires: str(requires["env:emdash"]), access, ...bundleLocation(r, release) };
+}
+
+const CID = /^[a-z0-9]+$/i;
+
+/**
+ * Bundle URL format (verified against cdn.em-da.sh):
+ *   {cache}/r/{did}/{collection}/{rkey}/{releaseRecordCid}/{blobCid}
+ * The rkey's `slug:version` colon must NOT be URL-encoded (encoding → 400).
+ */
+function bundleLocation(
+  r: Record<string, unknown>,
+  release: Record<string, unknown>,
+): { bundleUrl: string | null; bundleSize: number | null } {
+  const none = { bundleUrl: null, bundleSize: null };
+  const artifacts = (release.artifacts ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  const blob = (artifacts.package?.blob ?? {}) as Record<string, unknown>;
+  const blobCid = str((blob.ref as Record<string, unknown> | undefined)?.$link);
+  const recordCid = str(r.cid);
+  const uri = str(r.uri);
+  const caches = Array.isArray(r.artifactCaches) ? r.artifactCaches : [];
+  const endpoint = safeUrl((caches[0] as Record<string, unknown> | undefined)?.serviceEndpoint);
+  if (!blobCid || !recordCid || !uri || !endpoint || !CID.test(blobCid) || !CID.test(recordCid)) return none;
+  if (!endpoint.startsWith("https://")) return none;
+
+  const m = /^at:\/\/(did:[a-z0-9:._-]+)\/([a-z0-9.]+)\/([a-z0-9._:-]+)$/i.exec(uri);
+  if (!m) return none;
+  const [, did, collection, rkey] = m;
+  return {
+    bundleUrl: `${endpoint.replace(/\/+$/, "")}/r/${did}/${collection}/${rkey}/${recordCid}/${blobCid}`,
+    bundleSize: typeof blob.size === "number" ? blob.size : null,
+  };
 }
 
 async function xrpc(method: string, params: Record<string, string>, fetcher: Fetcher): Promise<unknown | null> {
@@ -181,7 +215,7 @@ export async function getRegistryPackage(
 }
 
 export async function getLatestRegistryRelease(
-  pkg: RegistryPackage,
+  pkg: Pick<RegistryPackage, "did" | "slug">,
   fetcher: Fetcher = fetch,
 ): Promise<RegistryRelease | null> {
   return normaliseRelease(await xrpc("getLatestRelease", { did: pkg.did, package: pkg.slug }, fetcher));

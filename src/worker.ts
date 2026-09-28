@@ -26,6 +26,11 @@ import { runStatusProbes } from "./lib/status/cron-handler";
 import { cleanupOldRateLimits } from "./lib/downloads/rate-limit";
 import { handleWellKnown } from "./lib/agents/well-known";
 import { handleMarkdownNegotiation } from "./lib/agents/markdown";
+import {
+  enqueueRegistryAudits,
+  isRegistryAuditJob,
+  processRegistryAuditJob,
+} from "./lib/registry/audit";
 import type { AuditJob, NotificationJob } from "./types/marketplace";
 import type { OgJob } from "./lib/seo/og-queue";
 
@@ -57,6 +62,14 @@ export default {
       } catch (err) {
         console.error("[scheduled] rate_limits cleanup failed:", err);
       }
+      // Enqueue audits for new official-registry releases. Producer only —
+      // the download + AI work runs in the audit queue consumer, which has
+      // the CPU headroom a cron trigger doesn't.
+      ctx.waitUntil(
+        enqueueRegistryAudits(env).catch((err) =>
+          console.error("[scheduled] registry audit enqueue failed:", err),
+        ),
+      );
       return;
     }
 
@@ -160,6 +173,23 @@ export default {
       `[queue] Received ${batch.messages.length} audit message(s), global auditMode=${auditMode}`,
     );
     for (const message of batch.messages) {
+      // Official-registry audits share this queue but never touch
+      // plugin_versions — separate consumer, separate failure handling.
+      if (isRegistryAuditJob(message.body)) {
+        try {
+          await processRegistryAuditJob(message.body, { db: env.DB, ai: env.AI });
+          message.ack();
+        } catch (err) {
+          if (err instanceof TransientError) {
+            message.retry({ delaySeconds: 120 });
+          } else {
+            console.error("[registry-audit] unexpected error:", err);
+            message.ack(); // no row written → the next cron tick re-enqueues it
+          }
+        }
+        continue;
+      }
+
       const job = message.body as AuditJob;
       console.log(
         `[queue] Processing audit job: plugin=${job.pluginId} version=${job.version} modeOverride=${job.auditModeOverride ?? "none"} modelOverride=${job.modelOverride ?? "none"} bundleKey=${job.bundleKey}`,
