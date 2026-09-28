@@ -31,6 +31,10 @@ const md = new MarkdownIt({
   typographer: true,
 });
 
+// Only linkify explicit URLs (https://, www.). Fuzzy matching turns
+// filenames like `AGENTS.md` into links to Moldovan domains.
+md.linkify.set({ fuzzyLink: false });
+
 // Harden outbound links: every rendered `<a>` gets `target="_blank"`
 // so the plugin listing doesn't navigate away, plus
 // `rel="noopener noreferrer"` to defeat reverse-tabnabbing

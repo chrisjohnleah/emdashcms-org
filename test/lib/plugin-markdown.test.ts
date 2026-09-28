@@ -19,6 +19,10 @@ describe("renderPluginMarkdown", () => {
     expect(renderPluginMarkdown("https://example.com")).toContain('rel="noopener noreferrer"');
   });
 
+  it("does not linkify bare filenames", () => {
+    expect(renderPluginMarkdown("See AGENTS.md")).not.toContain("<a");
+  });
+
   it("returns null for blank input", () => {
     expect(renderPluginMarkdown("   ")).toBeNull();
     expect(renderPluginMarkdown(null)).toBeNull();

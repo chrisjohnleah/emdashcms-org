@@ -164,7 +164,7 @@ const createCommand = ghRepo ? `npm create astro@latest -- --template ${ghRepo}`
               <>
                 <p class="mt-2 text-sm text-ink-muted leading-relaxed">Themes are Astro starter projects. This scaffolds a new EmDash site from the theme's repository.</p>
                 <div class="mt-4 flex items-start gap-2 rounded-md border border-rule bg-paper p-3">
-                  <code class="flex-1 font-mono text-xs text-ink-muted break-all leading-relaxed">{createCommand}</code>
+                  <code class="flex-1 min-w-0 font-mono text-xs text-ink-muted break-words leading-relaxed">{createCommand}</code>
                   <button type="button" data-copy={createCommand} class="flex-shrink-0 rounded border border-rule-strong bg-paper-soft px-3 py-1 text-xs font-medium text-ink hover:bg-paper-sunk transition-colors cursor-pointer" aria-label="Copy install command">Copy</button>
                 </div>
               </>
