@@ -96,7 +96,7 @@ const digestJsonLd = !notFound && generatedAt ? [
   ]),
 ] : undefined;
 ---
-<BaseLayout title={pageTitle} description={digestDescription} jsonLd={digestJsonLd}>
+<BaseLayout title={pageTitle} description={digestDescription} jsonLd={digestJsonLd} noindex={notFound || quietWeek}>
   <div class="page py-12">
     {notFound ? (
       <EmptyState

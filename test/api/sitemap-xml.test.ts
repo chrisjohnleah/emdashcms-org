@@ -538,15 +538,21 @@ describe("/sitemap.xml endpoint", () => {
     expect(body).toContain("<loc>https://emdashcms.org/authors/sitemap-tester</loc>");
   });
 
-  it("emits one URL per weekly digest", async () => {
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO weekly_digests (iso_week, generated_at, manifest_json) VALUES ('2026-W38', '2026-09-20T00:05:00Z', '{}')",
-    ).run();
+  it("emits digest URLs only for weeks with activity", async () => {
+    const insert = (week: string, newPlugins: number) =>
+      env.DB.prepare(
+        "INSERT OR REPLACE INTO weekly_digests (iso_week, generated_at, manifest_json) VALUES (?, '2026-09-20T00:05:00Z', ?)",
+      )
+        .bind(week, JSON.stringify({ counts: { newPlugins, updatedPlugins: 0, newThemes: 0 } }))
+        .run();
+    await insert("2026-W38", 2);
+    await insert("2026-W37", 0);
     try {
       const body = await (await invoke()).text();
       expect(body).toContain("<loc>https://emdashcms.org/digest/2026-W38</loc>");
+      expect(body).not.toContain("/digest/2026-W37");
     } finally {
-      await env.DB.prepare("DELETE FROM weekly_digests WHERE iso_week = '2026-W38'").run();
+      await env.DB.prepare("DELETE FROM weekly_digests WHERE iso_week IN ('2026-W38', '2026-W37')").run();
     }
   });
 });

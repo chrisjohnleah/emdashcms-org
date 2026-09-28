@@ -166,7 +166,12 @@ export const GET: APIRoute = async () => {
       fetchThemeCategories(env.DB),
       getPublicAuthors(env.DB),
       env.DB.prepare(
-        "SELECT iso_week, generated_at FROM weekly_digests ORDER BY iso_week DESC",
+        // Quiet weeks render noindex — keep them out of the sitemap too.
+        `SELECT iso_week, generated_at FROM weekly_digests
+         WHERE COALESCE(json_extract(manifest_json, '$.counts.newPlugins'), 0)
+             + COALESCE(json_extract(manifest_json, '$.counts.updatedPlugins'), 0)
+             + COALESCE(json_extract(manifest_json, '$.counts.newThemes'), 0) > 0
+         ORDER BY iso_week DESC`,
       ).all<{ iso_week: string; generated_at: string }>(),
       // Degrades to [] if the registry is unreachable — never breaks the sitemap.
       listRegistryPackages(),
