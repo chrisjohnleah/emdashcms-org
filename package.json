@@ -25,26 +25,34 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.0.1",
-    "astro": "^7.0.3",
-    "jose": "^6.2.2",
-    "markdown-it": "14.1.1",
-    "modern-tar": "^0.7.6",
+    "@astrojs/cloudflare": "^14.3.3",
+    "astro": "^7.3.5",
+    "jose": "^6.2.12",
+    "markdown-it": "^15.0.2",
+    "modern-tar": "^0.8.5",
     "workers-og": "^0.0.27",
-    "wrangler": "^4.95.0"
+    "wrangler": "^4.142.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.9",
+    "@astrojs/check": "^0.9.10",
     "@cloudflare/vitest-pool-workers": "^0.16.20",
-    "@tailwindcss/postcss": "^4.2.2",
-    "@types/markdown-it": "14.1.2",
-    "postcss": "^8.5.12",
-    "tailwindcss": "^4.2.2",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "@tailwindcss/postcss": "^4.3.3",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
   },
   "overrides": {
-    "yaml": "^2.8.3"
+    "yaml": "^2.8.3",
+    "@cloudflare/vitest-pool-workers": {
+      "undici": "7.29.0",
+      "sharp": "0.35.4"
+    }
+  },
+  "allowScripts": {
+    "workerd": true,
+    "esbuild": true
   }
 }

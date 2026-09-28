@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { env } from "cloudflare:test";
-import { packTar, createGzipEncoder } from "modern-tar";
+import { packTar } from "modern-tar";
 import {
   processAuditJob,
   TransientError,
@@ -73,7 +73,7 @@ async function createTestTarball(
   const tarBuffer = await packTar(entries);
   const stream = new Blob([tarBuffer])
     .stream()
-    .pipeThrough(createGzipEncoder());
+    .pipeThrough(new CompressionStream("gzip"));
   return new Response(stream).arrayBuffer();
 }
 

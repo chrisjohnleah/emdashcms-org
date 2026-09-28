@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { packTar, createGzipEncoder } from "modern-tar";
+import { packTar } from "modern-tar";
 import { manifestSchema } from "../../src/lib/publishing/manifest-schema";
 import {
   validateBundle,
@@ -28,7 +28,7 @@ async function createTestTarball(
   const tarBuffer = await packTar(entries);
   const stream = new Blob([tarBuffer])
     .stream()
-    .pipeThrough(createGzipEncoder());
+    .pipeThrough(new CompressionStream("gzip"));
   const compressed = await new Response(stream).arrayBuffer();
   return compressed;
 }
@@ -75,7 +75,7 @@ async function createTarballWithEntryType(
   const tarBuffer = await packTar(entries);
   const stream = new Blob([tarBuffer])
     .stream()
-    .pipeThrough(createGzipEncoder());
+    .pipeThrough(new CompressionStream("gzip"));
   const compressed = await new Response(stream).arrayBuffer();
   return compressed;
 }

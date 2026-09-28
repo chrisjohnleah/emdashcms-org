@@ -1,4 +1,4 @@
-import { unpackTar, createGzipDecoder } from "modern-tar";
+import { unpackTar } from "modern-tar";
 import {
   manifestSchema,
   formatManifestErrors,
@@ -117,7 +117,7 @@ export async function validateBundle(
   try {
     const stream = new Blob([tarballBytes]).stream();
     const entries = await unpackTar(
-      stream.pipeThrough(createGzipDecoder()),
+      stream.pipeThrough(new DecompressionStream("gzip")),
     );
 
     for (const entry of entries) {

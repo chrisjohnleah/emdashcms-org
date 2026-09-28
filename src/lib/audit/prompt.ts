@@ -4,7 +4,7 @@
  * Builds the system prompt and user content for Workers AI code audits.
  * Extracts code files from plugin bundle tarballs using modern-tar.
  */
-import { unpackTar, createGzipDecoder } from "modern-tar";
+import { unpackTar } from "modern-tar";
 import type { AuditModelKey } from "../../types/marketplace";
 
 /**
@@ -431,7 +431,7 @@ export async function extractCodeFiles(
   const codeFiles = new Map<string, string>();
   const decoder = new TextDecoder();
   const stream = new Blob([tarballBytes]).stream();
-  const entries = await unpackTar(stream.pipeThrough(createGzipDecoder()));
+  const entries = await unpackTar(stream.pipeThrough(new DecompressionStream("gzip")));
 
   for (const entry of entries) {
     const name = entry.header.name.startsWith("./")
