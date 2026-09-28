@@ -2,10 +2,11 @@
 export const prerender = false;
 
 import { env } from 'cloudflare:workers';
-import { searchPlugins } from '../../lib/db/queries';
+import { searchPlugins, getPluginCategoryCounts } from '../../lib/db/queries';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PluginCard from '../../components/PluginCard.astro';
 import SearchBar from '../../components/SearchBar.astro';
+import FilterChips from '../../components/FilterChips.astro';
 import Pagination from '../../components/Pagination.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import {
@@ -19,14 +20,13 @@ const category = url.searchParams.get('category') ?? null;
 const sort = url.searchParams.get('sort') ?? 'downloads';
 const cursor = url.searchParams.get('cursor') ?? null;
 
-const { items: plugins, nextCursor } = await searchPlugins(env.DB, {
-  query: q,
-  category,
-  capability: null,
-  sort,
-  cursor,
-  limit: 12,
-});
+const [{ items: plugins, nextCursor }, categoryCounts] = await Promise.all([
+  searchPlugins(env.DB, { query: q, category, capability: null, sort, cursor, limit: 12 }),
+  getPluginCategoryCounts(env.DB),
+]);
+const topCategories = categoryCounts.map((c) => c.category).filter(Boolean);
+// Keep the active chip visible so it can always be cleared.
+const categories = category && !topCategories.includes(category) ? [category, ...topCategories] : topCategories;
 
 const sortOptions = [
   { value: 'downloads', label: 'Most downloaded' },
@@ -65,8 +65,9 @@ const pluginsJsonLd = [
         <SearchBar action="/plugins" placeholder="Search plugins..." value={q} />
       </div>
 
-      <div class="mt-4 flex justify-end">
-        <form method="GET" action="/plugins" class="flex-shrink-0">
+      <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <FilterChips items={categories} active={category} paramName="category" baseUrl="/plugins" />
+        <form method="GET" action="/plugins" class="flex-shrink-0 sm:ml-auto">
           {q && <input type="hidden" name="q" value={q} />}
           {category && <input type="hidden" name="category" value={category} />}
           <select
@@ -90,6 +91,8 @@ const pluginsJsonLd = [
           <EmptyState
             heading="No plugins found"
             body="Try adjusting your search or filters to find what you're looking for."
+            linkHref="/plugins"
+            linkText="Clear filters"
           />
         </div>
       ) : (
