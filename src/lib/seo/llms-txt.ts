@@ -103,6 +103,9 @@ export function buildLlmsTxt(input: LlmsTxtInput): string {
     "- [Install guide](https://emdashcms.org/guide): how site owners install marketplace plugins",
   );
   parts.push(
+    "- [Official registry mirror](https://emdashcms.org/registry): every plugin in the official EmDash registry, with permissions explained, and how the registry differs from this marketplace",
+  );
+  parts.push(
     "- [Support](https://emdashcms.org/support): install help, plugin-specific support routes, publisher help, status, reports, and project issues",
   );
   parts.push(

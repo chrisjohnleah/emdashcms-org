@@ -127,6 +127,7 @@ const STATIC_LOCS = [
   "https://emdashcms.org/for/developers",
   "https://emdashcms.org/for/content-teams",
   "https://emdashcms.org/plugins/with/analytics",
+  "https://emdashcms.org/plugins/with/forms",
   "https://emdashcms.org/plugins/recently-audited",
   "https://emdashcms.org/registry",
 ];

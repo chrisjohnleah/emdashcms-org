@@ -1,0 +1,83 @@
+---
+export const prerender = false;
+
+import { env } from 'cloudflare:workers';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PluginCard from '../../../components/PluginCard.astro';
+import { searchPlugins } from '../../../lib/db/queries';
+import { listRegistryPackages } from '../../../lib/registry/client';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd } from '../../../lib/seo/json-ld';
+
+const FORMS = /\b(forms?|contact|submissions?|lead)\b/i;
+
+const [marketplace, registry] = await Promise.all([
+  searchPlugins(env.DB, { query: 'form', category: null, capability: null, sort: 'installs', cursor: null, limit: 24 }),
+  listRegistryPackages(),
+]);
+const plugins = marketplace.items;
+const registryForms = registry.filter((p) =>
+  FORMS.test([p.name, p.description, ...p.keywords].join(' ')),
+);
+
+const title = 'EmDash Contact Form Plugins — Forms, Submissions & Email';
+const description =
+  'Every contact form and form-builder plugin for EmDash CMS in one place: audited marketplace plugins plus the official registry, with the permissions each one needs.';
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Plugins', url: '/plugins' },
+    { name: 'Forms', url: '/plugins/with/forms' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash Contact Form Plugins',
+    description,
+    url: '/plugins/with/forms',
+    items: [
+      ...plugins.map((p) => ({ url: `/plugins/${p.id}`, name: p.name })),
+      ...registryForms.map((p) => ({ url: `/registry/${p.publicName}`, name: p.name })),
+    ],
+  }),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <h1 class="text-3xl tracking-tight text-ink mb-3">Contact form plugins for EmDash</h1>
+      <p class="text-ink-muted max-w-prose">
+        EmDash doesn't ship a contact form, so forms come from plugins. Some store submissions in your site,
+        some only send an email, and some do both. Check the permissions: a form plugin that sends mail needs
+        email or network access, and one that stores submissions needs content write access.
+      </p>
+
+      <h2 class="mt-10 text-xl text-ink">Audited on emdashcms.org</h2>
+      <div class="mt-4">
+        {plugins.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plugins.map((plugin) => <PluginCard plugin={plugin} />)}
+          </div>
+        ) : (
+          <p class="text-ink-muted">No audited form plugins yet. <a href="/docs/contributors" class="text-ink underline">Publish one →</a></p>
+        )}
+      </div>
+
+      {registryForms.length > 0 && (
+        <>
+          <h2 class="mt-12 text-xl text-ink">From the official registry</h2>
+          <p class="mt-1 text-sm text-ink-muted">Not audited by emdashcms.org. Each page lists what the plugin can access.</p>
+          <ul class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {registryForms.map((p) => (
+              <li>
+                <a href={`/registry/${p.publicName}`} class="block h-full rounded-xl border border-rule bg-paper-soft p-5 hover:border-ink-soft transition-colors">
+                  <span class="block text-ink font-medium">{p.name}</span>
+                  <span class="block text-xs text-ink-soft mt-0.5">{p.publicName}</span>
+                  {p.description && <span class="block mt-2 text-sm text-ink-muted line-clamp-3">{p.description}</span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  </section>
+</BaseLayout>

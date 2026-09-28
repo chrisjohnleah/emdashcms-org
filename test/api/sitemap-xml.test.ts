@@ -181,6 +181,7 @@ const STATIC_LOCS = [
   "https://emdashcms.org/for/developers",
   "https://emdashcms.org/for/content-teams",
   "https://emdashcms.org/plugins/with/analytics",
+  "https://emdashcms.org/plugins/with/forms",
   "https://emdashcms.org/plugins/recently-audited",
   "https://emdashcms.org/registry",
 ];
@@ -210,6 +211,7 @@ describe("/sitemap.xml endpoint", () => {
     // plugin browse pages under /plugins/* are still emitted.
     expect(body.match(/<loc>https:\/\/emdashcms\.org\/plugins\/[^<]+<\/loc>/g)).toEqual([
       "<loc>https://emdashcms.org/plugins/with/analytics</loc>",
+      "<loc>https://emdashcms.org/plugins/with/forms</loc>",
       "<loc>https://emdashcms.org/plugins/recently-audited</loc>",
     ]);
     expect(body).not.toMatch(/<loc>https:\/\/emdashcms\.org\/themes\/[^<]+<\/loc>/);
