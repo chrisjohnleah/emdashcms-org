@@ -478,6 +478,29 @@ describe("Plugin Search (DISC-01)", () => {
     expect(seo!.latestVersion!.audit!.verdict).toBe("pass");
     expect(typeof seo!.latestVersion!.audit!.riskScore).toBe("number");
   });
+
+  it("uses the newest audit when a version was audited more than once", async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO plugins (id, author_id, name, description, category, capabilities, keywords, installs_count, created_at, updated_at) VALUES ('reaudited', 'author-1', 'Reaudited', 'x', 'seo', '[]', '[]', 0, '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z')",
+      ),
+      env.DB.prepare(
+        "INSERT INTO plugin_versions (id, plugin_id, version, status, bundle_key, manifest, file_count, compressed_size, decompressed_size, checksum, published_at, created_at, updated_at) VALUES ('pv-reaudited', 'reaudited', '1.0.0', 'published', 'k', '{}', 1, 1, 1, 'c', '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z', '2026-04-01T00:00:00Z')",
+      ),
+      // Older errored attempt inserted first, so rowid order alone would pick it.
+      env.DB.prepare(
+        "INSERT INTO plugin_audits (id, plugin_version_id, status, model, verdict, findings, created_at) VALUES ('a-old', 'pv-reaudited', 'error', 'm', NULL, '[]', '2026-04-01T01:00:00Z')",
+      ),
+      env.DB.prepare(
+        "INSERT INTO plugin_audits (id, plugin_version_id, status, model, verdict, risk_score, findings, created_at) VALUES ('a-new', 'pv-reaudited', 'complete', 'm', 'pass', 0, '[]', '2026-04-01T02:00:00Z')",
+      ),
+    ]);
+
+    const result = await searchPlugins(env.DB, {
+      query: "Reaudited", category: null, capability: null, sort: "installs", cursor: null, limit: 20,
+    });
+    expect(result.items.find((p) => p.id === "reaudited")?.latestVersion?.audit?.verdict).toBe("pass");
+  });
 });
 
 // ---------------------------------------------------------------------------

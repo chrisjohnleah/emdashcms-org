@@ -113,14 +113,14 @@ export async function searchPlugins(
         FROM plugin_versions pv2
         LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv2.id
         WHERE pv2.plugin_id = p.id AND pv2.status IN ('published', 'flagged')
-        ORDER BY pv2.created_at DESC LIMIT 1
+        ORDER BY pv2.created_at DESC, pa.created_at DESC LIMIT 1
       ) AS latest_audit_verdict,
       (
         SELECT pa.risk_score
         FROM plugin_versions pv3
         LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv3.id
         WHERE pv3.plugin_id = p.id AND pv3.status IN ('published', 'flagged')
-        ORDER BY pv3.created_at DESC LIMIT 1
+        ORDER BY pv3.created_at DESC, pa.created_at DESC LIMIT 1
       ) AS latest_audit_risk_score,
       -- findings JSON of the latest audit so mapPluginSummary can
       -- derive securityRiskScore / privacyRiskScore from category +
@@ -131,7 +131,7 @@ export async function searchPlugins(
         FROM plugin_versions pv4
         LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv4.id
         WHERE pv4.plugin_id = p.id AND pv4.status IN ('published', 'flagged')
-        ORDER BY pv4.created_at DESC LIMIT 1
+        ORDER BY pv4.created_at DESC, pa.created_at DESC LIMIT 1
       ) AS latest_audit_findings
     FROM plugins p
     JOIN authors a ON p.author_id = a.id
@@ -310,21 +310,21 @@ export async function getPublicPluginsByAuthor(
           FROM plugin_versions pv2
           LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv2.id
           WHERE pv2.plugin_id = p.id AND pv2.status IN ('published', 'flagged')
-          ORDER BY pv2.created_at DESC LIMIT 1
+          ORDER BY pv2.created_at DESC, pa.created_at DESC LIMIT 1
         ) AS latest_audit_verdict,
         (
           SELECT pa.risk_score
           FROM plugin_versions pv3
           LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv3.id
           WHERE pv3.plugin_id = p.id AND pv3.status IN ('published', 'flagged')
-          ORDER BY pv3.created_at DESC LIMIT 1
+          ORDER BY pv3.created_at DESC, pa.created_at DESC LIMIT 1
         ) AS latest_audit_risk_score,
         (
           SELECT pa.findings
           FROM plugin_versions pv4
           LEFT JOIN plugin_audits pa ON pa.plugin_version_id = pv4.id
           WHERE pv4.plugin_id = p.id AND pv4.status IN ('published', 'flagged')
-          ORDER BY pv4.created_at DESC LIMIT 1
+          ORDER BY pv4.created_at DESC, pa.created_at DESC LIMIT 1
         ) AS latest_audit_findings
        FROM plugins p
        JOIN authors a ON p.author_id = a.id
