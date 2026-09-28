@@ -128,6 +128,7 @@ const STATIC_LOCS = [
   "https://emdashcms.org/for/content-teams",
   "https://emdashcms.org/plugins/with/analytics",
   "https://emdashcms.org/plugins/recently-audited",
+  "https://emdashcms.org/registry",
 ];
 
 describe("buildSitemapXml", () => {

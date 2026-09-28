@@ -1,0 +1,104 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { listRegistryPackages } from '../../lib/registry/client';
+import { buildCollectionPageJsonLd, buildBreadcrumbListJsonLd, buildFaqPageJsonLd } from '../../lib/seo/json-ld';
+
+const packages = await listRegistryPackages();
+
+const title = 'EmDash Plugin Registry — Every Plugin, Permissions Explained';
+const description =
+  'Browse every plugin in the official EmDash CMS plugin registry, with plain-English permission breakdowns and install steps. How the registry relates to the community marketplace.';
+
+const faqs = [
+  {
+    question: 'What is the EmDash plugin registry?',
+    answer:
+      'The registry at plugins.emdashcms.com is the official catalogue for sandboxed EmDash plugins. Publishers sign releases with an Atmosphere (atproto) account, and EmDash admins install them from the Registry section of the admin panel.',
+  },
+  {
+    question: 'How is the registry different from emdashcms.org?',
+    answer:
+      'emdashcms.org is an independent community marketplace. Plugins published here pass a fail-closed security audit before release. This page mirrors the official registry so you can compare both catalogues in one place; registry plugins listed below have not been audited by emdashcms.org.',
+  },
+  {
+    question: 'How do I install a plugin from the registry?',
+    answer:
+      'Your site needs EmDash 0.42 or later with a plugin sandbox runner configured. Open Registry in the admin panel, search for the plugin by name or its @handle/slug, choose a release, review the permissions in the consent dialog, and confirm the install.',
+  },
+];
+
+const jsonLd = [
+  buildBreadcrumbListJsonLd([
+    { name: 'Plugins', url: '/plugins' },
+    { name: 'Registry', url: '/registry' },
+  ]),
+  buildCollectionPageJsonLd({
+    name: 'EmDash Plugin Registry',
+    description,
+    url: '/registry',
+    items: packages.map((p) => ({ name: p.name, url: `/registry/${p.publicName}` })),
+  }),
+  buildFaqPageJsonLd(faqs),
+];
+---
+
+<BaseLayout title={title} description={description} jsonLd={jsonLd}>
+  <section class="page pt-12 pb-16 md:pt-16">
+    <div class="page-narrow">
+      <p class="text-sm text-ink-soft mb-2"><a href="/plugins" class="underline">Plugins</a> / Registry</p>
+      <h1 class="text-3xl tracking-tight text-ink mb-3" style="font-weight: 500; letter-spacing: -0.02em;">
+        The EmDash plugin registry
+      </h1>
+      <p class="text-lg text-ink-muted max-w-prose">
+        Every plugin in the official EmDash registry, mirrored here with what each one is allowed to touch
+        and how to install it. {packages.length > 0 && `${packages.length} plugins listed.`}
+      </p>
+
+      <div class="mt-6 rounded-xl border border-rule bg-paper-soft p-5 text-sm text-ink-muted max-w-prose">
+        <strong class="text-ink">Not audited by emdashcms.org.</strong>
+        Registry plugins are published to <a href="https://plugins.emdashcms.com" class="underline" rel="noopener">plugins.emdashcms.com</a>
+        and listed here for comparison. Plugins published on
+        <a href="/plugins" class="underline">emdashcms.org</a> pass our
+        <a href="/docs/security" class="underline">fail-closed security audit</a> before every release.
+      </div>
+
+      {packages.length === 0 ? (
+        <p class="mt-10 text-ink-muted">
+          The registry couldn't be reached just now. Browse it directly at
+          <a href="https://plugins.emdashcms.com" class="underline" rel="noopener">plugins.emdashcms.com</a>.
+        </p>
+      ) : (
+        <ul class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {packages.map((p) => (
+            <li>
+              <a
+                href={`/registry/${p.publicName}`}
+                class="block h-full rounded-xl border border-rule bg-paper-soft p-5 hover:border-ink-soft transition-colors"
+              >
+                <span class="block text-ink font-medium">{p.name}</span>
+                <span class="block text-xs text-ink-soft mt-0.5">{p.publicName}{p.latestVersion && ` · v${p.latestVersion}`}</span>
+                {p.description && <span class="block mt-2 text-sm text-ink-muted line-clamp-3">{p.description}</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div class="mt-14 max-w-prose">
+        <h2 class="text-xl text-ink mb-4">Registry or marketplace?</h2>
+        {faqs.map((f) => (
+          <div class="mb-6">
+            <h3 class="text-ink font-medium">{f.question}</h3>
+            <p class="mt-1 text-ink-muted">{f.answer}</p>
+          </div>
+        ))}
+        <p class="text-sm text-ink-muted">
+          Publishing your own plugin? The <a href="/docs/contributors" class="underline">contributor guide</a> covers
+          emdashcms.org; the <a href="https://docs.emdashcms.com/plugins/registry/" class="underline" rel="noopener">EmDash docs</a> cover the registry.
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

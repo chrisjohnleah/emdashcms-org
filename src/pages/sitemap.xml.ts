@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import { buildSitemapXml, type SitemapInput } from "../lib/seo/sitemap";
 import { getPublicAuthors } from "../lib/db/queries";
+import { listRegistryPackages } from "../lib/registry/client";
 
 /**
  * /sitemap.xml — dynamic Astro API route serving the marketplace's
@@ -157,7 +158,7 @@ async function fetchThemeCategories(db: D1Database): Promise<CategoryRow[]> {
 // ---------------------------------------------------------------------------
 
 export const GET: APIRoute = async () => {
-  const [plugins, themes, pluginCategories, themeCategories, authors, digests] =
+  const [plugins, themes, pluginCategories, themeCategories, authors, digests, registry] =
     await Promise.all([
       fetchPluginsKeyset(env.DB),
       fetchThemesKeyset(env.DB),
@@ -167,6 +168,8 @@ export const GET: APIRoute = async () => {
       env.DB.prepare(
         "SELECT iso_week, generated_at FROM weekly_digests ORDER BY iso_week DESC",
       ).all<{ iso_week: string; generated_at: string }>(),
+      // Degrades to [] if the registry is unreachable — never breaks the sitemap.
+      listRegistryPackages(),
     ]);
 
   const input: SitemapInput = {
@@ -176,6 +179,7 @@ export const GET: APIRoute = async () => {
     themeCategories,
     authors: authors.map((a) => ({ username: a.githubUsername, updated_at: a.updatedAt })),
     digests: digests.results ?? [],
+    registry,
   };
   const body = buildSitemapXml(input);
 

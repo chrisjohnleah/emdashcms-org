@@ -60,6 +60,8 @@ export interface SitemapInput {
   authors?: Array<{ username: string; updated_at: string }>;
   /** Weekly digest archive pages keyed by ISO week slug (e.g. 2026-W39). */
   digests?: Array<{ iso_week: string; generated_at: string }>;
+  /** Official-registry mirror pages keyed by `@handle/slug`. */
+  registry?: Array<{ publicName: string; lastUpdated: string | null }>;
 }
 
 /**
@@ -142,6 +144,7 @@ export function buildSitemapXml(input: SitemapInput): string {
     { loc: `${SITE_URL}/for/content-teams`, lastmod: now, changefreq: "monthly", priority: "0.7" },
     { loc: `${SITE_URL}/plugins/with/analytics`, lastmod: now, changefreq: "weekly", priority: "0.6" },
     { loc: `${SITE_URL}/plugins/recently-audited`, lastmod: now, changefreq: "daily", priority: "0.6" },
+    { loc: `${SITE_URL}/registry`, lastmod: now, changefreq: "daily", priority: "0.8" },
     // Wave 0 pSEO: guide and contributors pages strengthened for CTR (GSC high-impression/low-CTR targets).
     // Bumped from monthly/0.5 → weekly/0.7 to reflect higher value as on-ramp + publishing entry points.
     { loc: `${SITE_URL}/guide`, lastmod: now, changefreq: "weekly", priority: "0.7" },
@@ -205,6 +208,12 @@ export function buildSitemapXml(input: SitemapInput): string {
     ...themeCategoryEntries,
     ...authorEntries,
     ...digestEntries,
+    ...(input.registry ?? []).map((r) => ({
+      loc: `${SITE_URL}/registry/${r.publicName}`,
+      ...(r.lastUpdated ? { lastmod: r.lastUpdated } : {}),
+      changefreq: "weekly" as const,
+      priority: "0.6",
+    })),
   ];
 
   return (

@@ -1,0 +1,135 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Markdown from '../../components/Markdown.astro';
+import { getRegistryPackage, getLatestRegistryRelease } from '../../lib/registry/client';
+import { describeAccess } from '../../lib/registry/access';
+import { buildBreadcrumbListJsonLd } from '../../lib/seo/json-ld';
+
+// /registry/@handle/slug
+const match = /^@([^/]+)\/([^/]+)$/.exec(Astro.params.name ?? '');
+const pkg = match ? await getRegistryPackage(match[1], match[2]) : null;
+const release = pkg ? await getLatestRegistryRelease(pkg) : null;
+
+if (!pkg) Astro.response.status = 404;
+
+const url = pkg ? `/registry/${pkg.publicName}` : '/registry';
+const jsonLd = pkg
+  ? [
+      buildBreadcrumbListJsonLd([
+        { name: 'Plugins', url: '/plugins' },
+        { name: 'Registry', url: '/registry' },
+        { name: pkg.name, url },
+      ]),
+      {
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: pkg.name,
+        description: pkg.description || pkg.name,
+        url: `https://emdashcms.org${url}`,
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'EmDash CMS',
+        ...(pkg.latestVersion ? { softwareVersion: pkg.latestVersion } : {}),
+        ...(pkg.lastUpdated ? { dateModified: pkg.lastUpdated } : {}),
+        ...(pkg.license ? { license: pkg.license } : {}),
+        ...(pkg.authors[0] ? { author: { '@type': 'Person', name: pkg.authors[0].name, ...(pkg.authors[0].url ? { url: pkg.authors[0].url } : {}) } } : {}),
+        ...(pkg.keywords.length ? { keywords: pkg.keywords.join(', ') } : {}),
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        sameAs: pkg.officialUrl,
+      },
+    ]
+  : undefined;
+
+const access = release ? describeAccess(release.access) : [];
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+{!pkg ? (
+  <BaseLayout title="Registry plugin not found — emdashcms.org" noindex={true}>
+    <section class="page pt-12 pb-16 md:pt-16">
+      <div class="text-center py-16">
+        <h1 class="text-xl text-ink" style="font-weight: 500;">Registry plugin not found</h1>
+        <p class="mt-3 text-ink-muted"><a href="/registry" class="underline">Browse the registry →</a></p>
+      </div>
+    </section>
+  </BaseLayout>
+) : (
+  <BaseLayout
+    title={`${pkg.name} — EmDash Registry Plugin | emdashcms.org`}
+    description={pkg.description || `${pkg.publicName} — a plugin in the official EmDash CMS registry.`}
+    jsonLd={jsonLd}
+  >
+    <section class="page pt-12 pb-16 md:pt-16">
+      <div class="page-narrow">
+        <p class="text-sm text-ink-soft mb-2">
+          <a href="/plugins" class="underline">Plugins</a> / <a href="/registry" class="underline">Registry</a>
+        </p>
+        <h1 class="text-3xl tracking-tight text-ink" style="font-weight: 500; letter-spacing: -0.02em;">{pkg.name}</h1>
+        <p class="mt-1 text-sm text-ink-soft">
+          <code>{pkg.publicName}</code>
+          {pkg.latestVersion && <> · v{pkg.latestVersion}</>}
+          {pkg.license && <> · {pkg.license}</>}
+          {pkg.lastUpdated && <> · updated {formatDate(pkg.lastUpdated)}</>}
+        </p>
+        {pkg.description && <p class="mt-4 text-lg text-ink-muted max-w-prose">{pkg.description}</p>}
+
+        <div class="mt-6 rounded-xl border border-rule bg-paper-soft p-5 text-sm text-ink-muted max-w-prose">
+          <strong class="text-ink">Listed from the official EmDash registry.</strong>
+          emdashcms.org has not audited this plugin. Review its permissions below before installing.
+          <a href={pkg.officialUrl} class="underline" rel="noopener">View on plugins.emdashcms.com →</a>
+        </div>
+
+        <h2 class="mt-10 text-xl text-ink">What it can access</h2>
+        {!release ? (
+          <p class="mt-2 text-ink-muted">Release details are unavailable right now.</p>
+        ) : access.length === 0 ? (
+          <p class="mt-2 text-ink-muted">This release declares no permissions.</p>
+        ) : (
+          <ul class="mt-3 space-y-3 max-w-prose">
+            {access.map((a) => (
+              <li class="rounded-lg border border-rule p-4">
+                <span class="block text-ink font-medium">{a.label}</span>
+                <span class="block text-sm text-ink-muted">{a.detail}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {release?.requires && <p class="mt-3 text-sm text-ink-soft">Requires EmDash {release.requires}.</p>}
+
+        {pkg.sections.description && (
+          <>
+            <h2 class="mt-10 text-xl text-ink">About</h2>
+            <Markdown source={pkg.sections.description} class="mt-3 max-w-prose text-base text-ink-muted leading-relaxed" />
+          </>
+        )}
+
+        <h2 class="mt-10 text-xl text-ink">How to install</h2>
+        <ol class="mt-3 list-decimal pl-5 space-y-2 text-ink-muted max-w-prose">
+          <li>Make sure your site runs EmDash 0.42 or later with a plugin sandbox runner configured (<code>sandboxRunner</code> in your EmDash config).</li>
+          <li>Open <strong class="text-ink">Registry</strong> in the EmDash admin panel.</li>
+          <li>Search for <code>{pkg.publicName}</code>, open it, and choose a release.</li>
+          <li>Review the permissions in the consent dialog, then select <strong class="text-ink">Install</strong>.</li>
+        </ol>
+        {pkg.sections.installation && (
+          <Markdown source={pkg.sections.installation} class="mt-4 max-w-prose text-base text-ink-muted leading-relaxed" />
+        )}
+
+        <h2 class="mt-10 text-xl text-ink">Links</h2>
+        <ul class="mt-3 space-y-1 text-ink-muted">
+          <li><a href={pkg.officialUrl} class="underline" rel="noopener">Official registry page</a></li>
+          {pkg.repository && <li><a href={pkg.repository} class="underline" rel="noopener nofollow">Source repository</a></li>}
+          {pkg.authors.map((a) => (
+            <li>Author: {a.url ? <a href={a.url} class="underline" rel="noopener nofollow">{a.name}</a> : a.name}</li>
+          ))}
+        </ul>
+
+        <p class="mt-12 text-sm text-ink-muted">
+          <a href="/registry" class="underline">← All registry plugins</a> ·
+          <a href="/plugins" class="underline">Audited plugins on emdashcms.org</a>
+        </p>
+      </div>
+    </section>
+  </BaseLayout>
+)}
