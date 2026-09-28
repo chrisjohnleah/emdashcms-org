@@ -14,7 +14,10 @@ const [marketplace, registry] = await Promise.all([
   searchPlugins(env.DB, { query: 'form', category: null, capability: null, sort: 'installs', cursor: null, limit: 24 }),
   listRegistryPackages(),
 ]);
-const plugins = marketplace.items;
+// searchPlugins matches substrings ("formats", "platform"); keep whole-word form plugins only.
+const plugins = marketplace.items.filter((p) =>
+  FORMS.test([p.name, p.shortDescription ?? '', ...p.keywords].join(' ')),
+);
 const registryForms = registry.filter((p) =>
   FORMS.test([p.name, p.description, ...p.keywords].join(' ')),
 );
