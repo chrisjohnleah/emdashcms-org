@@ -73,7 +73,8 @@ export default {
     // invocation acknowledge quickly while the D1 snapshot runs in the
     // background. Idempotent via INSERT OR REPLACE on weekly_digests.iso_week
     // — any re-run for the same week overwrites the same row in place.
-    if (event.cron === "5 0 * * 0") {
+    // event.cron is the literal string from wrangler.jsonc — keep in sync.
+    if (event.cron === "5 0 * * SUN") {
       ctx.waitUntil(runWeeklyDigest(env));
       return;
     }
@@ -82,7 +83,7 @@ export default {
     // Five minutes after the weekly digest cron above so any same-day
     // audit / report writes have settled before aggregation runs.
     // waitUntil lets the invocation ack quickly while aggregation runs.
-    if (event.cron === "10 0 * * 0") {
+    if (event.cron === "10 0 * * SUN") {
       ctx.waitUntil(runWeeklyTransparency(env));
       return;
     }
