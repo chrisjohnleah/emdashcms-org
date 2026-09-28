@@ -51,6 +51,8 @@ const jsonLdArray: object[] =
   jsonLd === undefined ? [] : Array.isArray(jsonLd) ? jsonLd : [jsonLd];
 const currentPath = Astro.url.pathname;
 const siteUrl = 'https://emdashcms.org';
+// /plugins/ and /plugins both render 200 — canonicalise to the slashless form.
+const canonicalUrl = siteUrl + (currentPath.replace(/\/+$/, '') || '/');
 
 const navLinks = [
   { label: 'Start', href: '/start' },
@@ -99,10 +101,10 @@ try {
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex, nofollow" />}
-    <link rel="canonical" href={siteUrl + currentPath} />
+    <link rel="canonical" href={canonicalUrl} />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={siteUrl + currentPath} />
+    <meta property="og:url" content={canonicalUrl} />
     <meta property="og:title" content={title} />
     {description && <meta property="og:description" content={description} />}
     <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
@@ -265,7 +267,7 @@ try {
               em—dash
             </a>
             <p class="mt-4 text-sm text-ink-muted leading-relaxed max-w-sm">
-              A community marketplace for plugins and themes built on
+              A community marketplace for plugins and themes built on{' '}
               <a
                 href="https://emdashcms.com"
                 target="_blank"

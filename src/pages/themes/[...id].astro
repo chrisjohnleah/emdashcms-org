@@ -53,6 +53,17 @@ const themeOgImage: { url: string; width: number; height: number } | undefined =
         height: 630,
       }
     : undefined;
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const liveDemoUrl = theme ? (theme.demoUrl ?? theme.previewUrl) : null;
+
+// Themes are Astro starters; `create astro --template owner/repo` works
+// for any plain GitHub repo. Other hosts get no command rather than a
+// guessed one.
+const ghRepo = theme?.repositoryUrl?.match(/^https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/)?.[1];
+const createCommand = ghRepo ? `npm create astro@latest -- --template ${ghRepo}` : null;
 ---
 {!theme ? (
   <BaseLayout title="Theme not found - emdashcms.org">
@@ -68,127 +79,194 @@ const themeOgImage: { url: string; width: number; height: number } | undefined =
   </BaseLayout>
 ) : (
   <BaseLayout
-    title={theme.name + " - emdashcms.org"}
+    title={theme.name + " — EmDash CMS Theme | emdashcms.org"}
     description={theme.shortDescription ?? theme.description ?? undefined}
     jsonLd={themeJsonLd}
     ogImage={themeOgImage}
   >
     <section class="page pt-12 pb-16 md:pt-16">
 
-        <a href="/themes" class="text-sm text-ink-muted hover:text-ink transition-colors">&larr; Back to Themes</a>
+      <a href="/themes" class="text-sm text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-1.5">
+        <span aria-hidden="true">←</span> Back to themes
+      </a>
 
-        <div class="mt-6 max-w-3xl">
+      <div class="mt-10 lg:grid lg:grid-cols-12 lg:gap-12">
 
-          <h1 class="text-3xl tracking-tight leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">{theme.name}</h1>
-          {theme.shortDescription && (
-            <p class="mt-1 text-sm text-ink-muted">{theme.shortDescription}</p>
-          )}
-          <div class="mt-2 flex items-center gap-3">
-            {theme.author.avatarUrl ? (
-              <img src={theme.author.avatarUrl} alt={theme.author.name} class="w-5 h-5 rounded-full" />
-            ) : (
-              <div class="w-5 h-5 rounded-full bg-paper-sunk" />
+        <div class="lg:col-span-8">
+          <header>
+            <h1 class="font-display text-4xl md:text-5xl text-ink leading-[1.05] tracking-tight" style="font-weight: 500;">
+              {theme.name}
+            </h1>
+            {theme.shortDescription && (
+              <p class="mt-4 text-lg text-ink-muted leading-relaxed max-w-2xl">{theme.shortDescription}</p>
             )}
-            <span class="text-sm text-ink-muted">{theme.author.name}</span>
-            <span class="emdash-sep" aria-hidden="true"></span>
-            <span class="text-sm text-ink-muted" title="Outbound install clicks">
-              {theme.downloadCount.toLocaleString()} downloads
-            </span>
-          </div>
+            <div class="mt-5 flex items-center gap-2 flex-wrap text-sm text-ink-soft">
+              {theme.author.avatarUrl ? (
+                <img src={theme.author.avatarUrl} alt="" class="w-5 h-5 rounded-full" />
+              ) : (
+                <span class="w-5 h-5 rounded-full bg-paper-deep" aria-hidden="true"></span>
+              )}
+              <a href={`/authors/${theme.author.name}`} class="text-ink-muted hover:text-ink transition-colors">{theme.author.name}</a>
+              <span class="emdash-sep" aria-hidden="true"></span>
+              <span title="Outbound clicks to the demo, repository, or homepage">{theme.downloadCount.toLocaleString()} {theme.downloadCount === 1 ? 'download' : 'downloads'}</span>
+              <span class="emdash-sep" aria-hidden="true"></span>
+              <span>Updated {formatDate(theme.updatedAt)}</span>
+            </div>
+          </header>
 
-          <div class="mt-6 flex items-center gap-3 flex-wrap">
-            {theme.previewUrl && (
-              <Button
-                href={theme.previewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="primary"
-                data-track-theme-download
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                Preview Theme
+          <div class="mt-8 flex items-center gap-3 flex-wrap">
+            {liveDemoUrl && (
+              <Button href={liveDemoUrl} target="_blank" rel="noopener noreferrer" variant="primary" size="lg" data-track-theme-download>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                Live demo
               </Button>
             )}
-            <a href="/guide" class="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink-muted transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
-              How to install themes &rarr;
-            </a>
-            <a href={`/report/theme/${theme.id}`} class="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink-muted transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" /></svg>
-              Report a problem &rarr;
-            </a>
+            {theme.repositoryUrl && (
+              <Button href={theme.repositoryUrl} target="_blank" rel="noopener noreferrer" variant="secondary" size="lg" data-track-theme-download>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
+                View source
+              </Button>
+            )}
           </div>
 
-          {theme.description && (
-            <div class="mt-8">
-              <h2 class="text-sm font-semibold text-ink">Description</h2>
-              <Markdown source={theme.description} class="mt-2 max-w-prose text-sm text-ink-muted leading-relaxed" />
-            </div>
-          )}
-
           {theme.screenshotUrls.length > 0 && (
-            <div class="mt-8">
-              <h2 class="text-sm font-semibold text-ink">Screenshots</h2>
-              <div class="mt-2 flex gap-3 overflow-x-auto pb-2" role="list" style="scroll-snap-type: x mandatory;">
-                {theme.screenshotUrls.map((url, index) => (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex-none w-60"
-                    role="listitem"
-                  >
-                    <img
-                      src={url}
-                      alt={`Screenshot ${index + 1} of ${theme.name}`}
-                      class="aspect-video rounded-lg object-cover w-full hover:opacity-90 transition-opacity"
-                      style="scroll-snap-align: start;"
-                    />
-                  </a>
-                ))}
-              </div>
+            <div class="mt-10">
+              <h2 class="sr-only">Screenshots</h2>
+              <a href={theme.screenshotUrls[0]} data-lightbox="0" class="block rounded-lg border border-rule overflow-hidden bg-paper-sunk cursor-zoom-in">
+                <img src={theme.screenshotUrls[0]} alt={`${theme.name} screenshot 1`} class="w-full aspect-[16/10] object-cover object-top" width="1920" height="1200" />
+              </a>
+              {theme.screenshotUrls.length > 1 && (
+                <ul class="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {theme.screenshotUrls.slice(1).map((url, i) => (
+                    <li>
+                      <a href={url} data-lightbox={String(i + 1)} class="block rounded-md border border-rule overflow-hidden bg-paper-sunk cursor-zoom-in hover:border-ink transition-colors">
+                        <img src={url} alt={`${theme.name} screenshot ${i + 2}`} loading="lazy" class="w-full aspect-[16/10] object-cover object-top" width="480" height="300" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
-          <div class="mt-8 rounded-xl border border-rule bg-paper-soft p-6 space-y-4">
-            {theme.keywords.length > 0 && (
+          {theme.description && (
+            <div class="mt-12">
+              <h2 class="font-display text-2xl text-ink" style="font-weight: 500;">About this theme</h2>
+              <Markdown source={theme.description} class="mt-3 max-w-prose text-base text-ink-muted leading-relaxed" />
+            </div>
+          )}
+        </div>
+
+        <aside class="mt-12 lg:mt-0 lg:col-span-4 space-y-6">
+          <div class="rounded-md border border-rule bg-paper-soft p-6">
+            <h2 class="font-display text-lg text-ink" style="font-weight: 500;">Start a site with this theme</h2>
+            {createCommand ? (
+              <>
+                <p class="mt-2 text-sm text-ink-muted leading-relaxed">Themes are Astro starter projects. This scaffolds a new EmDash site from the theme's repository.</p>
+                <div class="mt-4 flex items-start gap-2 rounded-md border border-rule bg-paper p-3">
+                  <code class="flex-1 font-mono text-xs text-ink-muted break-all leading-relaxed">{createCommand}</code>
+                  <button type="button" data-copy={createCommand} class="flex-shrink-0 rounded border border-rule-strong bg-paper-soft px-3 py-1 text-xs font-medium text-ink hover:bg-paper-sunk transition-colors cursor-pointer" aria-label="Copy install command">Copy</button>
+                </div>
+              </>
+            ) : (
+              <p class="mt-2 text-sm text-ink-muted leading-relaxed">Follow the setup steps in the theme's repository or homepage.</p>
+            )}
+            <a href="/guide" class="mt-4 inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink transition-colors">How to install themes →</a>
+          </div>
+
+          <dl class="rounded-md border border-rule bg-paper-soft p-6 space-y-5">
+            {theme.category && (
               <div>
-                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Keywords</dt>
-                <dd class="mt-1 flex flex-wrap gap-1.5">
-                  {theme.keywords.map(kw => (
-                    <span class="rounded-full bg-paper-sunk px-2 py-0.5 text-[11px] text-ink-muted">{kw}</span>
-                  ))}
-                </dd>
+                <dt class="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">Category</dt>
+                <dd class="mt-1.5 text-sm"><a href={`/themes/category/${theme.category}`} class="text-ink hover:text-accent-deep underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep capitalize">{theme.category}</a></dd>
               </div>
             )}
             {theme.license && (
               <div>
-                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">License</dt>
-                <dd class="mt-1 text-sm text-ink-muted">{theme.license}</dd>
+                <dt class="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">Licence</dt>
+                <dd class="mt-1.5 text-sm text-ink-muted">{theme.license}</dd>
               </div>
             )}
-            {theme.repositoryUrl && (
+            {[
+              ['Demo', liveDemoUrl],
+              ['Repository', theme.repositoryUrl],
+              ['Homepage', theme.homepageUrl !== theme.repositoryUrl ? theme.homepageUrl : null],
+            ].filter(([, url]) => url).map(([label, url]) => (
               <div>
-                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Repository</dt>
-                <dd class="mt-1"><a href={theme.repositoryUrl} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.repositoryUrl.replace('https://', '')}</a></dd>
+                <dt class="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">{label}</dt>
+                <dd class="mt-1.5"><a href={url!} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink hover:text-accent-deep transition-colors break-all underline underline-offset-2 decoration-rule-strong hover:decoration-accent-deep">{url!.replace(/^https?:\/\//, '')}</a></dd>
               </div>
-            )}
-            {theme.homepageUrl && (
+            ))}
+            {theme.keywords.length > 0 && (
               <div>
-                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Homepage</dt>
-                <dd class="mt-1"><a href={theme.homepageUrl} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.homepageUrl.replace('https://', '')}</a></dd>
+                <dt class="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">Keywords</dt>
+                <dd class="mt-1.5 flex flex-wrap gap-1.5">
+                  {theme.keywords.map(kw => (
+                    <a href={`/themes?keyword=${encodeURIComponent(kw)}`} class="rounded-full bg-paper-sunk border border-rule px-2 py-0.5 text-[11px] text-ink-muted hover:text-ink hover:border-ink transition-colors">{kw}</a>
+                  ))}
+                </dd>
               </div>
             )}
-            {theme.demoUrl && (
-              <div>
-                <dt class="text-xs font-semibold text-ink-soft uppercase tracking-wide">Demo</dt>
-                <dd class="mt-1"><a href={theme.demoUrl} target="_blank" rel="noopener noreferrer" data-track-theme-download class="text-sm text-ink-muted hover:text-ink transition-colors break-all">{theme.demoUrl.replace('https://', '')}</a></dd>
-              </div>
-            )}
-          </div>
+          </dl>
 
-        </div>
+          <a href={`/report/theme/${theme.id}`} class="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink transition-colors">Report a problem with this theme →</a>
+        </aside>
+      </div>
     </section>
+
+    {theme.screenshotUrls.length > 0 && (
+      <dialog id="theme-lightbox" class="m-auto max-w-[min(96vw,1600px)] bg-transparent p-0 backdrop:bg-ink/85" aria-label={`${theme.name} screenshots`}>
+        <form method="dialog" class="flex justify-end gap-2 mb-2">
+          {theme.screenshotUrls.length > 1 && (
+            <>
+              <button type="button" data-lightbox-step="-1" class="rounded bg-paper/90 px-3 py-1.5 text-sm text-ink cursor-pointer" aria-label="Previous screenshot">←</button>
+              <button type="button" data-lightbox-step="1" class="rounded bg-paper/90 px-3 py-1.5 text-sm text-ink cursor-pointer" aria-label="Next screenshot">→</button>
+            </>
+          )}
+          <button class="rounded bg-paper/90 px-3 py-1.5 text-sm text-ink cursor-pointer" aria-label="Close">Close</button>
+        </form>
+        <img id="theme-lightbox-img" src="" alt="" class="block max-h-[85vh] w-auto rounded-md" />
+      </dialog>
+    )}
+
+    <script is:inline define:vars={{ shots: theme.screenshotUrls, themeName: theme.name }}>
+      (function () {
+      document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          navigator.clipboard.writeText(btn.getAttribute("data-copy")).then(function () {
+            btn.textContent = "Copied!";
+            setTimeout(function () { btn.textContent = "Copy"; }, 2000);
+          });
+        });
+      });
+      })();
+      (function () {
+        var dlg = document.getElementById("theme-lightbox");
+        var img = document.getElementById("theme-lightbox-img");
+        if (!dlg || !img || !dlg.showModal) return;
+        var current = 0;
+        function show(i) {
+          current = (i + shots.length) % shots.length;
+          img.src = shots[current];
+          img.alt = themeName + " screenshot " + (current + 1);
+        }
+        document.querySelectorAll("[data-lightbox]").forEach(function (a) {
+          a.addEventListener("click", function (e) {
+            e.preventDefault();
+            show(Number(a.getAttribute("data-lightbox")));
+            dlg.showModal();
+          });
+        });
+        dlg.querySelectorAll("[data-lightbox-step]").forEach(function (b) {
+          b.addEventListener("click", function () { show(current + Number(b.getAttribute("data-lightbox-step"))); });
+        });
+        dlg.addEventListener("keydown", function (e) {
+          if (e.key === "ArrowRight") show(current + 1);
+          if (e.key === "ArrowLeft") show(current - 1);
+        });
+        dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.close(); });
+      })();
+    </script>
 
     <script is:inline define:vars={{ themeId: theme.id }}>
       // Track outbound install-intent clicks. Themes have no bundle in
