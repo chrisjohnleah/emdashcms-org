@@ -6,7 +6,9 @@ Browse, share, and install community-built plugins and themes for EmDash.
 
 ## Status
 
-Early development. Not yet launched.
+**Closed on 28 September 2026.** EmDash 1.0 shipped an [official, decentralised plugin registry](https://blog.cloudflare.com/emdash-cms-plugin-registry/), which covers what this project set out to do. Browse plugins at [plugins.emdashcms.com](https://plugins.emdashcms.com).
+
+emdashcms.org now serves a closing notice from [`sunset/`](sunset/). The registry code below is kept for reference and is no longer deployed. The repository is archived.
 
 ## Stack
 

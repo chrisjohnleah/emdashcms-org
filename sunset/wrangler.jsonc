@@ -1,0 +1,11 @@
+// Replaces the registry app on the same worker name so the
+// emdashcms.org custom domain keeps serving the closing notice.
+// Deploy: CLOUDFLARE_ACCOUNT_ID=82fe5f2eb4c1b22c90c902f7e8f330a7 npx wrangler deploy -c sunset/wrangler.jsonc
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "emdashcms-org",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": false,
+  "triggers": { "crons": [] }
+}
