@@ -33,6 +33,7 @@ import { checkPluginAccess, hasRole, type Role } from '../../../lib/auth/permiss
 import { purgeBadges } from '../../../lib/badges/purge';
 import DeprecateModal from '../../../components/DeprecateModal.astro';
 import UnlistModal from '../../../components/UnlistModal.astro';
+import Markdown from '../../../components/Markdown.astro';
 import {
   validateUrlFields,
   validateStringLengths,
@@ -512,7 +513,7 @@ const formatDate = (iso: string) =>
             </div>
             <div>
               <dt class="text-sm font-semibold text-ink">Description</dt>
-              <dd class="mt-1 text-sm text-ink-muted">{rawPlugin?.description ?? 'No description'}</dd>
+              <dd class="mt-1 text-sm text-ink-muted">{rawPlugin?.description ? <Markdown source={rawPlugin.description} /> : 'No description'}</dd>
             </div>
             <div>
               <dt class="text-sm font-semibold text-ink">Keywords</dt>

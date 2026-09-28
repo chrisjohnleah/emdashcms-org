@@ -6,6 +6,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Button from '../../../components/Button.astro';
 import DashboardBanner from '../../../components/DashboardBanner.astro';
 import RoleBadge from '../../../components/RoleBadge.astro';
+import Markdown from '../../../components/Markdown.astro';
 import { resolveAuthorId } from '../../../lib/publishing/plugin-queries';
 import {
   getCollaborators,
@@ -489,7 +490,7 @@ if (ghInstall && !githubLink) {
             </div>
             <div>
               <dt class="text-sm font-semibold text-ink">Description</dt>
-              <dd class="mt-1 text-sm text-ink-muted">{rawTheme?.description ?? 'No description'}</dd>
+              <dd class="mt-1 text-sm text-ink-muted">{rawTheme?.description ? <Markdown source={rawTheme.description} /> : 'No description'}</dd>
             </div>
             <div>
               <dt class="text-sm font-semibold text-ink">Keywords</dt>

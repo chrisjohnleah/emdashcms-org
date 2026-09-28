@@ -4,6 +4,7 @@ export const prerender = false;
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../../../layouts/BaseLayout.astro';
 import Button from '../../../../components/Button.astro';
+import Markdown from '../../../../components/Markdown.astro';
 import StatusBadge from '../../../../components/StatusBadge.astro';
 import AuditBadge from '../../../../components/AuditBadge.astro';
 import SourceBadge from '../../../../components/SourceBadge.astro';
@@ -135,7 +136,7 @@ const severityStyle = (severity: string) => {
           <!-- Description -->
           <div class="md:col-span-2">
             <p class="text-xs text-ink-soft uppercase tracking-wide font-semibold mb-1">Description</p>
-            <p class="text-ink-muted">{plugin.description ?? 'No description provided.'}</p>
+            {plugin.description ? <Markdown source={plugin.description} class="text-ink-muted" /> : <p class="text-ink-muted">No description provided.</p>}
           </div>
 
           <!-- License -->
