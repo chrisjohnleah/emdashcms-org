@@ -549,6 +549,23 @@ const THEME_SORT_MAP: Record<string, { column: string; dir: "DESC" | "ASC" }> =
     name: { column: "t.name", dir: "ASC" },
   };
 
+/** Most-used keywords across listed themes, for the /themes filter chips. */
+export async function getTopThemeKeywords(db: D1Database, limit = 8): Promise<string[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT k.value AS keyword, COUNT(*) AS n
+       FROM themes t, json_each(t.keywords) k
+       WHERE (t.repository_url IS NOT NULL OR t.npm_package IS NOT NULL)
+         AND COALESCE(t.status, 'active') = 'active'
+       GROUP BY k.value
+       ORDER BY n DESC, k.value ASC
+       LIMIT ?`,
+    )
+    .bind(limit)
+    .all<{ keyword: string }>();
+  return results.map((r) => r.keyword);
+}
+
 export async function searchThemes(
   db: D1Database,
   opts: SearchThemesOpts,

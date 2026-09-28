@@ -2,7 +2,7 @@
 export const prerender = false;
 
 import { env } from 'cloudflare:workers';
-import { searchThemes } from '../../lib/db/queries';
+import { searchThemes, getTopThemeKeywords } from '../../lib/db/queries';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ThemeCard from '../../components/ThemeCard.astro';
 import SearchBar from '../../components/SearchBar.astro';
@@ -22,16 +22,14 @@ const cursor = url.searchParams.get('cursor') ?? null;
 
 const category = url.searchParams.get('category') ?? null;
 
-const { items: themes, nextCursor } = await searchThemes(env.DB, {
-  query: q,
-  category,
-  keyword,
-  sort,
-  cursor,
-  limit: 12,
-});
+const [{ items: themes, nextCursor }, topKeywords] = await Promise.all([
+  searchThemes(env.DB, { query: q, category, keyword, sort, cursor, limit: 12 }),
+  getTopThemeKeywords(env.DB),
+]);
 
-const knownKeywords = ['blog', 'portfolio', 'ecommerce', 'documentation', 'landing', 'minimal', 'dark'];
+// Chips come from keywords publishers actually use, so every chip
+// returns results. Keep the active one visible even if it's not top-N.
+const knownKeywords = keyword && !topKeywords.includes(keyword) ? [keyword, ...topKeywords] : topKeywords;
 
 const sortOptions = [
   { value: 'created', label: 'Recently added' },
@@ -50,7 +48,7 @@ const themesJsonLd = [
     name: 'EmDash CMS Themes',
     url: '/themes',
     description:
-      'Free, MIT-licensed themes for EmDash CMS. Filter by style — blog, portfolio, ecommerce, documentation, landing, minimal, dark.',
+      'Free, MIT-licensed themes for EmDash CMS. Filter by style and preview before installing.',
     items: themes.map((t) => ({
       name: t.name,
       url: `/themes/${t.id}`,
@@ -58,7 +56,7 @@ const themesJsonLd = [
   }),
 ];
 ---
-<BaseLayout title="EmDash CMS Themes — Free Community Marketplace" description="Browse free, MIT-licensed themes for EmDash CMS. Filter by style — blog, portfolio, ecommerce, documentation, landing, minimal, dark — and preview before installing." jsonLd={themesJsonLd}>
+<BaseLayout title="EmDash CMS Themes — Free Community Marketplace" description="Browse free, MIT-licensed themes for EmDash CMS. Filter by style — news, blog, portfolio, docs and more — and preview before installing." jsonLd={themesJsonLd}>
   <section class="page pt-12 pb-16 md:pt-16">
 
       <h1 class="text-3xl tracking-tight leading-[1.15]" style="font-weight: 500; letter-spacing: -0.02em;">Themes</h1>
